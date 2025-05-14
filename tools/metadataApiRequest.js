@@ -1,0 +1,27 @@
+import {runCliCommand} from './utils.js';
+
+async function metadataApiRequest({metadataType, targetUsername}) {
+	try {
+		const command = ['force:source:retrieve'];
+
+		//Afegim el tipus de metadada
+		command.push('-m', metadataType);
+
+		//Si s'especifica un username, l'afegim
+		if (targetUsername) {
+			command.push('-u', targetUsername);
+		}
+
+		//Executem la comanda
+		const result = await runCliCommand(command.join(' '));
+
+		return {
+			success: true,
+			data: result
+		};
+	} catch (error) {
+		throw new Error(`Error retrieving metadata: ${error.message}`);
+	}
+}
+
+export {metadataApiRequest};
