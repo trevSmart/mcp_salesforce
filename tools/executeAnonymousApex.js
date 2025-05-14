@@ -5,7 +5,6 @@ import os from 'os';
 import path from 'path';
 import {runCliCommand} from './utils.js';
 
-const execPromise = promisify(exec);
 const writeFilePromise = promisify(fs.writeFile);
 const unlinkPromise = promisify(fs.unlink);
 
@@ -40,19 +39,25 @@ async function executeAnonymousApex({apexCode}) { //, context
 		console.error(`Executing command: ${command}`);
 		const response = await runCliCommand(command);
 		console.error(response);
-		return {...response.result, apexCode: formattedCode};
+		return {
+			content: [
+				{
+					type: 'text',
+					text: JSON.stringify(response.result, null, '\t')
+				}
+			]
+		};
 
 	} catch (error) {
+		console.error(error);
 		return {
-			success: false,
-			apexCode: apexCode,
-			compiled: '',
-			compileProblem: '',
-			exceptionMessage: '',
-			exceptionStackTrace: '',
-			line: -1,
-			column: -1,
-			logs: JSON.stringify(error, null, 2)
+			isError: true,
+			content: [
+				{
+					type: 'text',
+					text: JSON.stringify(error, null, '\t')
+				}
+			]
 		};
 	} finally {
 		//Esborrar el fitxer temporal si existeix

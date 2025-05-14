@@ -1,7 +1,8 @@
 /*globals process*/
-import {runCliCommand} from './utils';
+import {getUserDescription} from '../index.js';
+import {runCliCommand} from './utils.js';
 
-async function setDebugLogLevels({userId, active}, _meta) {
+async function setDebugLogLevels({userId = getUserDescription().id, active}, _meta) {
 	try {
 		//server.sendLoggingMessage({
 		//level: 'debug',

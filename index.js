@@ -7,6 +7,8 @@ import {ListToolsRequestSchema, CallToolRequestSchema} from '@modelcontextprotoc
 import {initServer} from './tools/utils.js';
 
 //Tools
+import {orgDetails} from './tools/orgDetails.js';
+import {currentUserDetails} from './tools/currentUserDetails.js';
 import {createRecord} from './tools/createRecord.js';
 import {deleteRecord} from './tools/deleteRecord.js';
 import {deployMetadata} from './tools/deployMetadata.js';
@@ -15,7 +17,6 @@ import {executeAnonymousApex} from './tools/executeAnonymousApex.js';
 import {getRecentlyViewedRecords} from './tools/getRecentlyViewedRecords.js';
 import {getRecord} from './tools/getRecord.js';
 import {getSetupAuditTrail} from './tools/getSetupAuditTrail.js';
-import {getUserId} from './tools/getUserId.js';
 import {setDebugLogLevels} from './tools/setDebugLogLevels.js';
 import {soqlQuery} from './tools/soqlQuery.js';
 import {toolingApiRequest} from './tools/toolingApiRequest.js';
@@ -25,10 +26,14 @@ import {metadataApiRequest} from './tools/metadataApiRequest.js';
 import {chatWithAgentforce} from './tools/chatWithAgentforce.js';
 
 let orgDescription;
-let currentUser;
+let currentUserDescription;
 
 export function getOrgDescription() {
 	return orgDescription;
+}
+
+export function getUserDescription() {
+	return currentUserDescription;
 }
 
 export function getCurrentAccessToken() {
@@ -40,6 +45,36 @@ export function setCurrentAccessToken(accessToken) {
 }
 
 //Definició dels tools
+const orgDetailsTool = {
+	name: 'orgDetails',
+	description: 'This tool allows retrieving the Salesforce organization details like Id, Name, domain url, etc.',
+	inputSchema: {
+		type: 'object',
+		properties: {}
+	},
+	annotations: {
+		title: 'Get the Salesforce organization details like Id, Name, domain url, etc.',
+		readOnlyHint: true,
+		idempotentHint: true,
+		openWorldHint: false
+	}
+};
+
+const currentUserDetailsTool = {
+	name: 'currentUserDetails',
+	description: 'This tool allows retrieving the current user details like Id, Name, Profile, etc.',
+	inputSchema: {
+		type: 'object',
+		properties: {}
+	},
+	annotations: {
+		title: 'Get the current session user details like Id, Name, Profile, etc.',
+		readOnlyHint: true,
+		idempotentHint: true,
+		openWorldHint: false
+	}
+};
+
 const createRecordTool = {
 	name: 'createRecord',
 	description: 'This tool allows creating a record in Salesforce with the given field values.',
@@ -218,32 +253,6 @@ const getSetupAuditTrailTool = {
 	annotations: {
 		title: 'Get Setup Audit Trail data',
 		readOnlyHint: true,
-		openWorldHint: true
-	}
-};
-
-const getUserIdTool = {
-	name: 'getUserId',
-	description: 'This tool allows finding a user ID by name or username in Salesforce.',
-	inputSchema: {
-		type: 'object',
-		required: ['searchTerm', 'searchType'],
-		properties: {
-			searchTerm: {
-				type: 'string',
-				description: 'The name or username to search for (default: current user)'
-			},
-			searchType: {
-				type: 'string',
-				description: 'Type of search: "name", "username", or "both" (default)',
-				enum: ['name', 'username', 'both']
-			}
-		}
-	},
-	annotations: {
-		title: 'Get User ID',
-		readOnlyHint: true,
-		idempotentHint: true,
 		openWorldHint: true
 	}
 };
@@ -429,6 +438,8 @@ const server = new Server(
 			logging: {},
 			tools: {
 				"listChanged": true,
+				orgDetailsTool,
+				currentUserDetailsTool,
 				createRecordTool,
 				deleteRecordTool,
 				deployMetadataTool,
@@ -437,7 +448,6 @@ const server = new Server(
 				getRecentlyViewedRecordsTool,
 				getRecordTool,
 				getSetupAuditTrailTool,
-				getUserIdTool,
 				setDebugLogLevelsTool,
 				soqlQueryTool,
 				toolingApiRequestTool,
@@ -453,6 +463,8 @@ const server = new Server(
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
 	tools: [
+		orgDetailsTool,
+		currentUserDetailsTool,
 		createRecordTool,
 		deleteRecordTool,
 		deployMetadataTool,
@@ -461,7 +473,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 		getRecentlyViewedRecordsTool,
 		getRecordTool,
 		getSetupAuditTrailTool,
-		getUserIdTool,
 		setDebugLogLevelsTool,
 		soqlQueryTool,
 		toolingApiRequestTool,
@@ -480,7 +491,11 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 		console.error('Executing tool:', name);
 		console.error('Args:', args);
 		console.error('Meta:', _meta);
-		if (name === 'createRecord') {
+		if (name === 'orgDetails') {
+			result = await orgDetails(args, _meta);
+		} else if (name === 'currentUserDetails') {
+			result = await currentUserDetails(args, _meta);
+		} else if (name === 'createRecord') {
 			result = await createRecord(args, _meta);
 		} else if (name === 'deleteRecord') {
 			result = await deleteRecord(args, _meta);
@@ -496,8 +511,6 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 			result = await getRecord(args, _meta);
 		} else if (name === 'getSetupAuditTrail') {
 			result = await getSetupAuditTrail(args, _meta);
-		} else if (name === 'getUserId') {
-			result = await getUserId(args, _meta);
 		} else if (name === 'setDebugLogLevels') {
 			result = await setDebugLogLevels(args, _meta);
 		} else if (name === 'soqlQuery') {
@@ -536,10 +549,7 @@ const transport = new StdioServerTransport();
 try {
 	await server.connect(transport);
 	console.error('IBM MCP Salesforce server started successfully');
-	setTimeout(async () => {
-		orgDescription = await initServer();
-		currentUser = await getUserId({searchTerm: orgDescription.user, searchType: 'name'});
-	}, 1000);
+	setTimeout(async () => ({orgDescription, userDescription: currentUserDescription} = await initServer()), 1000);
 } catch (error) {
 	console.error('Error starting IBM MCP Salesforce server:', error);
 	process.exit(1);

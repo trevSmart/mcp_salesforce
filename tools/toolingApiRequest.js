@@ -22,6 +22,7 @@ async function toolingApiRequest({method, endpoint}) {
 		};
 	} catch (error) {
 		return {
+			isError: true,
 			content: [
 				{
 					type: 'text',

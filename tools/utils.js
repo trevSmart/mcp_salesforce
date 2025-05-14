@@ -141,7 +141,9 @@ async function initServer() {
 	const home = execSync(`export HOME=${process.env.HOME}`);
 	const orgDescription = (await runCliCommand(`sf org display -o ${process.env.username} --json`)).result;
 	console.error('Org details successfully retrieved: ', JSON.stringify(orgDescription, null, 2));
-	return orgDescription;
+	const userDescription = (await runCliCommand(`sf org display user -o ${process.env.username} --json`)).result;
+	console.error('User details successfully retrieved: ', JSON.stringify(userDescription, null, 2));
+	return {orgDescription, userDescription};
 }
 
 async function runCliCommand(command) {
