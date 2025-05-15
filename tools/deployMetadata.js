@@ -6,19 +6,24 @@ async function deployMetadata({sourceDir}) { //, context
 		const command = `sf project deploy start --source-dir ${sourceDir} --ignore-conflicts -o ${process.env.username} --json`;
 		console.error(`Executing deploy command: ${command}`);
 		const response = await runCliCommand(command);
-		return response.result;
-
+		return {
+			content: [
+				{
+					type: 'text',
+					text: JSON.stringify(response.result, null, '\t')
+				}
+			]
+		};
 	} catch (error) {
 		console.error(`Error deploying metadata file ${sourceDir}: ${JSON.stringify(error, null, 2)}`);
 		return {
-			success: false,
-			compiled: '',
-			compileProblem: '',
-			exceptionMessage: error.message,
-			exceptionStackTrace: error.stack || '',
-			line: -1,
-			column: -1,
-			logs: error.message
+			isError: true,
+			content: [
+				{
+					type: 'text',
+					text: JSON.stringify(error, null, '\t')
+				}
+			]
 		};
 	}
 }

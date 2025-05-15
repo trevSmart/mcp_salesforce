@@ -22,7 +22,7 @@ import {soqlQuery} from './tools/soqlQuery.js';
 import {toolingApiRequest} from './tools/toolingApiRequest.js';
 import {updateRecord} from './tools/updateRecord.js';
 import {triggerExecutionOrder} from './tools/triggerExecutionOrder.js';
-import {metadataApiRequest} from './tools/metadataApiRequest.js';
+// import {metadataApiRequest} from './tools/metadataApiRequest.js';
 import {chatWithAgentforce} from './tools/chatWithAgentforce.js';
 
 let orgDescription;
@@ -451,10 +451,10 @@ const server = new Server(
 				setDebugLogLevelsTool,
 				soqlQueryTool,
 				toolingApiRequestTool,
-				updateRecordTool,
-				triggerExecutionOrderTool,
-				metadataApiRequestTool,
-				chatWithAgentforceTool
+				updateRecordTool
+				//triggerExecutionOrderTool,
+				// metadataApiRequestTool,
+				//chatWithAgentforceTool
 			},
 		},
 	}
@@ -476,10 +476,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 		setDebugLogLevelsTool,
 		soqlQueryTool,
 		toolingApiRequestTool,
-		updateRecordTool,
-		triggerExecutionOrderTool,
-		metadataApiRequestTool,
-		chatWithAgentforceTool
+		updateRecordTool
+		//triggerExecutionOrderTool,
+		//metadataApiRequestTool,
+		//chatWithAgentforceTool
 	]
 }));
 
