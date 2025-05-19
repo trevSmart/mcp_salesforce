@@ -1,9 +1,9 @@
-/*globals process */
+import { getOrgDescription } from '../index.js';
 import {runCliCommand} from './utils.js';
 
 async function deleteRecord({sObjectName, recordId}) {
 	try {
-		const command = `sf data delete record --sobject ${sObjectName} --record-id ${recordId} -o ${process.env.username} --json`;
+		const command = `sf data delete record --sobject ${sObjectName} --record-id ${recordId} -o ${getOrgDescription().alias} --json`;
 		console.error(`Executing command: ${command}`);
 		const response = await runCliCommand(command);
 		if (response.status !== 0) {

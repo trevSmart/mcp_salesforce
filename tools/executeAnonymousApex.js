@@ -1,4 +1,4 @@
-/*globals process */
+import {getOrgDescription} from '../index.js';
 import {promisify} from 'util';
 import fs from 'fs';
 import os from 'os';
@@ -35,7 +35,7 @@ async function executeAnonymousApex({apexCode}) { //, context
 		await writeFilePromise(tempFilePath, formattedCode);
 
 		//Executar comanda SF CLI
-		const command = `sf apex run -o ${process.env.username} --file "${tempFilePath}" --json`;
+		const command = `sf apex run -o ${getOrgDescription().alias} --file "${tempFilePath}" --json`;
 		console.error(`Executing command: ${command}`);
 		const response = await runCliCommand(command);
 		console.error(response);

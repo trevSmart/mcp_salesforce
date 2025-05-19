@@ -1,9 +1,9 @@
-/*globals process */
+import {getOrgDescription} from '../index.js';
 import {runCliCommand} from './utils.js';
 
 async function deployMetadata({sourceDir}) { //, context
 	try {
-		const command = `sf project deploy start --source-dir ${sourceDir} --ignore-conflicts -o ${process.env.username} --json`;
+		const command = `sf project deploy start --source-dir ${sourceDir} --ignore-conflicts -o ${getOrgDescription().alias} --json`;
 		console.error(`Executing deploy command: ${command}`);
 		const response = await runCliCommand(command);
 		return {

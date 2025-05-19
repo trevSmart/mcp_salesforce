@@ -1,4 +1,4 @@
-/*globals process */
+import {getOrgDescription} from '../index.js';
 import {runCliCommand} from './utils.js';
 
 /**
@@ -21,7 +21,7 @@ async function triggerExecutionOrder(args) {
 							FROM ApexTrigger
 							WHERE TableEnumOrId = '${sObjectName}'
 							AND Status = 'Active'`;
-	const triggers = await runCliCommand(`sf data query -t -q "${triggersQuery}" -o ${process.env.username} --json`);
+	const triggers = await runCliCommand(`sf data query -t -q "${triggersQuery}" -o ${getOrgDescription().alias} --json`);
 
 	//2. Obtenim els Process Builders
 	const processQuery = `SELECT Id, DeveloperName, LastModifiedDate, ProcessType, Status, TriggerType,
@@ -31,7 +31,7 @@ async function triggerExecutionOrder(args) {
 						 AND Status = 'Active'
 						 AND (TableEnumOrId = '${sObjectName}' OR TableEnumOrId = null)
 						 ORDER BY LastModifiedDate DESC`;
-	const processes = await runCliCommand(`sf data query -t -q "${processQuery}" -o ${process.env.username} --json`);
+	const processes = await runCliCommand(`sf data query -t -q "${processQuery}" -o ${getOrgDescription().alias} --json`);
 
 	//3. Obtenim els Flows
 	const recordTriggerType = {
@@ -47,7 +47,7 @@ async function triggerExecutionOrder(args) {
 							AND TriggerObjectOrEventId.QualifiedApiName = '${sObjectName}'
 							AND TriggerType IN ('RecordBeforeSave', 'RecordAfterSave', 'RecordBeforeDelete')
 							AND RecordTriggerType IN ${recordTriggerType}`;
-	const flows = await runCliCommand(`sf data query -t -q "${flowQuery}" -o ${process.env.username} --json`);
+	const flows = await runCliCommand(`sf data query -t -q "${flowQuery}" -o ${getOrgDescription().alias} --json`);
 
 	//4. Obtenim les Validation Rules
 	const validationRulesQuery = `SELECT Id, Active, ErrorDisplayField, ErrorMessage, Description,
@@ -55,14 +55,14 @@ async function triggerExecutionOrder(args) {
 							 FROM ValidationRule
 							 WHERE Active = true
 							 AND EntityDefinition.QualifiedApiName = '${sObjectName}'`;
-	const validationRules = await runCliCommand(`sf data query -t -q "${validationRulesQuery}" -o ${process.env.username} --json`);
+	const validationRules = await runCliCommand(`sf data query -t -q "${validationRulesQuery}" -o ${getOrgDescription().alias} --json`);
 
 	//5. Obtenim els Workflow Rules
 	const workflowRulesQuery = `SELECT Id, Name, TableEnumOrId, Active, Description, TriggerType
 								FROM WorkflowRule
 								WHERE Active = true
 								AND TableEnumOrId = '${sObjectName}'`;
-	const workflowRules = await runCliCommand(`sf data query -t -q "${workflowRulesQuery}" -o ${process.env.username} --json`);
+	const workflowRules = await runCliCommand(`sf data query -t -q "${workflowRulesQuery}" -o ${getOrgDescription().alias} --json`);
 
 	//Analitzem el codi dels triggers per detectar dependències
 	const triggerAnalysis = triggers.result.records.map(trigger => {

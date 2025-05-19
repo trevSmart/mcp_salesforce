@@ -1,5 +1,6 @@
+import {getOrgDescription} from '../index.js';
 import {runCliCommand} from './utils.js';
-const SOQL_LIMIT = 10000;
+const SOQL_LIMIT = 1000;
 
 async function getSetupAuditTrail({lastDays, createdByName, metadataName}) {
 	try {
@@ -25,7 +26,7 @@ async function getSetupAuditTrail({lastDays, createdByName, metadataName}) {
 		// Netegem la query substituint salts de línia i tabulacions per espais
 		const cleanQuery = soqlQuery.replace(/[\n\t\r]+/g, ' ').trim();
 
-		const command = `sf data query --query "${cleanQuery.replace(/"/g, '\\"')}" -o ${process.env.username} --json`;
+		const command = `sf data query --query "${cleanQuery.replace(/"/g, '\\"')}" -o ${getOrgDescription().alias} --json`;
 		console.error(`Executing SOQL query command: ${command}`);
 		const response = await runCliCommand(command);
 

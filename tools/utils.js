@@ -139,11 +139,15 @@ async function initServer() {
 	console.error('Retrieving org details...');
 	process.env.HOME = '/Users/marcpla';
 	const home = execSync(`export HOME=${process.env.HOME}`);
-	const orgDescription = (await runCliCommand(`sf org display -o ${process.env.username} --json`)).result;
-	console.error('Org details successfully retrieved: ', JSON.stringify(orgDescription, null, 2));
-	const userDescription = (await runCliCommand(`sf org display user -o ${process.env.username} --json`)).result;
-	console.error('User details successfully retrieved: ', JSON.stringify(userDescription, null, 2));
-	return {orgDescription, userDescription};
+	const orgAlias = (await runCliCommand(`sf config get target-org --json`))?.result?.[0]?.value;
+	if (orgAlias) {
+		const orgDescription = (await runCliCommand(`sf org display -o ${orgAlias} --json`))?.result;
+		console.error('Org details successfully retrieved: ', JSON.stringify(orgDescription, null, 2));
+		const userDescription = (await runCliCommand(`sf org display user -o ${orgAlias} --json`))?.result;
+		console.error('User details successfully retrieved: ', JSON.stringify(userDescription, null, 2));
+		return {orgDescription, userDescription};
+	}
+	return {orgDescription: null, userDescription: null};
 }
 
 async function runCliCommand(command) {

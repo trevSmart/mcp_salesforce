@@ -1,4 +1,4 @@
-/*globals process */
+import {getOrgDescription} from '../index.js';
 import {runCliCommand} from './utils.js';
 
 async function describeObject({sObjectName}) {
@@ -8,7 +8,7 @@ async function describeObject({sObjectName}) {
 			throw new Error('SObject name must be a non-empty string');
 		}
 
-		const command = `sf sobject describe --sobject ${sObjectName} -o ${process.env.username} --json`;
+		const command = `sf sobject describe --sobject ${sObjectName} -o ${getOrgDescription().alias} --json`;
 		console.error(`Executing describe command: ${command}`);
 		const response = await runCliCommand(command);
 		return {

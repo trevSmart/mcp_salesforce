@@ -1,4 +1,4 @@
-/*globals process */
+import {getOrgDescription} from '../index.js';
 import {runCliCommand} from './utils.js';
 
 async function createRecord({sObjectName, fields}) {
@@ -27,7 +27,7 @@ async function createRecord({sObjectName, fields}) {
 			}).join(' ');
 
 		//Execute sf CLI command
-		const command = `sf data create record --sobject ${sObjectName} --values "${valuesString}" -o ${process.env.username} --json`;
+		const command = `sf data create record --sobject ${sObjectName} --values "${valuesString}" -o ${getOrgDescription().alias} --json`;
 		console.error(`Executing create record command: ${command}`);
 		const response = await runCliCommand(command);
 

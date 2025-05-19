@@ -1,4 +1,4 @@
-/*globals process */
+import {getOrgDescription} from '../index.js';
 import {runCliCommand} from './utils.js';
 
 async function updateRecord({sObjectName, recordId, fields}) {
@@ -12,7 +12,7 @@ async function updateRecord({sObjectName, recordId, fields}) {
 			.join(' ');
 
 		//Executar la comanda CLI
-		const command = `sf data update record --sobject ${sObjectName} --where "Id='${recordId}'" --values "${valuesString}" -o ${process.env.username} --json`;
+		const command = `sf data update record --sobject ${sObjectName} --where "Id='${recordId}'" --values "${valuesString}" -o ${getOrgDescription().alias} --json`;
 		await runCliCommand(command);
 
 		return {

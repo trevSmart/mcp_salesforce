@@ -1,10 +1,10 @@
 /*globals process */
 import {Server} from '@modelcontextprotocol/sdk/server/index.js';
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
-import {ListToolsRequestSchema, CallToolRequestSchema} from '@modelcontextprotocol/sdk/types.js';
+import {ListToolsRequestSchema, CallToolRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema} from '@modelcontextprotocol/sdk/types.js';
 //const {z} = require('zod');
 
-import {initServer} from './tools/utils.js';
+import {initServer, runCliCommand} from './tools/utils.js';
 
 //Tools
 import {orgDetails} from './tools/orgDetails.js';
@@ -17,7 +17,7 @@ import {executeAnonymousApex} from './tools/executeAnonymousApex.js';
 import {getRecentlyViewedRecords} from './tools/getRecentlyViewedRecords.js';
 import {getRecord} from './tools/getRecord.js';
 import {getSetupAuditTrail} from './tools/getSetupAuditTrail.js';
-import {setDebugLogLevels} from './tools/setDebugLogLevels.js';
+import {apexDebugLogs} from './tools/apexDebugLogs.js';
 import {soqlQuery} from './tools/soqlQuery.js';
 import {toolingApiRequest} from './tools/toolingApiRequest.js';
 import {updateRecord} from './tools/updateRecord.js';
@@ -257,26 +257,27 @@ const getSetupAuditTrailTool = {
 	}
 };
 
-const setDebugLogLevelsTool = {
-	name: 'setDebugLogLevels',
-	description: 'This tool allows setting the debug log levels in Salesforce.',
+const apexDebugLogsTool = {
+	name: 'apexDebugLogs',
+	description: 'This tool allows activating, deactivating, checking status or retrieving the debug logs in Salesforce.',
 	inputSchema: {
 		type: 'object',
-		required: ['userId', 'active'],
+		required: ['action'],
 		properties: {
-			userId: {
+			action: {
 				type: 'string',
-				description: 'The user ID to set the debug log levels for'
+				description: 'Whether to activate ("on"), deactivate ("off"), checking status ("status") or retrieve ("list", "get") the debug logs'
 			},
-			active: {
-				type: 'boolean',
-				description: 'Whether to activate or deactivate the debug log levels'
+			logId: {
+				type: 'string',
+				description: 'The Id of the log to retrieve',
 			}
 		}
 	},
 	annotations: {
-		title: 'Set Debug Log Levels',
+		title: 'Manage Apex debug logs',
 		readOnlyHint: false,
+		idempotentHint: false,
 		openWorldHint: true
 	}
 };
@@ -371,8 +372,7 @@ const triggerExecutionOrderTool = {
 			},
 			operation: {
 				type: 'string',
-				description: 'The DML operation (insert, update, or delete)',
-				enum: ['insert', 'update', 'delete']
+				description: 'The DML operation (insert, update, or delete)'
 			}
 		}
 	},
@@ -436,6 +436,7 @@ const server = new Server(
 	{
 		capabilities: {
 			logging: {},
+			resources: {},
 			tools: {
 				"listChanged": true,
 				orgDetailsTool,
@@ -448,7 +449,7 @@ const server = new Server(
 				getRecentlyViewedRecordsTool,
 				getRecordTool,
 				getSetupAuditTrailTool,
-				setDebugLogLevelsTool,
+				apexDebugLogsTool,
 				soqlQueryTool,
 				toolingApiRequestTool,
 				updateRecordTool
@@ -460,6 +461,36 @@ const server = new Server(
 	}
 );
 
+server.setRequestHandler(ListResourcesRequestSchema, async () => {
+	return {
+		resources: [
+			{
+				uri: "file:///orgDetails.json",
+				name: "Org details",
+				mimeType: "text/plain",
+				description: "Org details"
+			}
+		]
+	};
+});
+
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+	const uri = request.params.uri;
+
+	if (uri === "file:///orgDetails.json") {
+		return {
+			contents: [
+				{
+					uri,
+					mimeType: "text/plain",
+					text: JSON.stringify(orgDescription)
+				}
+			]
+		};
+	}
+
+	throw new Error("Resource not found");
+});
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
 	tools: [
@@ -473,7 +504,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 		getRecentlyViewedRecordsTool,
 		getRecordTool,
 		getSetupAuditTrailTool,
-		setDebugLogLevelsTool,
+		apexDebugLogsTool,
 		soqlQueryTool,
 		toolingApiRequestTool,
 		updateRecordTool
@@ -491,6 +522,33 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 		console.error('Executing tool:', name);
 		console.error('Args:', args);
 		console.error('Meta:', _meta);
+
+		if (!orgDescription) {
+			({orgDescription, userDescription: currentUserDescription} = await initServer());
+			if (!orgDescription) {
+				const orgs = (await runCliCommand(`sf org list auth --json`))?.result.map(o => o.alias);
+				return {
+					isError: true,
+					content: [{
+						type: 'text',
+						text: [
+							'❌ *No default org set*. Message:',
+							'```markdown',
+							'Please set a default org using the command:',
+							'',
+							'```bash',
+							'sf config set target-org <orgAlias>',
+							'```',
+							'',
+							'*Available orgs:*',
+							orgs.map(o => `- ${o.trim()}`).join('\n'),
+							'```'
+						].join('\n')
+					}]
+				};
+			}
+		}
+
 		if (name === 'orgDetails') {
 			result = await orgDetails(args, _meta);
 		} else if (name === 'currentUserDetails') {
@@ -511,8 +569,8 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 			result = await getRecord(args, _meta);
 		} else if (name === 'getSetupAuditTrail') {
 			result = await getSetupAuditTrail(args, _meta);
-		} else if (name === 'setDebugLogLevels') {
-			result = await setDebugLogLevels(args, _meta);
+		} else if (name === 'apexDebugLogs') {
+			result = await apexDebugLogs(args, _meta);
 		} else if (name === 'soqlQuery') {
 			result = await soqlQuery(args, _meta);
 		} else if (name === 'toolingApiRequest') {

@@ -1,9 +1,9 @@
-/*globals process */
+import {getOrgDescription} from '../index.js';
 import {runCliCommand} from './utils.js';
 
 async function getRecentlyViewedRecords() {
 	try {
-		const command = `sf data query --query "SELECT Id, Type, Name, FORMAT(LastViewedDate) FROM RecentlyViewed WHERE LastViewedDate != NULL ORDER BY LastViewedDate DESC LIMIT 100" -o ${process.env.username} --json`;
+		const command = `sf data query --query "SELECT Id, Type, Name, FORMAT(LastViewedDate) FROM RecentlyViewed WHERE LastViewedDate != NULL ORDER BY LastViewedDate DESC LIMIT 100" -o ${getOrgDescription().alias} --json`;
 		console.error(`Executing query command: ${command}`);
 		const response = await runCliCommand(command);
 		return {
