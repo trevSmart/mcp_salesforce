@@ -43,3 +43,7 @@ Thumbs.db
 *.bak
 *.tmp
 *.temp
+
+backups/
+README\ copy.md
+.env.bak

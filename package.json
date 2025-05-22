@@ -1,29 +1,27 @@
 {
-  "name": "ibm-mcp-salesforce",
-  "version": "0.1.7",
-  "description": "MCP Salesforce Server for interacting with Salesforce through MCP protocol",
+  "name": "test_research",
+  "version": "0.1.0",
+  "description": "test_research",
   "main": "index.js",
   "type": "module",
   "bin": {
-    "ibm-mcp-salesforce": "bin/cli.js"
+    "test_research": "bin/cli.js"
   },
   "scripts": {
     "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
-    "mcp",
-    "model context protocol",
-    "salesforce",
-    "cli",
-    "automation"
+    "test",
+    "research"
   ],
   "author": "Trevor Smart",
   "license": "EUPL-1.2",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.11.4",
     "dotenv": "^16.0.0",
-    "node-fetch": "^2.6.7"
+    "node-fetch": "^2.6.7",
+    "puppeteer": "^24.8.2"
   },
   "engines": {
     "node": ">=14.0.0"
