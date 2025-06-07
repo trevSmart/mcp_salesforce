@@ -3,24 +3,24 @@ import {promisify} from 'util';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import {runCliCommand} from './utils.js';
+import {runCliCommand} from '../src/utils.js';
 
 const writeFilePromise = promisify(fs.writeFile);
 const unlinkPromise = promisify(fs.unlink);
 
 function formatApexCode(code) {
-	//Si el codi ve d'una resposta JSON, ja estarà en format correcte
+	//If the code comes from a JSON response, it will already be in the correct format
 	if (typeof code === 'string' && !code.includes('\\n')) {
 		return code;
 	}
 
-	//Si el codi ve com a entrada, necessitem processar-lo
+	//If the code comes as input, we need to process it
 	try {
-		//Intentem fer parse si és un string JSON
+		//Try to parse if it is a JSON string
 		const parsed = JSON.parse(`"${code}"`);
 		return parsed;
 	} catch (e) {
-		//Si no és JSON, retornem el codi tal qual
+		//If not JSON, return the code as is
 		return code;
 	}
 }
@@ -29,12 +29,12 @@ function formatApexCode(code) {
 async function executeAnonymousApex({apexCode}) { //, context
 	let tempFilePath;
 	try {
-		//Crear fitxer temporal
+		//Create temporary file
 		tempFilePath = path.join(os.tmpdir(), `apex-${Date.now()}.apex`);
 		const formattedCode = formatApexCode(apexCode);
 		await writeFilePromise(tempFilePath, formattedCode);
 
-		//Executar comanda SF CLI
+		//Execute SF CLI command
 		const command = `sf apex run -o ${getOrgDescription().alias} --file "${tempFilePath}" --json`;
 		console.error(`Executing command: ${command}`);
 		const response = await runCliCommand(command);
@@ -60,7 +60,7 @@ async function executeAnonymousApex({apexCode}) { //, context
 			]
 		};
 	} finally {
-		//Esborrar el fitxer temporal si existeix
+		//Delete the temporary file if it exists
 		if (tempFilePath) {
 			try {
 				await unlinkPromise(tempFilePath);

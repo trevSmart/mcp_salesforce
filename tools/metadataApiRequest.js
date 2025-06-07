@@ -1,4 +1,4 @@
-import {runCliCommand} from './utils.js';
+import {runCliCommand} from '../src/utils.js';
 
 async function metadataApiRequest({metadataType, targetUsername}) {
 	try {
@@ -7,7 +7,7 @@ async function metadataApiRequest({metadataType, targetUsername}) {
 		//Afegim el tipus de metadada
 		command.push('-m', metadataType);
 
-		//Si s'especifica un username, l'afegim
+		//If a username is specified, add it
 		if (targetUsername) {
 			command.push('-u', targetUsername);
 		}

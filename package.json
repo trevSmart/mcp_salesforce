@@ -1,7 +1,7 @@
 {
-  "name": "test_research",
+  "name": "test_research2",
   "version": "0.1.0",
-  "description": "test_research",
+  "description": "test_research2",
   "main": "index.js",
   "type": "module",
   "bin": {
@@ -9,6 +9,7 @@
   },
   "scripts": {
     "start": "node index.js",
+    "lint": "*.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -19,16 +20,16 @@
   "license": "EUPL-1.2",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.11.4",
-    "dotenv": "^16.0.0",
-    "node-fetch": "^2.6.7",
-    "puppeteer": "^24.8.2"
+    "env-paths": "^3.0.0",
+    "node-fetch": "^2.6.7"
   },
   "engines": {
     "node": ">=14.0.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.24.0",
-    "eslint": "^9.24.0",
-    "globals": "^16.0.0"
+    "@babel/core": "^7.27.4",
+    "@babel/eslint-parser": "^7.27.5",
+    "@eslint/js": "^9.28.0",
+    "eslint": "^8.57.1"
   }
 }

@@ -1,6 +1,5 @@
-/*globals require module process */
-import { getOrgDescription } from '../index.js';
-import { callSalesforceAPI } from './utils.js';
+import {getOrgDescription} from '../index.js';
+import {callSalesforceAPI} from '../src/utils.js';
 import crypto from 'crypto';
 
 let currentSessionId = null;
@@ -14,18 +13,18 @@ async function startSession() {
 			instanceConfig: {
 				endpoint: getOrgDescription().instanceUrl
 			},
-			tz: "America/Los_Angeles",
+			tz: 'America/Los_Angeles',
 			variables: [
 				{
-					name: "$Context.EndUserLanguage",
-					type: "Text",
-					value: "en_US"
+					name: '$Context.EndUserLanguage',
+					type: 'Text',
+					value: 'en_US'
 				}
 			],
-			featureSupport: "Streaming",
+			featureSupport: 'Streaming',
 			streamingCapabilities: {
 				chunkTypes: [
-					"Text"
+					'Text'
 				]
 			},
 			bypassUser: true
@@ -55,7 +54,7 @@ async function startSession() {
 				type: 'text',
 				text: `❌ Error: ${error.message}`
 			}]
-		}
+		};
 	}
 }
 
@@ -72,7 +71,7 @@ async function sendMessage(message) {
 			{
 				message: {
 					sequenceId: new Date().getTime(),
-					type: "Text",
+					type: 'Text',
 					text: message
 				},
 				variables: []
@@ -93,11 +92,11 @@ async function sendMessage(message) {
 				type: 'text',
 				text: `❌ Error: ${error.message}`
 			}]
-		}
+		};
 	}
 }
 
-async function chatWithAgentforce({ message }) {
+async function chatWithAgentforce({message}) {
 	if (!process.env.agentforceAgentId) {
 		throw new Error('Missing agentforceAgentId environment variable');
 	}
@@ -123,4 +122,4 @@ async function chatWithAgentforce({ message }) {
 	}
 }
 
-export { chatWithAgentforce };
+export {chatWithAgentforce};

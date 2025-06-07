@@ -1,5 +1,4 @@
-/*globals process */
-import {callSalesforceAPI} from './utils.js';
+import {callSalesforceAPI} from '../src/utils.js';
 
 async function toolingApiRequest({method, endpoint}) {
 	try {

@@ -1,7 +1,9 @@
-/*globals process */
 import fetch from 'node-fetch';
-import {execSync} from 'child_process';
+import {exec} from 'child_process';
+import {promisify} from 'util';
 import {getCurrentAccessToken, setCurrentAccessToken, getOrgDescription} from '../index.js';
+
+const execPromise = promisify(exec);
 
 const salesforceConfig = {
 	apiVersion: process.env.apiVersion || '63.0',
@@ -11,6 +13,26 @@ const salesforceConfig = {
 	username: process.env.username,
 	password: process.env.password
 };
+
+async function runCliCommand(command) {
+	try {
+		console.error('');
+		console.error('Running SF CLI command: ', command);
+		const {stdout, stderr} = await execPromise(command, {maxBuffer: 100 * 1024 * 1024}); //100MB buffer
+		if (stderr) {
+			console.error('CLI command stderr:', stderr);
+		}
+		const result = JSON.parse(stdout);
+		console.error('');
+		console.error('CLI command result:');
+		console.error(result);
+		return result;
+	} catch (error) {
+		console.error('');
+		console.error('Error running SF CLI command:', error);
+		throw error;
+	}
+}
 
 async function makeRequest(token, method, endpoint, payload = null) {
 	const headers = {
@@ -138,8 +160,8 @@ async function callSalesforceAPI(method, baseUrl = null, path = '', body = null)
 async function initServer() {
 	console.error('Retrieving org details...');
 	process.env.HOME = '/Users/marcpla';
-	const home = execSync(`export HOME=${process.env.HOME}`);
-	const orgAlias = (await runCliCommand(`sf config get target-org --json`))?.result?.[0]?.value;
+	await execPromise(`export HOME=${process.env.HOME}`);
+	const orgAlias = (await runCliCommand('sf config get target-org --json'))?.result?.[0]?.value;
 	if (orgAlias) {
 		const orgDescription = (await runCliCommand(`sf org display -o ${orgAlias} --json`))?.result;
 		console.error('Org details successfully retrieved: ', JSON.stringify(orgDescription, null, 2));
@@ -150,21 +172,13 @@ async function initServer() {
 	return {orgDescription: null, userDescription: null};
 }
 
-async function runCliCommand(command) {
-	try {
-		console.error('');
-		console.error('Running SF CLI command: ', command);
-		const result = JSON.parse(execSync(command, {encoding: 'utf-8'}));
-		console.error('');
-		console.error('CLI command result:');
-		console.error(result);
-		return result;
-	} catch (error) {
-		console.error('');
-		console.error('Error running SF CLI command:', error);
-		throw error;
-	}
+function generateCursorInstallMcpDeeplink() {
+	const config = Buffer.from(JSON.stringify({
+		command: 'node', args: ['/Users/marcpla/Documents/Feina/Projectes/mcp/mcp_salesforce/index.js']
+	})).toString('base64');
+	return `cursor://anysphere.cursor-deeplink/mcp/install?name=salesforce-mcp&config=${config}`;
 }
+
 
 export {
 	callSalesforceAPI,

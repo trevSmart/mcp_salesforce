@@ -1,12 +1,11 @@
-/*globals process */
-import { getOrgDescription } from '../index.js';
-import {runCliCommand} from './utils.js';
+import {getOrgDescription} from '../index.js';
+import {runCliCommand} from '../src/utils.js';
 
-async function soqlQuery({query, useToolingApi = false}) {
+async function executeSoqlQuery({query, useToolingApi = false}) {
 	try {
 		const toolingFlag = useToolingApi ? '--use-tooling-api' : '';
 
-		//Netegem la query substituint salts de línia i tabulacions per espais
+		//Clean the query by replacing line breaks and tabs with spaces
 		const cleanQuery = query.replace(/[\n\t\r]+/g, ' ').trim();
 
 		const command = `sf data query --query "${cleanQuery.replace(/"/g, '\\"')}" -o ${getOrgDescription().alias} ${toolingFlag} --json`;
@@ -15,18 +14,18 @@ async function soqlQuery({query, useToolingApi = false}) {
 		const records = response.result.records.map(r => ({...r, href: `https://${getOrgDescription().instanceUrl}.lightning.force.com/${r.Id}`}));
 		return {
 			content: [
-			{
-				type: 'text',
-				text: 'Present the results of the SOQL query in markdown format.'
-			},
-			{
-				type: 'text',
-				text: JSON.stringify(records, null, '\t')
-			}]
+				{
+					type: 'text',
+					text: 'Present the results of the SOQL query in markdown format.'
+				},
+				{
+					type: 'text',
+					text: JSON.stringify(records, null, '\t')
+				}]
 		};
 
 	} catch (error) {
-		console.error('Error in soqlQuery:', error);
+		console.error('Error in executeSoqlQuery:', error);
 		return {
 			isError: true,
 			content: [{
@@ -37,4 +36,4 @@ async function soqlQuery({query, useToolingApi = false}) {
 	}
 }
 
-export {soqlQuery};
+export {executeSoqlQuery};

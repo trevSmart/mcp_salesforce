@@ -1,5 +1,5 @@
-import { getOrgDescription } from '../index.js';
-import {runCliCommand} from './utils.js';
+import {getOrgDescription} from '../index.js';
+import {runCliCommand} from '../src/utils.js';
 
 async function deleteRecord({sObjectName, recordId}) {
 	try {

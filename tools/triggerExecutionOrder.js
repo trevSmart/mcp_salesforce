@@ -1,12 +1,12 @@
 import {getOrgDescription} from '../index.js';
-import {runCliCommand} from './utils.js';
+import {runCliCommand} from '../src/utils.js';
 
 /**
- * Retorna l'ordre d'execució dels components d'automatització per un SObject i operació
- * @param {Object} arguments Arguments de la tool
+ * Returns the execution order of automation components for an SObject and operation
+ * @param {Object} arguments Tool arguments
  * @param {string} arguments.sObjectName Nom del SObject
- * @param {string} arguments.operation Operació DML (insert, update o delete)
- * @returns {Promise<Object>} Resultat de l'execució
+ * @param {string} arguments.operation DML operation (insert, update or delete)
+ * @returns {Promise<Object>} Execution result
  */
 async function triggerExecutionOrder(args) {
 	const sObjectName = args.sObjectName;
@@ -26,11 +26,11 @@ async function triggerExecutionOrder(args) {
 	//2. Obtenim els Process Builders
 	const processQuery = `SELECT Id, DeveloperName, LastModifiedDate, ProcessType, Status, TriggerType,
 							Description, VersionNumber, NamespacePrefix
-						 FROM Flow
-						 WHERE ProcessType = 'Workflow'
-						 AND Status = 'Active'
-						 AND (TableEnumOrId = '${sObjectName}' OR TableEnumOrId = null)
-						 ORDER BY LastModifiedDate DESC`;
+							FROM Flow
+							WHERE ProcessType = 'Workflow'
+							AND Status = 'Active'
+							AND (TableEnumOrId = '${sObjectName}' OR TableEnumOrId = null)
+							ORDER BY LastModifiedDate DESC`;
 	const processes = await runCliCommand(`sf data query -t -q "${processQuery}" -o ${getOrgDescription().alias} --json`);
 
 	//3. Obtenim els Flows
@@ -64,7 +64,7 @@ async function triggerExecutionOrder(args) {
 								AND TableEnumOrId = '${sObjectName}'`;
 	const workflowRules = await runCliCommand(`sf data query -t -q "${workflowRulesQuery}" -o ${getOrgDescription().alias} --json`);
 
-	//Analitzem el codi dels triggers per detectar dependències
+	//Analyze the trigger code to detect dependencies
 	const triggerAnalysis = triggers.result.records.map(trigger => {
 		const body = trigger.Body;
 		const dependencies = {
@@ -87,14 +87,14 @@ async function triggerExecutionOrder(args) {
 		};
 	});
 
-	//Ordenem els components segons l'ordre d'execució de Salesforce
+	//Order the components according to Salesforce execution order
 	const executionOrder = [];
 
 	//1. System Validation Rules
 	executionOrder.push({
 		step: 1,
 		name: 'System Validation Rules',
-		description: 'Validacions del sistema (required fields, lookup filters, etc.)'
+		description: 'System validations (required fields, lookup filters, etc.)'
 	});
 
 	//2. Before Triggers
@@ -148,14 +148,14 @@ async function triggerExecutionOrder(args) {
 	executionOrder.push({
 		step: 5,
 		name: 'Assignment/Auto-Response/Escalation Rules',
-		description: 'Si estan configurades per l\'SObject'
+		description: 'If configured for the SObject'
 	});
 
 	//6. Duplicate Rules
 	executionOrder.push({
 		step: 6,
 		name: 'Duplicate Rules',
-		description: 'Si estan configurades per l\'SObject'
+		description: 'If configured for the SObject'
 	});
 
 	//7. Save Record

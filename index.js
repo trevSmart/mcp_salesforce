@@ -1,10 +1,9 @@
-/*globals process */
 import {Server} from '@modelcontextprotocol/sdk/server/index.js';
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
 import {ListToolsRequestSchema, CallToolRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema} from '@modelcontextprotocol/sdk/types.js';
 //const {z} = require('zod');
 
-import {initServer, runCliCommand} from './tools/utils.js';
+import {initServer, runCliCommand} from './src/utils.js';
 
 //Tools
 import {orgDetails} from './tools/orgDetails.js';
@@ -18,12 +17,13 @@ import {getRecentlyViewedRecords} from './tools/getRecentlyViewedRecords.js';
 import {getRecord} from './tools/getRecord.js';
 import {getSetupAuditTrail} from './tools/getSetupAuditTrail.js';
 import {apexDebugLogs} from './tools/apexDebugLogs.js';
-import {soqlQuery} from './tools/soqlQuery.js';
+import {executeSoqlQuery} from './tools/soqlQuery.js';
 import {toolingApiRequest} from './tools/toolingApiRequest.js';
 import {updateRecord} from './tools/updateRecord.js';
 import {triggerExecutionOrder} from './tools/triggerExecutionOrder.js';
-// import {metadataApiRequest} from './tools/metadataApiRequest.js';
+//import {metadataApiRequest} from './tools/metadataApiRequest.js';
 import {chatWithAgentforce} from './tools/chatWithAgentforce.js';
+import {generateSoqlQuery} from './tools/generateSoqlQuery.js';
 
 let orgDescription;
 let currentUserDescription;
@@ -231,28 +231,29 @@ const getRecordTool = {
 
 const getSetupAuditTrailTool = {
 	name: 'getSetupAuditTrail',
-	description: 'This tool allows retrieving a list of configuration actions performed in Salesforce.',
+	description: 'This tool allows retrieving a list of the configuration changes performed in the Salesforce org metadata.',
 	inputSchema: {
 		type: 'object',
 		required: ['lastDays'],
 		properties: {
 			lastDays: {
 				type: 'number',
-				description: 'Number of days to query (between 1 and 365)',
+				description: 'Number of days to query (between 1 and 90)'
 			},
 			createdByName: {
 				type: 'string',
-				description: 'User name to filter',
+				description: 'If provided, only the changes performed by this user will be returned'
 			},
 			metadataName: {
 				type: 'string',
-				description: 'Metadata filter',
+				description: 'Name of the file or folder to get the changes of (e.g. "FOO_AlertMessages_Controller", "FOO_AlertMessage__c", "FOO_AlertNessageList_LWC", etc.)'
 			},
 		},
 	},
 	annotations: {
-		title: 'Get Setup Audit Trail data',
+		title: 'Get the changes in the Salesforce org metadata performed in the last days from the Salesforce Setup Audit Trail data',
 		readOnlyHint: true,
+		idempotentHint: false,
 		openWorldHint: true
 	}
 };
@@ -282,8 +283,8 @@ const apexDebugLogsTool = {
 	}
 };
 
-const soqlQueryTool = {
-	name: 'soqlQuery',
+const executeSoqlQueryTool = {
+	name: 'executeSoqlQuery',
 	description: 'This tool allows executing SOQL queries using Salesforce CLI.',
 	inputSchema: {
 		type: 'object',
@@ -359,6 +360,7 @@ const updateRecordTool = {
 	}
 };
 
+/*
 const triggerExecutionOrderTool = {
 	name: 'triggerExecutionOrder',
 	description: 'This tool analyzes the execution order of all automation components (triggers, flows, processes, etc.) for a given SObject and DML operation.',
@@ -427,6 +429,37 @@ const chatWithAgentforceTool = {
 		openWorldHint: true
 	}
 };
+*/
+
+const generateSoqlQueryTool = {
+	name: 'generateSoqlQuery',
+	description: 'Esta herramienta permite generar y ejecutar consultas SOQL de manera estructurada, con soporte para condiciones, ordenamiento y límites.',
+	inputSchema: {
+		type: 'object',
+		required: ['soqlQueryDescription'],
+		properties: {
+			soqlQueryDescription: {
+				type: 'string',
+				description: 'Descripción de la consulta SOQL'
+			},
+			involvedSObjects: {
+				type: 'array',
+				description: 'SObjects involucrats en la consulta (per exemple ["Account", "Contact"])',
+				items: {
+					type: 'string'
+				},
+				minItems: 1,
+				uniqueItems: true
+			}
+		}
+	},
+	annotations: {
+		title: 'Generar consulta SOQL',
+		readOnlyHint: true,
+		idempotentHint: false,
+		openWorldHint: true
+	}
+};
 
 const server = new Server(
 	{
@@ -438,7 +471,7 @@ const server = new Server(
 			logging: {},
 			resources: {},
 			tools: {
-				"listChanged": true,
+				'listChanged': true,
 				orgDetailsTool,
 				currentUserDetailsTool,
 				createRecordTool,
@@ -450,46 +483,45 @@ const server = new Server(
 				getRecordTool,
 				getSetupAuditTrailTool,
 				apexDebugLogsTool,
-				soqlQueryTool,
+				executeSoqlQueryTool,
 				toolingApiRequestTool,
-				updateRecordTool
+				updateRecordTool,
+				generateSoqlQueryTool
 				//triggerExecutionOrderTool,
-				// metadataApiRequestTool,
+				//metadataApiRequestTool,
 				//chatWithAgentforceTool
 			},
 		},
 	}
 );
 
-server.setRequestHandler(ListResourcesRequestSchema, async () => {
-	return {
-		resources: [
-			{
-				uri: "file:///orgDetails.json",
-				name: "Org details",
-				mimeType: "text/plain",
-				description: "Org details"
-			}
-		]
-	};
-});
+server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+	resources: [
+		{
+			uri: 'file:///orgDetails.json',
+			name: 'Org details',
+			mimeType: 'text/plain',
+			description: 'Org details'
+		}
+	]
+}));
 
-server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+server.setRequestHandler(ReadResourceRequestSchema, async request => {
 	const uri = request.params.uri;
 
-	if (uri === "file:///orgDetails.json") {
+	if (uri === 'file:///orgDetails.json') {
 		return {
 			contents: [
 				{
 					uri,
-					mimeType: "text/plain",
+					mimeType: 'text/plain',
 					text: JSON.stringify(orgDescription)
 				}
 			]
 		};
 	}
 
-	throw new Error("Resource not found");
+	throw new Error('Resource not found');
 });
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -505,9 +537,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 		getRecordTool,
 		getSetupAuditTrailTool,
 		apexDebugLogsTool,
-		soqlQueryTool,
+		executeSoqlQueryTool,
 		toolingApiRequestTool,
-		updateRecordTool
+		updateRecordTool,
+		generateSoqlQueryTool
 		//triggerExecutionOrderTool,
 		//metadataApiRequestTool,
 		//chatWithAgentforceTool
@@ -526,7 +559,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 		if (!orgDescription) {
 			({orgDescription, userDescription: currentUserDescription} = await initServer());
 			if (!orgDescription) {
-				const orgs = (await runCliCommand(`sf org list auth --json`))?.result.map(o => o.alias);
+				const orgs = (await runCliCommand('sf org list auth --json'))?.result.map(o => o.alias);
 				return {
 					isError: true,
 					content: [{
@@ -571,8 +604,8 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 			result = await getSetupAuditTrail(args, _meta);
 		} else if (name === 'apexDebugLogs') {
 			result = await apexDebugLogs(args, _meta);
-		} else if (name === 'soqlQuery') {
-			result = await soqlQuery(args, _meta);
+		} else if (name === 'executeSoqlQuery') {
+			result = await executeSoqlQuery(args, _meta);
 		} else if (name === 'toolingApiRequest') {
 			result = await toolingApiRequest(args, _meta);
 		} else if (name === 'updateRecord') {
@@ -583,6 +616,8 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 			result = await metadataApiRequest(args, _meta);
 		} else if (name === 'chatWithAgentforce') {
 			result = await chatWithAgentforce(args, _meta);
+		} else if (name === 'generateSoqlQuery') {
+			result = await generateSoqlQuery(args, _meta);
 		} else {
 			throw new Error(`Unknown tool: ${name}`);
 		}

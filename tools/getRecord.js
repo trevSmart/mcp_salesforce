@@ -1,13 +1,12 @@
-/*globals require, module, process */
-import { getOrgDescription } from '../index.js';
-import {runCliCommand} from './utils.js';
+import {getOrgDescription} from '../index.js';
+import {runCliCommand} from '../src/utils.js';
 
 async function getRecord({sObjectName, recordId}) {
 	try {
 		const command = `sf data get record --sobject ${sObjectName} --record-id ${recordId} -o ${getOrgDescription().alias} --json`;
 		console.error(`Executing get record command: ${command}`);
 		const response = await runCliCommand(command);
-		const {attributes, ...fields} = response.result;
+		//const {attributes, ...fields} = response.result;
 		return {
 			content: [{
 				type: 'text',
@@ -26,4 +25,4 @@ async function getRecord({sObjectName, recordId}) {
 	}
 }
 
-export { getRecord };
+export {getRecord};

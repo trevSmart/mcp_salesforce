@@ -1,5 +1,5 @@
 import {getOrgDescription} from '../index.js';
-import {runCliCommand} from './utils.js';
+import {runCliCommand} from '../src/utils.js';
 const SOQL_LIMIT = 1000;
 
 async function getSetupAuditTrail({lastDays, createdByName, metadataName}) {
@@ -14,7 +14,7 @@ async function getSetupAuditTrail({lastDays, createdByName, metadataName}) {
 		}
 
 		if (createdByName) {
-			conditions.push(`CreatedBy.Name = '${createdByName.replace(/'/g, "\\'")}'`);
+			conditions.push(`CreatedBy.Name = '${createdByName.replace(/'/g, '\\\'')}'`);
 		}
 
 		if (conditions.length > 0) {
@@ -23,7 +23,7 @@ async function getSetupAuditTrail({lastDays, createdByName, metadataName}) {
 
 		soqlQuery += ` ORDER BY CreatedDate DESC LIMIT ${SOQL_LIMIT}`;
 
-		// Netegem la query substituint salts de línia i tabulacions per espais
+		//Clean the query by replacing line breaks and tabs with spaces
 		const cleanQuery = soqlQuery.replace(/[\n\t\r]+/g, ' ').trim();
 
 		const command = `sf data query --query "${cleanQuery.replace(/"/g, '\\"')}" -o ${getOrgDescription().alias} --json`;
@@ -34,8 +34,8 @@ async function getSetupAuditTrail({lastDays, createdByName, metadataName}) {
 			throw new Error('No response or invalid response from Salesforce CLI');
 		}
 
-		//Validar i transformar cada registre
-		const validRecords = response.result.records.map((record, index) => {
+		//Validate and transform each record
+		const validRecords = response.result.records.map(record => {
 			if (record && typeof record === 'object'
 				&& record.Section
 				&& record.CreatedDate
@@ -62,7 +62,7 @@ async function getSetupAuditTrail({lastDays, createdByName, metadataName}) {
 		let results = validRecords.filter(r => {
 			if (!r || typeof r !== 'object'
 			|| !r.Section || ignoredSections.includes(r.Section)
-			|| (shouldFilterByMetadataName && r.Display && !r.Display.toLowerCase().includes(metadataName.toLowerCase()))
+			|| shouldFilterByMetadataName && r.Display && !r.Display.toLowerCase().includes(metadataName.toLowerCase())
 			) {
 				console.error('Invalid record:', r);
 				return false;

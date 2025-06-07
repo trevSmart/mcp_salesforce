@@ -1,11 +1,10 @@
-/*globals process*/
-import { getUserDescription } from '../index.js';
-import { soqlQuery } from './soqlQuery.js';
-import { createRecord } from './createRecord.js';
-import { updateRecord } from './updateRecord.js';
-import { runCliCommand } from './utils.js';
+import {getUserDescription} from '../index.js';
+import {executeSoqlQuery} from './soqlQuery.js';
+import {createRecord} from './createRecord.js';
+import {updateRecord} from './updateRecord.js';
+import {runCliCommand} from '../src/utils.js';
 
-async function apexDebugLogs({ action, logId }, _meta) {
+async function apexDebugLogs({action, logId}, _meta) {
 
 	try {
 		const userDescription = getUserDescription();
@@ -15,7 +14,7 @@ async function apexDebugLogs({ action, logId }, _meta) {
 			console.error('');
 			console.error('Checking existing TraceFlag...');
 
-			traceFlag = await soqlQuery({
+			traceFlag = await executeSoqlQuery({
 				query: `SELECT Id FROM TraceFlag WHERE TracedEntityId = '${userDescription.id}' AND StartDate < ${new Date().toISOString()} AND ExpirationDate > ${new Date().toISOString()} LIMIT 1`,
 				useToolingApi: true
 			})?.[0];
@@ -29,14 +28,11 @@ async function apexDebugLogs({ action, logId }, _meta) {
 				]
 			};
 
-			console.error('');
-			console.error('TraceFlag found. Updating expiration date...');
-
 		} else if (action === 'on') {
 			console.error('');
 			console.error('Checking existing TraceFlag...');
 
-			traceFlag = await soqlQuery({
+			traceFlag = await executeSoqlQuery({
 				query: `SELECT DebugLevelId FROM TraceFlag WHERE TracedEntityId = '${userDescription.id}'`,
 				useToolingApi: true
 			})?.[0];
@@ -59,15 +55,15 @@ async function apexDebugLogs({ action, logId }, _meta) {
 					DeveloperName: `UserDebug_${Date.now()}`,
 					MasterLabel: `Debug Log Level ${userDescription.username}`,
 					ApexCode: 'FINEST',
-					// ApexProfiling: 'FINEST',
-					// Callout: 'FINEST',
-					// Database: 'FINEST',
-					// System: 'FINEST',
-					// Validation: 'FINEST',
+					//ApexProfiling: 'FINEST',
+					//Callout: 'FINEST',
+					//Database: 'FINEST',
+					//System: 'FINEST',
+					//Validation: 'FINEST',
 					Visualforce: 'FINER'
 				}});
 
-				const traceFlag = await createRecord({sObjectName: 'TraceFlag', fields: {
+				traceFlag = await createRecord({sObjectName: 'TraceFlag', fields: {
 					TracedEntityId: userDescription.id,
 					DebugLevelId: debugLogLevel.Id,
 					LogType: 'DEVELOPER_LOG',
@@ -86,7 +82,7 @@ async function apexDebugLogs({ action, logId }, _meta) {
 			}
 
 		} else if (action === 'off') {
-			traceFlag = await soqlQuery({
+			traceFlag = await executeSoqlQuery({
 				query: `SELECT DebugLevelId FROM TraceFlag WHERE TracedEntityId = '${userDescription.id}' AND ExpirationDate > ${new Date().toISOString()}`,
 				useToolingApi: true
 			})?.[0];
@@ -116,7 +112,7 @@ async function apexDebugLogs({ action, logId }, _meta) {
 			};
 
 		} else if (action === 'list') {
-			const logs = await runCliCommand(`sf apex:log:list --include-body`);
+			const logs = await runCliCommand('sf apex:log:list --include-body');
 
 			return {
 				content: [
@@ -155,12 +151,4 @@ async function apexDebugLogs({ action, logId }, _meta) {
 	}
 }
 
-function timestamp() {
-	const now = new Date();
-	const year = now.getFullYear();
-	const month = String(now.getMonth() + 1).padStart(2, '0');
-	const day = String(now.getDate()).padStart(2, '0');
-	return `${year}${month}${day}`;
-}
-
-export { apexDebugLogs };
+export {apexDebugLogs};
