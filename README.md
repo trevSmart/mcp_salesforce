@@ -1,6 +1,6 @@
 <p>
   <img src="resources/images/ibmLogo.png" alt="IBM Logo" height="40"/>
-  <img src="resources/images/salesforceLogo.png" alt="Salesforce Logo" height="38"/>
+  <img src="resources/images/salesforceLogo.png" alt="Salesforce Logo" height="40"/>
 </p>
 
 <img src="resources/images/mcpLogo.png" alt="IBM Logo" height="26"/>
