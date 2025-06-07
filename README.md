@@ -75,3 +75,13 @@ Pull requests are welcome! Please open an issue first to discuss any major chang
 ## License
 
 Licensed under the EUPL v1.2. See [LICENSE](LICENSE) for details.
+
+## Deeplink de instalación para Cursor
+
+Puedes instalar y lanzar el servidor MCP de Salesforce directamente desde Cursor usando el siguiente deeplink:
+
+```
+cursor://anysphere.cursor-deeplink/mcp/install?name=salesforce-mcp&config=eyJjb21tYW5kIjoibm9kZSIsImFyZ3MiOlsiL1VzZXJzL21hcmNwbGEvRG9jdW1lbnRzL0ZlaW5hL1Byb2plY3Rlcy9tY3AvbWNwX3NhbGVzZm9yY2UvaW5kZXguanMiXX0=
+```
+
+Este enlace utiliza la función `generateCursorInstallMcpDeeplink` definida en `tools/utils.js` para facilitar la integración con Cursor.
