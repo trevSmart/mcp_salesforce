@@ -9,19 +9,23 @@ This project provides a Model Context Protocol (MCP) server for Salesforce, enab
 
 ## Features
 
-- Retrieve Salesforce org and user details
-- Create, update, and delete Salesforce records
+- Query, create, update, and delete records
 - Deploy and retrieve Salesforce metadata
-- Execute anonymous Apex code
-- Query Salesforce data using SOQL
-- Manage debug logs and audit trails
-- Integrate with Einstein GPT Agentforce
+- Execute anonymous Apex scripts
+- Build SOQL queries with generative AI
+- Manage Apex debug logs
+- Review your org's setup audit trail
+- Integrate with Agentforce agents
 
 ## Requirements
 
-- Node.js >= 14
-- Salesforce CLI (`sf`)
-- A Salesforce org with API access
+- [Node.js](https://nodejs.org/) v14 or higher
+- [Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli) connected to a Salesforce org
+- An AI-enabled IDE or tool that supports MCP servers, such as:
+  - [Cursor](https://www.cursor.com)
+  - [Visual Studio Code](https://code.visualstudio.com)
+  - [Claude](https://claude.ai)
+  - [Windsurf](https://windsurf.com/editor)
 
 ## Installation
 
@@ -67,7 +71,7 @@ Or, for CLI usage:
 
 Licensed under the EUPL v1.2. See [LICENSE](LICENSE) for details.
 
-## Cursor Installation Deeplink
+## Add to Cursor IDE
 
 You can install and launch the Salesforce MCP server directly from Cursor using the following deeplink:
 
@@ -75,6 +79,4 @@ You can install and launch the Salesforce MCP server directly from Cursor using 
 cursor://anysphere.cursor-deeplink/mcp/install?name=salesforce-mcp&config=eyJjb21tYW5kIjoibm9kZSIsImFyZ3MiOlsiL1VzZXJzL21hcmNwbGEvRG9jdW1lbnRzL0ZlaW5hL1Byb2plY3Rlcy9tY3AvbWNwX3NhbGVzZm9yY2UvaW5kZXguanMiXX0=
 ```
 
-> **Note:** GitHub does not support clickable links for custom protocols like `cursor://`. To use the deeplink, copy the above URL and paste it into the address bar of Cursor.
-
-This link uses the `generateCursorInstallMcpDeeplink` function defined in `tools/utils.js` to facilitate integration with Cursor.
+> **Note:** GitHub does not support clickable links for custom protocols like `cursor://`. To use the deeplink, copy the above URL and paste it into the address bar of your web browser.
