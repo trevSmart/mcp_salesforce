@@ -3,14 +3,8 @@
   <img src="resources/images/salesforceLogo.png" alt="Salesforce Logo" height="50"/>
 </p>
 
-<table border="0">
-  <tr>
-    <td><img src="resources/images/mcpLogo.png" alt="MCP Logo" height="30"/></td>
-    <td><h1 style="margin: 0;">Trevor.</h1></td>
-    <td><h2>An intuitive MCP server for Salesforce development by IBM.</h2></td>
-  </tr>
-</table>
-
+| ![MCP Logo](resources/images/mcpLogo.png) | <span style="font-size:2em;font-weight:bold;">Trevor.</span> | An intuitive MCP server for Salesforce development by IBM. |
+|:--------------------------------------:|:------------------------------------------------------------:|:-------------------------------------------------------------|
 
 This project provides a Model Context Protocol (MCP) server for Salesforce, enabling advanced automation, metadata management, and integration with Salesforce orgs via the Salesforce CLI and REST API.
 
