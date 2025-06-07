@@ -4,8 +4,8 @@
 </p>
 
 <p>
-  <img src="resources/images/mcpLogo.png" alt="MCP Logo" height="20" style="margin-right: 40px;"/>
-# Salesforce MCP Server
+  <img src="resources/images/mcpLogo.png" alt="MCP Logo" height="20"/>
+  <h1>Salesforce MCP Server</h1>
 </p>
 
 
