@@ -1,10 +1,13 @@
 <p>
   <img src="resources/images/ibmLogo.png" alt="IBM Logo" height="50"/>
   <img src="resources/images/salesforceLogo.png" alt="Salesforce Logo" height="50"/>
-  <img src="resources/images/mcpLogo.png" alt="MCP Logo" height="50"/>
 </p>
 
+<p>
+  <img src="resources/images/mcpLogo.png" alt="MCP Logo" height="20" style="margin-right: 40px;"/>
 # Salesforce MCP Server
+</p>
+
 
 This project provides a Model Context Protocol (MCP) server for Salesforce, enabling advanced automation, metadata management, and integration with Salesforce orgs via the Salesforce CLI and REST API.
 
