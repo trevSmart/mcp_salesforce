@@ -59,15 +59,6 @@ Or, for CLI usage:
 ./bin/cli.js
 ```
 
-## Development
-
-- All source code is in the root and `tools/` directory.
-- Temporary scripts and files should be placed in the `tmp/` directory.
-- Lint the code with:
-  ```bash
-  npm run lint
-  ```
-
 ## Contributing
 
 Pull requests are welcome! Please open an issue first to discuss any major changes.
