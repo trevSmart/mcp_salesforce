@@ -77,7 +77,7 @@ Licensed under the EUPL v1.2. See [LICENSE](LICENSE) for details.
 You can install and launch the Salesforce MCP server directly from Cursor using the following deeplink:
 
 ```
-cursor://anysphere.cursor-deeplink/mcp/install?name=salesforce-mcp&config=eyJjb21tYW5kIjoibm9kZSIsImFyZ3MiOlsiL1VzZXJzL21hcmNwbGEvRG9jdW1lbnRzL0ZlaW5hL1Byb2plY3Rlcy9tY3AvbWNwX3NhbGVzZm9yY2UvaW5kZXguanMiXX0=
+cursor://anysphere.cursor-deeplink/mcp/install?name=salesforce-mcp&config=eyJjb21tYW5kIjoibm9kZSIsImFyZ3MiOlsiL1VzZXJzL21hcmNwbGEvRG9jdW1lbnRzL0ZlaW5hL1Byb2plY3Rlcy9tY3AvbWNwX3NhbGVzZm9yY2UvaW5kZXguanMiXSwiZW52Ijp7ImFwaVZlcnNpb24iOiI2My4wIiwibG9naW5VcmwiOiJodHRwczovL3Rlc3Quc2FsZXNmb3JjZS5jb20iLCJhZ2VudGZvcmNlQWdlbnRJZCI6IllPVVJfQUdFTlRGT1JDRV9JRCJ9fQ==
 ```
 
 > **Note:** GitHub does not support clickable links for custom protocols like `cursor://`. To use the deeplink, copy the above URL and paste it into the address bar of your web browser.

@@ -8,10 +8,9 @@
     "test_research": "bin/cli.js"
   },
   "scripts": {
+    "build": "sh dev/build.sh",
     "start": "node index.js",
-    "lint": "*.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "rm -rf dist && mkdir dist && rsync -av --exclude='node_modules' --exclude='logs' --exclude='*.log' --exclude='.idea' --exclude='.vscode' --exclude='.DS_Store' --exclude='Thumbs.db' --exclude='*.swp' --exclude='*.swo' --exclude='package-lock.json' --exclude='dist' --exclude='.eslintrc.json' --exclude='.gitignore' --exclude='.npmignore' --exclude='package.json' --exclude='.*' --exclude='*.bak' --exclude='*.tmp' --exclude='*.temp' --exclude='rules' --exclude='dev' ./ ./dist/ && find dist -name '*.js' -exec javascript-obfuscator {} --output {} \\;"
+    "lint": "eslint . --ext .js,.mjs,.cjs,.jsx,.ts,.tsx"
   },
   "keywords": [
     "test",
