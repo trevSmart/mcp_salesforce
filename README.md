@@ -6,7 +6,7 @@
 <table>
   <tr>
     <td><img src="resources/images/mcpLogo.png" alt="MCP Logo" height="30"/></td>
-    <td><h1 style="margin: 0;">Salesforce MCP Server</h1></td>
+    <td><h1 style="margin: 0;">Trevor. A MCP serverfor Salesforce</h1></td>
   </tr>
 </table>
 
