@@ -3,8 +3,7 @@
   <img src="resources/images/salesforceLogo.png" alt="Salesforce Logo" height="50"/>
 </p>
 
-| ![MCP Logo](resources/images/mcpLogo.png) | <span style="font-size:2em;font-weight:bold;">Trevor.</span> | An intuitive MCP server for Salesforce development by IBM. |
-|:--------------------------------------:|:------------------------------------------------------------:|:-------------------------------------------------------------|
+| ![MCP Logo](resources/images/mcpLogo.png) | IBM Salesforce MCP server |
 
 This project provides a Model Context Protocol (MCP) server for Salesforce, enabling advanced automation, metadata management, and integration with Salesforce orgs via the Salesforce CLI and REST API.
 
