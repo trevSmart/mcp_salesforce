@@ -1,4 +1,4 @@
-import {callSalesforceAPI} from '../src/utils.js';
+import {callSalesforceAPI} from '../utils.js';
 
 async function toolingApiRequest({method, endpoint}) {
 	try {

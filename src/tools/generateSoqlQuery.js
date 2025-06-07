@@ -1,4 +1,4 @@
-import {callSalesforceAPI} from '../src/utils.js';
+import {callSalesforceAPI} from '../utils.js';
 import {describeObject} from './describeObject.js';
 
 async function generateSoqlQuery({soqlQueryDescription, involvedSObjects}) {

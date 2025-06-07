@@ -1,4 +1,4 @@
-import {runCliCommand} from '../src/utils.js';
+import {runCliCommand} from '../utils.js';
 
 async function metadataApiRequest({metadataType, targetUsername}) {
 	try {

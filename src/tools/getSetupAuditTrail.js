@@ -1,5 +1,5 @@
-import {getOrgDescription} from '../index.js';
-import {runCliCommand} from '../src/utils.js';
+import {getOrgDescription} from '../../index.js';
+import {runCliCommand} from '../utils.js';
 const SOQL_LIMIT = 1000;
 
 async function getSetupAuditTrail({lastDays, createdByName, metadataName}) {

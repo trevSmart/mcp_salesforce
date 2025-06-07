@@ -1,4 +1,4 @@
-import {getUserDescription} from '../index.js';
+import {getUserDescription} from '../../index.js';
 
 const userDetailsCache = {};
 const CACHE_TTL_MS = 60 * 60 * 1000; //1 hour in milliseconds

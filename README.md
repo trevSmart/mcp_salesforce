@@ -58,11 +58,6 @@ Or, for CLI usage:
 ```bash
 ./bin/cli.js
 ```
-
-## Contributing
-
-Pull requests are welcome! Please open an issue first to discuss any major changes.
-
 ## License
 
 Licensed under the EUPL v1.2. See [LICENSE](LICENSE) for details.
@@ -71,6 +66,10 @@ Licensed under the EUPL v1.2. See [LICENSE](LICENSE) for details.
 
 You can install and launch the Salesforce MCP server directly from Cursor using the following deeplink:
 
-[Add to Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=salesforce-mcp&config=eyJjb21tYW5kIjoibm9kZSIsImFyZ3MiOlsiL1VzZXJzL21hcmNwbGEvRG9jdW1lbnRzL0ZlaW5hL1Byb2plY3Rlcy9tY3AvbWNwX3NhbGVzZm9yY2UvaW5kZXguanMiXX0=)
+```
+cursor://anysphere.cursor-deeplink/mcp/install?name=salesforce-mcp&config=eyJjb21tYW5kIjoibm9kZSIsImFyZ3MiOlsiL1VzZXJzL21hcmNwbGEvRG9jdW1lbnRzL0ZlaW5hL1Byb2plY3Rlcy9tY3AvbWNwX3NhbGVzZm9yY2UvaW5kZXguanMiXX0=
+```
+
+> **Note:** GitHub does not support clickable links for custom protocols like `cursor://`. To use the deeplink, copy the above URL and paste it into the address bar of Cursor.
 
 This link uses the `generateCursorInstallMcpDeeplink` function defined in `tools/utils.js` to facilitate integration with Cursor.

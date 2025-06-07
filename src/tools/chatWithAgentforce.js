@@ -1,5 +1,5 @@
-import {getOrgDescription} from '../index.js';
-import {callSalesforceAPI} from '../src/utils.js';
+import {getOrgDescription} from '../../index.js';
+import {callSalesforceAPI} from '../utils.js';
 import crypto from 'crypto';
 
 let currentSessionId = null;

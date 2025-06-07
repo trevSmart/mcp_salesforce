@@ -6,24 +6,24 @@ import {ListToolsRequestSchema, CallToolRequestSchema, ListResourcesRequestSchem
 import {initServer, runCliCommand} from './src/utils.js';
 
 //Tools
-import {orgDetails} from './tools/orgDetails.js';
-import {currentUserDetails} from './tools/currentUserDetails.js';
-import {createRecord} from './tools/createRecord.js';
-import {deleteRecord} from './tools/deleteRecord.js';
-import {deployMetadata} from './tools/deployMetadata.js';
-import {describeObject} from './tools/describeObject.js';
-import {executeAnonymousApex} from './tools/executeAnonymousApex.js';
-import {getRecentlyViewedRecords} from './tools/getRecentlyViewedRecords.js';
-import {getRecord} from './tools/getRecord.js';
-import {getSetupAuditTrail} from './tools/getSetupAuditTrail.js';
-import {apexDebugLogs} from './tools/apexDebugLogs.js';
-import {executeSoqlQuery} from './tools/soqlQuery.js';
-import {toolingApiRequest} from './tools/toolingApiRequest.js';
-import {updateRecord} from './tools/updateRecord.js';
-import {triggerExecutionOrder} from './tools/triggerExecutionOrder.js';
-//import {metadataApiRequest} from './tools/metadataApiRequest.js';
-import {chatWithAgentforce} from './tools/chatWithAgentforce.js';
-import {generateSoqlQuery} from './tools/generateSoqlQuery.js';
+import {orgDetails} from './src/tools/orgDetails.js';
+import {currentUserDetails} from './src/tools/currentUserDetails.js';
+import {createRecord} from './src/tools/createRecord.js';
+import {deleteRecord} from './src/tools/deleteRecord.js';
+import {deployMetadata} from './src/tools/deployMetadata.js';
+import {describeObject} from './src/tools/describeObject.js';
+import {executeAnonymousApex} from './src/tools/executeAnonymousApex.js';
+import {getRecentlyViewedRecords} from './src/tools/getRecentlyViewedRecords.js';
+import {getRecord} from './src/tools/getRecord.js';
+import {getSetupAuditTrail} from './src/tools/getSetupAuditTrail.js';
+import {apexDebugLogs} from './src/tools/apexDebugLogs.js';
+import {executeSoqlQuery} from './src/tools/soqlQuery.js';
+import {toolingApiRequest} from './src/tools/toolingApiRequest.js';
+import {updateRecord} from './src/tools/updateRecord.js';
+import {triggerExecutionOrder} from './src/tools/triggerExecutionOrder.js';
+//import {metadataApiRequest} from './src/tools/metadataApiRequest.js';
+import {chatWithAgentforce} from './src/tools/chatWithAgentforce.js';
+import {generateSoqlQuery} from './src/tools/generateSoqlQuery.js';
 
 let orgDescription;
 let currentUserDescription;

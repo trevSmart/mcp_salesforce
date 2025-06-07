@@ -10,7 +10,8 @@
   "scripts": {
     "start": "node index.js",
     "lint": "*.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rm -rf dist && mkdir dist && rsync -av --exclude='node_modules' --exclude='logs' --exclude='*.log' --exclude='.idea' --exclude='.vscode' --exclude='.DS_Store' --exclude='Thumbs.db' --exclude='*.swp' --exclude='*.swo' --exclude='package-lock.json' --exclude='dist' --exclude='.eslintrc.json' --exclude='.gitignore' --exclude='.npmignore' --exclude='package.json' --exclude='.*' --exclude='*.bak' --exclude='*.tmp' --exclude='*.temp' --exclude='rules' --exclude='dev' ./ ./dist/ && find dist -name '*.js' -exec javascript-obfuscator {} --output {} \\;"
   },
   "keywords": [
     "test",
@@ -30,6 +31,7 @@
     "@babel/core": "^7.27.4",
     "@babel/eslint-parser": "^7.27.5",
     "@eslint/js": "^9.28.0",
-    "eslint": "^8.57.1"
+    "eslint": "^8.57.1",
+    "javascript-obfuscator": "^4.1.1"
   }
 }

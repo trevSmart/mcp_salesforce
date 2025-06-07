@@ -1,4 +1,4 @@
-import {getOrgDescription} from '../index.js';
+import {getOrgDescription} from '../../index.js';
 
 const orgDetailsCache = {};
 const CACHE_TTL_MS = 60 * 60 * 1000; //1 hour in milliseconds

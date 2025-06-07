@@ -1,5 +1,5 @@
-import {getOrgDescription} from '../index.js';
-import {runCliCommand} from '../src/utils.js';
+import {getOrgDescription} from '../../index.js';
+import {runCliCommand} from '../utils.js';
 
 //Cache in-memory per a les descripcions d'objectes
 const describeCache = {};

@@ -1,8 +1,8 @@
-import {getUserDescription} from '../index.js';
+import {getUserDescription} from '../../index.js';
 import {executeSoqlQuery} from './soqlQuery.js';
 import {createRecord} from './createRecord.js';
 import {updateRecord} from './updateRecord.js';
-import {runCliCommand} from '../src/utils.js';
+import {runCliCommand} from '../utils.js';
 
 async function apexDebugLogs({action, logId}, _meta) {
 

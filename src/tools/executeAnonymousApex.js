@@ -1,9 +1,9 @@
-import {getOrgDescription} from '../index.js';
+import {getOrgDescription} from '../../index.js';
 import {promisify} from 'util';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import {runCliCommand} from '../src/utils.js';
+import {runCliCommand} from '../utils.js';
 
 const writeFilePromise = promisify(fs.writeFile);
 const unlinkPromise = promisify(fs.unlink);
