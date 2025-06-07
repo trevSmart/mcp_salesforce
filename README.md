@@ -3,7 +3,7 @@
   <img src="resources/images/salesforceLogo.png" alt="Salesforce Logo" height="50"/>
 </p>
 
-<table>
+<table border="0">
   <tr>
     <td><img src="resources/images/mcpLogo.png" alt="MCP Logo" height="30"/></td>
     <td><h1 style="margin: 0;">Trevor. A MCP serverfor Salesforce</h1></td>
