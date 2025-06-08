@@ -1,15 +1,12 @@
 import {getOrgDescription, getUserDescription} from '../../index.js';
 import {log} from '../utils.js';
-
-const orgAndUserDetailsCache = {};
-const CACHE_TTL_MS = 60 * 60 * 1000; //1 hour in milliseconds
+import {globalCache, CACHE_TTL} from '../utils/cache.js';
 
 async function getOrgAndUserDetails() {
-	const cacheKey = 'orgAndUserDetails';
-	const cached = orgAndUserDetailsCache[cacheKey];
-	const now = Date.now();
-	if (cached && now - cached.timestamp < CACHE_TTL_MS) {
-		return cached.result;
+	const cacheKey = `orgUserDetails:${getOrgDescription().alias}`;
+	const cached = globalCache.get(cacheKey);
+	if (cached) {
+		return cached;
 	}
 
 	const result = {
@@ -24,7 +21,7 @@ async function getOrgAndUserDetails() {
 			}
 		]
 	};
-	orgAndUserDetailsCache[cacheKey] = {result, timestamp: now};
+	globalCache.set(cacheKey, result, CACHE_TTL.ORG_USER_DETAILS);
 	return result;
 }
 

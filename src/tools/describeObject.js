@@ -1,9 +1,6 @@
 import {getOrgDescription} from '../../index.js';
 import {runCliCommand, log} from '../utils.js';
-
-//Cache in-memory per a les descripcions d'objectes
-const describeCache = {};
-const CACHE_TTL_MS = 60 * 60 * 1000; //1 hora en mil·lisegons
+import {globalCache, CACHE_TTL} from '../utils/cache.js';
 
 async function describeObject({sObjectName}) {
 	try {
@@ -13,17 +10,11 @@ async function describeObject({sObjectName}) {
 			throw new Error('SObject name must be a non-empty string');
 		}
 
-		//Comprova si ja tenim la descripció al cache i si és vàlida
-		const cached = describeCache[sObjectName];
+		//Comprova el cache centralitzat
+		const cacheKey = `describe:${sObjectName}:${getOrgDescription().alias}`;
+		const cached = globalCache.get(cacheKey);
 		if (cached) {
-			const now = Date.now();
-			if (now - cached.timestamp < CACHE_TTL_MS) {
-				log('Returning cached describe for', sObjectName);
-				return cached.result;
-			} else {
-				log('Cache expired for', sObjectName, 'refreshing...');
-				delete describeCache[sObjectName];
-			}
+			return cached;
 		}
 
 		const command = `sf sobject describe --sobject ${sObjectName} -o ${getOrgDescription().alias} --json`;
@@ -33,22 +24,30 @@ async function describeObject({sObjectName}) {
 		} else {
 			//Filtra només les claus desitjades
 			const keys = [
-				'childRelationships',
-				'createable',
-				'custom',
-				'deletable',
-				'fields',
-				'keyPrefix',
-				'label',
-				'labelPlural',
-				'name',
-				'recordTypeInfos',
-				'searchable',
-				'urls'
+				'childRelationships', 'createable', 'custom', 'deletable', 'fields', 'keyPrefix',
+				'label', 'labelPlural', 'name', 'recordTypeInfos', 'searchable', 'urls'
+			];
+			const fieldKeys = [
+				'calculated', 'cascadeDelete', 'createable', 'custom', 'defaultValue', 'digits',
+				'encrypted', 'label', 'length', 'name', 'nameField', 'picklistValues',
+				'polymorphicForeignKey', 'precision', 'referenceTo', 'relationshipName', 'scale',
+				'type', 'updateable'
 			];
 			const filtered = {};
 			for (const k of keys) {
-				if (k in response.result) {filtered[k] = response.result[k]}
+				if (k in response.result) {
+					if (k === 'fields') {
+						filtered[k] = response.result[k].map(field => {
+							const filteredField = {};
+							for (const fk of fieldKeys) {
+								if (fk in field) {filteredField[fk] = field[fk]}
+							}
+							return filteredField;
+						});
+					} else {
+						filtered[k] = response.result[k];
+					}
+				}
 			}
 			const result = {
 				content: [{
@@ -56,8 +55,8 @@ async function describeObject({sObjectName}) {
 					text: JSON.stringify(filtered, null, 2)
 				}]
 			};
-			//Desa la resposta al cache amb timestamp
-			describeCache[sObjectName] = {result, timestamp: Date.now()};
+			//Desa la resposta al cache centralitzat
+			globalCache.set(cacheKey, result, CACHE_TTL.DESCRIBE_OBJECT);
 			return result;
 		}
 	} catch (error) {

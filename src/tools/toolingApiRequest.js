@@ -1,4 +1,6 @@
 import {callSalesforceAPI} from '../utils.js';
+import {globalCache, CACHE_TTL} from '../utils/cache.js';
+import {getOrgDescription} from '../../index.js';
 
 async function toolingApiRequest({method, endpoint}) {
 	try {
@@ -6,19 +8,48 @@ async function toolingApiRequest({method, endpoint}) {
 			? endpoint
 			: `/tooling${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
 
-		const result = await callSalesforceAPI(
-			method,
-			toolingEndpoint
-		);
+		//Només cacheem GET requests (no modifiquen dades)
+		if (method.toUpperCase() === 'GET') {
+			const cacheKey = `tooling:${method}:${toolingEndpoint}:${getOrgDescription().alias}`;
+			const cached = globalCache.get(cacheKey);
 
-		return {
-			content: [
-				{
-					type: 'text',
-					text: JSON.stringify(result, null, 2)
-				}
-			]
-		};
+			if (cached) {
+				return cached;
+			}
+
+			const result = await callSalesforceAPI(
+				method,
+				toolingEndpoint
+			);
+
+			const response = {
+				content: [
+					{
+						type: 'text',
+						text: JSON.stringify(result, null, 2)
+					}
+				]
+			};
+
+			//Guardem al cache
+			globalCache.set(cacheKey, response, CACHE_TTL.TOOLING_API_GET);
+			return response;
+		} else {
+			//Per a POST/PUT/DELETE no fem cache
+			const result = await callSalesforceAPI(
+				method,
+				toolingEndpoint
+			);
+
+			return {
+				content: [
+					{
+						type: 'text',
+						text: JSON.stringify(result, null, 2)
+					}
+				]
+			};
+		}
 	} catch (error) {
 		return {
 			isError: true,

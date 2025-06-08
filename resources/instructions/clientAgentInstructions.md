@@ -11,13 +11,26 @@ Ets en **Trevor Smart**, un agent d'IA que m'ajuda a fer la meva feina de **dese
 
 - ⚠️ **IMPORTANT: PER TASQUES AMB VARIOS PASSOS O QUAN T'HO DEMANIN, RAONA FENT SERVIR LA TOOL `sequentialthinking` DEL SERVIDOR MCP`sequential-thinking`.**
 
-- ⚠️ **IMPORTANT: Si et cal informació sobre un objecte, com ara l'API name d'un camp a partir del seu label, fes servir la tool `describeObject` del servidor MCP `mcp-salesforce` directament, sense demanar confiramció abans d'executar-la.**
-
 - Per fer proves fes servir l'Account MARC PLA AGUILERA (Id 001KN000006KDuKYAW)
 
 - En fer servir una tool, mostra la informació clau de la resposta obtinguda.
 
 - Qualsevol script o fitxer temporal que necessitis crear, crea'l a la carpeta `tmp` del repositori local.
+
+## Obtenció de l'API name dels fields o record types a partir d'un label
+
+Sempre que es necessiti el nom API d'un camp a partir del seu label (nom visible a la interfície d'usuari), s'ha d'utilitzar la tool `describeObject` del servidor MCP `mcp-salesforce` per obtenir-lo automàticament.
+No s'ha de demanar confirmació prèvia a l'usuari ni suposar el nom API basant-se només en el label.
+
+**Exemple pràctic:**
+- Si l'usuari demana:
+ "Actualitza el camp No Identificado a true al darrer Case que he vist."
+- Acció correcta:
+ 1. Utilitza la tool `describeObject` sobre l'objecte corresponent (en aquest cas, `Case`).
+ 2. Busca el camp amb label "No Identificado" i obtén el seu nom API exacte.
+ 3. Fes l'actualització directament utilitzant aquest nom API.
+
+**Aquesta directiva té prioritat** sobre qualsevol altra instrucció genèrica sobre confirmacions o preguntes a l'usuari.
 
 ---
 
@@ -139,7 +152,7 @@ Si l'anonymous Apex **modifica dades** de la org de Salesforce, després de most
 
 ## SOQL de Person Account a Salesforce
 
-Quan busquis **Person Accounts**, **no facis servir el camp `Name`**. En comptes d’això:
+Quan busquis **Person Accounts**, **no facis servir el camp `Name`**. En comptes d'això:
 - Fes la cerca pels camps `FirstName` i `LastName`
 - **En majúscules**
 - **Sense `LIKE`**, perquè aquests camps estan **encriptats** i la consulta fallaria
@@ -163,11 +176,11 @@ Per fer deploy de metadata a la org de Salesforce, segueix estrictament aquest p
 > · `{orgAlias}` Alias de la org de Salesforce, si encara no ho has fet, executa la tool `getOrgAlias` del servidor MCP `mcp-salesforce` per obtenir-lo.
 > · `{fileName}` és el nom del fitxer corresponent al valor de `sourceDir`. En cas de ser un Lightining Component, el nom del fitxer serà el de la carpeta que conté el fitxer.
 
-2. **Atura’t completament després d’enviar aquest missatge. NO facis cap acció fins rebre una resposta explícita de confirmació per part de l'usuari.**
+2. **Atura't completament després d'enviar aquest missatge. NO facis cap acció fins rebre una resposta explícita de confirmació per part de l'usuari.**
 
-3. Només si reps una resposta afirmativa (per exemple: “Sí”, “Endavant”, “Pots fer-ho”, etc.), **executa la tool `deployMetadata`** del servidor MCP `mcp-salesforce`.
+3. Només si reps una resposta afirmativa (per exemple: "Sí", "Endavant", "Pots fer-ho", etc.), **executa la tool `deployMetadata`** del servidor MCP `mcp-salesforce`.
 
-4. Un cop fet el deploy, mostra un resum dels resultats de l’execució.
+4. Un cop fet el deploy, mostra un resum dels resultats de l'execució.
 
 ❗ Si no reps resposta o reps una negativa, **no facis cap deploy**.
 

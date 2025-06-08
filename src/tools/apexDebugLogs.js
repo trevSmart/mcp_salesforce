@@ -19,12 +19,10 @@ async function apexDebugLogs({action, logId}, _meta) {
 			})?.[0];
 
 			return {
-				content: [
-					{
-						type: 'text',
-						text: `Debug logs for user ${userDescription.username} status: ${traceFlag ? 'active' : 'inactive'}`
-					}
-				]
+				content: [{
+					type: 'text',
+					text: `Debug logs for user ${userDescription.username} status: ${traceFlag ? 'active' : 'inactive'}`
+				}]
 			};
 
 		} else if (action === 'on') {
