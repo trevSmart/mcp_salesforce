@@ -1,5 +1,5 @@
 import {getOrgDescription} from '../../index.js';
-import {runCliCommand} from '../../src/utils.js';
+import {runCliCommand, log} from '../utils.js';
 
 async function createRecord({sObjectName, fields}) {
 	try {
@@ -28,21 +28,23 @@ async function createRecord({sObjectName, fields}) {
 
 		//Execute sf CLI command
 		const command = `sf data create record --sobject ${sObjectName} --values "${valuesString}" -o ${getOrgDescription().alias} --json`;
-		console.error(`Executing create record command: ${command}`);
-		const response = await runCliCommand(command);
+		log(`Executing create record command: ${command}`);
+		const response = JSON.parse(await runCliCommand(command));
 
 		if (response.status !== 0) {
 			throw new Error(`Failed to create record: ${response.result.errors[0].message}`);
 		} else {
+			const recordId = response.result.id;
+			const recordUrl = `https://${getOrgDescription().instanceUrl}/${recordId}`;
 			return {
 				content: [{
 					type: 'text',
-					text: `✅ Record created successfully with id ${response.result.id}`
+					text: `✅ Record created successfully with id "${recordId}".\n🔗 [View record in Salesforce](${recordUrl})`
 				}]
 			};
 		}
 	} catch (error) {
-		console.error(`Error creating ${sObjectName} record:`, JSON.stringify(error, null, 2));
+		log(`Error creating ${sObjectName} record:`, JSON.stringify(error, null, 2));
 		return {
 			isError: true,
 			content: [{
@@ -53,4 +55,4 @@ async function createRecord({sObjectName, fields}) {
 	}
 }
 
-export {createRecord};
+export default createRecord;

@@ -46,13 +46,13 @@ This project provides a Model Context Protocol (MCP) server for Salesforce, enab
 Create a `.env` file in the project root with the following variables:
 
 ```
-apiVersion=63.0
-loginUrl=https://test.salesforce.com
-clientId=YOUR_CLIENT_ID
-clientSecret=YOUR_CLIENT_SECRET
-username=YOUR_SF_USERNAME
-password=YOUR_SF_PASSWORD
-agentforceAgentId=YOUR_AGENTFORCE_ID
+SfApiVersion=63.0
+SfLoginUrl=https://test.salesforce.com
+SfClientId=YOUR_CLIENT_ID
+SfClientSecret=YOUR_CLIENT_SECRET
+SfUsername=YOUR_SF_USERNAME
+SfPassword=YOUR_SF_PASSWORD
+SfAgentforceAgentId=YOUR_AGENTFORCE_ID
 ```
 
 ## Usage

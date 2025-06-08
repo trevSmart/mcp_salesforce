@@ -1,5 +1,5 @@
 import {getOrgDescription} from '../../index.js';
-import {runCliCommand} from '../utils.js';
+import {runCliCommand, log} from '../utils.js';
 const SOQL_LIMIT = 1000;
 
 async function getSetupAuditTrail({lastDays, createdByName, metadataName}) {
@@ -27,8 +27,8 @@ async function getSetupAuditTrail({lastDays, createdByName, metadataName}) {
 		const cleanQuery = soqlQuery.replace(/[\n\t\r]+/g, ' ').trim();
 
 		const command = `sf data query --query "${cleanQuery.replace(/"/g, '\\"')}" -o ${getOrgDescription().alias} --json`;
-		console.error(`Executing SOQL query command: ${command}`);
-		const response = await runCliCommand(command);
+		log(`Executing SOQL query command: ${command}`);
+		const response = await JSON.parse(await runCliCommand(command));
 
 		if (!response || !response.result || !Array.isArray(response.result.records)) {
 			throw new Error('No response or invalid response from Salesforce CLI');
@@ -64,7 +64,7 @@ async function getSetupAuditTrail({lastDays, createdByName, metadataName}) {
 			|| !r.Section || ignoredSections.includes(r.Section)
 			|| shouldFilterByMetadataName && r.Display && !r.Display.toLowerCase().includes(metadataName.toLowerCase())
 			) {
-				console.error('Invalid record:', r);
+				log('Invalid record:', r);
 				return false;
 			}
 			return true;
@@ -72,7 +72,7 @@ async function getSetupAuditTrail({lastDays, createdByName, metadataName}) {
 
 		const transformedResults = results.reduce((acc, record) => {
 			if (!record || typeof record !== 'object') {
-				console.error('Invalid record during transformation:', record);
+				log('Invalid record during transformation:', record);
 				return null;
 			}
 
@@ -83,7 +83,7 @@ async function getSetupAuditTrail({lastDays, createdByName, metadataName}) {
 
 			const d = new Date(record.CreatedDate);
 			if (isNaN(d.getTime())) {
-				console.error('Invalid date:', record.CreatedDate);
+				log('Invalid date:', record.CreatedDate);
 				return null;
 			}
 
@@ -120,7 +120,7 @@ async function getSetupAuditTrail({lastDays, createdByName, metadataName}) {
 		};
 
 	} catch (error) {
-		console.error('Error in getSetupAuditTrail:', error);
+		log('Error in getSetupAuditTrail:', error);
 		return {
 			isError: true,
 			content: [{
@@ -131,4 +131,4 @@ async function getSetupAuditTrail({lastDays, createdByName, metadataName}) {
 	}
 }
 
-export {getSetupAuditTrail};
+export default getSetupAuditTrail;

@@ -61,9 +61,11 @@ console.log('Updating Cursor deeplink in README.md...');
 try {
 	fs.writeFileSync(readmePath, readme, 'utf8');
 	console.log('Cursor deeplink successfully updated in README.md.');
+	console.log('');
+	process.exit(0);
 
 } catch (error) {
 	console.error('❌ Error updating README.md:', error.message);
+	console.log('');
 	process.exit(1);
 }
-console.log('');

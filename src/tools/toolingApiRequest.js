@@ -32,4 +32,4 @@ async function toolingApiRequest({method, endpoint}) {
 	}
 }
 
-export {toolingApiRequest};
+export default toolingApiRequest;

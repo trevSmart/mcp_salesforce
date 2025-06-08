@@ -1,12 +1,12 @@
 import {getOrgDescription} from '../../index.js';
-import {callSalesforceAPI} from '../utils.js';
+import {callSalesforceAPI, log} from '../utils.js';
 import crypto from 'crypto';
 
 let currentSessionId = null;
 
 async function startSession() {
 	try {
-		console.error('Starting Agentforce session...');
+		log('Starting Agentforce session...');
 
 		const body = {
 			externalSessionKey: crypto.randomUUID(),
@@ -44,10 +44,10 @@ async function startSession() {
 		}
 
 		currentSessionId = response.sessionId;
-		console.error('Session started with id:', currentSessionId);
+		log('Session started with id:', currentSessionId);
 		return response;
 	} catch (error) {
-		console.error('Error starting session:', error);
+		log('Error starting session:', error);
 		return {
 			isError: true,
 			content: [{
@@ -84,8 +84,8 @@ async function sendMessage(message) {
 
 		return response;
 	} catch (error) {
-		console.error('Error sending message:', error);
-		console.error('Error sending message:', JSON.stringify(error, null, 2));
+		log('Error sending message:', error);
+		log('Error sending message:', JSON.stringify(error, null, 2));
 		return {
 			isError: true,
 			content: [{
@@ -111,7 +111,7 @@ async function chatWithAgentforce({message}) {
 			data: response
 		};
 	} catch (error) {
-		console.error('Error sending message:', error);
+		log('Error sending message:', error);
 		return {
 			isError: true,
 			content: [{
@@ -122,4 +122,4 @@ async function chatWithAgentforce({message}) {
 	}
 }
 
-export {chatWithAgentforce};
+export default chatWithAgentforce;

@@ -1,20 +1,21 @@
-import {callSalesforceAPI} from '../utils.js';
-import {describeObject} from './describeObject.js';
+import {callSalesforceAPI, log} from '../utils.js';
+import describeObject from './describeObject.js';
 
 async function generateSoqlQuery({soqlQueryDescription, involvedSObjects}) {
-	console.error('soqlQueryDescription: ' + soqlQueryDescription);
-	console.error('involvedSObjects 1: ' + involvedSObjects);
+
 	try {
 		if (typeof involvedSObjects === 'string') {
 			involvedSObjects = involvedSObjects.split(',').map(s => s.trim());
 		} else if (!Array.isArray(involvedSObjects)) {
 			involvedSObjects = Object.values(involvedSObjects);
 		}
-		console.error('involvedSObjects 2: ' + involvedSObjects);
 
-		const  describeSObjectResults = await Promise.all(
+
+		const describeSObjectResults = await Promise.all(
 			involvedSObjects.map(async sObjectName => {
 				const result = await describeObject({sObjectName});
+				log('DESCRIBE OBJECT RESULT:');
+				log(JSON.stringify(result, null, '\t'));
 				const match = result.content[0].text.match(/\{.*\}$/s);
 				if (match) {
 					const fullDesc = JSON.parse(match[0]);
@@ -79,7 +80,7 @@ async function generateSoqlQuery({soqlQueryDescription, involvedSObjects}) {
 		};
 
 	} catch (error) {
-		console.error('Error in generateSoqlQuery:', error);
+		log('Error in generateSoqlQuery:', error);
 		return {
 			isError: true,
 			content: [{
@@ -90,4 +91,4 @@ async function generateSoqlQuery({soqlQueryDescription, involvedSObjects}) {
 	}
 }
 
-export {generateSoqlQuery};
+export default generateSoqlQuery;

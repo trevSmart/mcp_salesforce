@@ -14,22 +14,28 @@ const salesforceConfig = {
 	password: process.env.password
 };
 
+
+async function log(message) {
+	if (typeof message === 'object') {
+		message = JSON.stringify(message, null, '\t');
+	}
+	if (message.length > 1000) {
+		message = message.slice(0, 1000) + '...';
+	}
+	console.error(message);
+}
+
 async function runCliCommand(command) {
 	try {
-		console.error('');
-		console.error('Running SF CLI command: ', command);
-		const {stdout, stderr} = await execPromise(command, {maxBuffer: 100 * 1024 * 1024}); //100MB buffer
-		if (stderr) {
-			console.error('CLI command stderr:', stderr);
-		}
-		const result = JSON.parse(stdout);
-		console.error('');
-		console.error('CLI command result:');
-		console.error(result);
-		return result;
+		log(`Running SF CLI command: ${command}`);
+		const {stdout} = await execPromise(command, {maxBuffer: 100 * 1024 * 1024});
+		log(`CLI command result: ${stdout}`);
+		return stdout;
 	} catch (error) {
-		console.error('');
-		console.error('Error running SF CLI command:', error);
+		if (error.stdout) {
+			return error.stdout;
+		}
+		log(`Error running SF CLI command: ${JSON.stringify(error, null, 2)}`);
 		throw error;
 	}
 }
@@ -47,16 +53,13 @@ async function makeRequest(token, method, endpoint, payload = null) {
 		body = JSON.stringify(payload, null, '\t');
 	}
 
-	console.error('');
-	console.error('');
-	console.error(`HTTP Request ${method} ${endpoint}`);
-	console.error(`Headers: ${JSON.stringify(headers, null, '\t')}`);
-	console.error(`Body: ${body}`);
+	log(`HTTP Request ${method} ${endpoint}`);
+	log(`Headers: ${JSON.stringify(headers, null, '\t')}`);
+	log(`Body: ${body}`);
 
 	const response = await fetch(endpoint, {method, headers, body});
 
-	console.error('');
-	console.error(`Response: ${response.status} ${response.statusText}`);
+	log(`Response: ${response.status} ${response.statusText}`);
 
 	if (!response.ok) {
 		const errorData = await response.json();
@@ -76,15 +79,15 @@ async function makeRequest(token, method, endpoint, payload = null) {
 	try {
 		return JSON.parse(text);
 	} catch (error) {
-		console.error('Error parsing JSON response:', error);
-		console.error('Raw response:', text);
+		log('Error parsing JSON response:', error);
+		log('Raw response:', text);
 		throw new Error('Invalid JSON response from Salesforce');
 	}
 }
 
 async function requestAccessToken() {
 	try {
-		console.error('Requesting new access token...');
+		log('Requesting new access token...');
 
 		const {loginUrl, clientId, clientSecret, username, password} = salesforceConfig;
 
@@ -114,10 +117,10 @@ async function requestAccessToken() {
 		}
 
 		const data = await response.json();
-		console.error('Access token successfully retrieved:', data.access_token);
+		log('Access token successfully retrieved:', data.access_token);
 		setCurrentAccessToken(data.access_token);
 	} catch (error) {
-		console.error('Error obtaining access token:', error.message);
+		log('Error obtaining access token:', error.message);
 		throw error;
 	}
 }
@@ -136,9 +139,8 @@ async function callSalesforceAPI(method, baseUrl = null, path = '', body = null)
 		await requestAccessToken();
 	}
 
-	console.error('');
-	console.error(`Calling Salesforce API: endpoint ${endpoint} using version ${process.env.apiVersion}`);
-	console.error(`Body: ${JSON.stringify(body)}`);
+	log(`Calling Salesforce API: endpoint ${endpoint} using version ${salesforceConfig.apiVersion}`);
+	log(`Body: ${JSON.stringify(body)}`);
 
 	try {
 		const agentforceAccessToken = 'eyJ0bmsiOiJjb3JlL3Byb2QvMDBEZ0swMDAwMDFQWmZsVUFHIiwidmVyIjoiMS4wIiwia2lkIjoiQ09SRV9BVEpXVC4wMERnSzAwMDAwMVBaZmwuMTc0MjgzMzk0NjgzNiIsInR0eSI6InNmZGMtY29yZS10b2tlbiIsInR5cCI6IkpXVCIsImFsZyI6IlJTMjU2In0.eyJzY3AiOiJzZmFwX2FwaSBjaGF0Ym90X2FwaSBpZCBhcGkiLCJzdWIiOiJ1aWQ6MDA1Z0swMDAwMDFDM1BsUUFLIiwicm9sZXMiOltdLCJpc3MiOiJodHRwczovL29yZ2Zhcm0tYTViNDBlOWM1Yi1kZXYtZWQuZGV2ZWxvcC5teS5zYWxlc2ZvcmNlLmNvbSIsImNsaWVudF9pZCI6IjNNVkc5clpqZDdNWEZkTGhTS0k3YU1WRFRhcFVtSGhEbGc0dXY4bC5faVNnSEttTXJZUDBORDNramRWbzNia3dDWHJ6UUFIcTZWNXFHU3NmdFZFSDYiLCJjZHBfdGVuYW50IjoiYTM2MC9wcm9kOC9iZGZkZGY1Mzk1OWM0YzFmYmFhYmQwOGZjNTIzNjMyYiIsImF1ZCI6WyJodHRwczovL29yZ2Zhcm0tYTViNDBlOWM1Yi1kZXYtZWQuZGV2ZWxvcC5teS5zYWxlc2ZvcmNlLmNvbSIsImh0dHBzOi8vYXBpLnNhbGVzZm9yY2UuY29tIl0sIm5iZiI6MTc0NTIxNjY4NiwibXR5Ijoib2F1dGgiLCJzZmFwX3JoIjoiYm90LXN2Yy1sbG06YXdzLXByb2Q4LWNhY2VudHJhbDEvZWluc3RlaW4sbXZzL0VEQzphd3MtcHJvZDgtY2FjZW50cmFsMS9laW5zdGVpbixlaW5zdGVpbi10cmFuc2NyaWJlL0VpbnN0ZWluR1BUOmF3cy1wcm9kOC1jYWNlbnRyYWwxL2VpbnN0ZWluLGJvdC1zdmMtbGxtL0Zsb3dHcHQ6YXdzLXByb2QxLXVzZWFzdDEvZWluc3RlaW4sZWluc3RlaW4tYWktZ2F0ZXdheS9FaW5zdGVpbkdQVDphd3MtcHJvZDgtY2FjZW50cmFsMS9laW5zdGVpbixlaW5zdGVpbi1haS1nYXRld2F5L0VEQzphd3MtcHJvZDgtY2FjZW50cmFsMS9laW5zdGVpbiIsInNmaSI6ImNjOTJkZmI0NzJmZWY0MzBlODRkYWNkYThiYzhiMmIwYTc4NjIzYTYwMjRiNWJlNmI3NTYyMGUwYzEyYjczNGIiLCJzZmFwX29wIjoiRWluc3RlaW5IYXdraW5nQzJDRW5hYmxlZCxFR3B0Rm9yRGV2c0F2YWlsYWJsZSxFaW5zdGVpbkdlbmVyYXRpdmVTZXJ2aWNlIiwiaHNjIjpmYWxzZSwiY2RwX3VybCI6Imh0dHBzOi8vYTM2MC5jZHAuY2RwMi5hd3MtcHJvZDgtY2FjZW50cmFsMS5hd3Muc2ZkYy5jbCIsImV4cCI6MTc0NTIxODUwMSwiaWF0IjoxNzQ1MjE2NzAxfQ.iHyBBhfBsoEQ1IdSCwniXjm5YgjDVg-CyjFcfVEGaudcvGUHt7xIFTtb76NV4KDhbcloqMwQrmN7WipGwDlqMvBY6Cl2HwVGV8hMXrxqmmt2Q8Pp16SIe7QFRTLoKWrEHMSvhNWpbQQ31gO8C94r-Zg_KU-ombyTREXpxmOLS0dLqW-DzvAT0zQqwyZ_OXu-oVX1bNqahkkxNGPsC0D64jIBZWywMj0D7uLXxxQ-uIgbh6fscvG73jyC59gzuPu0-VoLcsp2vWDX4OYBk1GGFpRyG7ZOFjt-81f1QNq9XDqn-GrZPvp0zBZ4HkSqqQCWFoHVra7HBRLqiIK0DQw-jA';
@@ -146,7 +148,7 @@ async function callSalesforceAPI(method, baseUrl = null, path = '', body = null)
 		return await makeRequest(token, method, endpoint, body);
 	} catch (error) {
 		if (error.type === 'INVALID_SESSION') {
-			console.error('Invalid token, attempting to obtain new access token...');
+			log('Invalid token, attempting to obtain new access token...');
 			try {
 				await requestAccessToken();
 			} catch (err) {
@@ -158,30 +160,23 @@ async function callSalesforceAPI(method, baseUrl = null, path = '', body = null)
 }
 
 async function initServer() {
-	console.error('Retrieving org details...');
+	log('Retrieving org details...');
 	process.env.HOME = '/Users/marcpla';
 	await execPromise(`export HOME=${process.env.HOME}`);
-	const orgAlias = (await runCliCommand('sf config get target-org --json'))?.result?.[0]?.value;
+	const orgAlias = JSON.parse(await runCliCommand('sf config get target-org --json'))?.result?.[0]?.value;
 	if (orgAlias) {
-		const orgDescription = (await runCliCommand(`sf org display -o ${orgAlias} --json`))?.result;
-		console.error('Org details successfully retrieved: ', JSON.stringify(orgDescription, null, 2));
-		const userDescription = (await runCliCommand(`sf org display user -o ${orgAlias} --json`))?.result;
-		console.error('User details successfully retrieved: ', JSON.stringify(userDescription, null, 2));
+		const orgDescription = JSON.parse(await runCliCommand(`sf org display -o ${orgAlias} --json`))?.result;
+		log('Org details successfully retrieved: ', JSON.stringify(orgDescription, null, 2));
+		const userDescription = JSON.parse(await runCliCommand(`sf org display user -o ${orgAlias} --json`))?.result;
+		log('User details successfully retrieved: ', JSON.stringify(userDescription, null, 2));
 		return {orgDescription, userDescription};
 	}
 	return {orgDescription: null, userDescription: null};
 }
 
-function generateCursorInstallMcpDeeplink() {
-	const config = Buffer.from(JSON.stringify({
-		command: 'node', args: ['/Users/marcpla/Documents/Feina/Projectes/mcp/mcp_salesforce/index.js']
-	})).toString('base64');
-	return `cursor://anysphere.cursor-deeplink/mcp/install?name=salesforce-mcp&config=${config}`;
-}
-
-
 export {
 	callSalesforceAPI,
 	initServer,
-	runCliCommand
+	runCliCommand,
+	log
 };

@@ -24,4 +24,4 @@ async function metadataApiRequest({metadataType, targetUsername}) {
 	}
 }
 
-export {metadataApiRequest};
+export default metadataApiRequest;

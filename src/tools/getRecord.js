@@ -1,11 +1,11 @@
 import {getOrgDescription} from '../../index.js';
-import {runCliCommand} from '../utils.js';
+import {runCliCommand, log} from '../utils.js';
 
 async function getRecord({sObjectName, recordId}) {
 	try {
 		const command = `sf data get record --sobject ${sObjectName} --record-id ${recordId} -o ${getOrgDescription().alias} --json`;
-		console.error(`Executing get record command: ${command}`);
-		const response = await runCliCommand(command);
+		log(`Executing get record command: ${command}`);
+		const response = await JSON.parse(await runCliCommand(command));
 		//const {attributes, ...fields} = response.result;
 		return {
 			content: [{
@@ -14,7 +14,7 @@ async function getRecord({sObjectName, recordId}) {
 			}]
 		};
 	} catch (error) {
-		console.error(`Error getting record ${recordId} from object ${sObjectName}:`, JSON.stringify(error, null, 2));
+		log(`Error getting record ${recordId} from object ${sObjectName}:`, JSON.stringify(error, null, 2));
 		return {
 			isError: true,
 			content: [{
@@ -25,4 +25,4 @@ async function getRecord({sObjectName, recordId}) {
 	}
 }
 
-export {getRecord};
+export default getRecord;

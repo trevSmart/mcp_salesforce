@@ -1,11 +1,11 @@
 import {getOrgDescription} from '../../index.js';
-import {runCliCommand} from '../utils.js';
+import {runCliCommand, log} from '../utils.js';
 
 async function getRecentlyViewedRecords() {
 	try {
 		const command = `sf data query --query "SELECT Id, Type, Name, FORMAT(LastViewedDate) FROM RecentlyViewed WHERE LastViewedDate != NULL ORDER BY LastViewedDate DESC LIMIT 100" -o ${getOrgDescription().alias} --json`;
-		console.error(`Executing query command: ${command}`);
-		const response = await runCliCommand(command);
+		log(`Executing query command: ${command}`);
+		const response = JSON.parse(await runCliCommand(command));
 		return {
 			content: [{
 				type: 'text',
@@ -14,7 +14,7 @@ async function getRecentlyViewedRecords() {
 		};
 
 	} catch (error) {
-		console.error('Error obtaining recently viewed records:', error);
+		log('Error obtaining recently viewed records:', error);
 		return {
 			isError: true,
 			content: [{
@@ -25,4 +25,4 @@ async function getRecentlyViewedRecords() {
 	}
 }
 
-export {getRecentlyViewedRecords};
+export default getRecentlyViewedRecords;

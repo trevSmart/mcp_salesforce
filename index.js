@@ -3,33 +3,37 @@ import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
 import {ListToolsRequestSchema, CallToolRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema} from '@modelcontextprotocol/sdk/types.js';
 //const {z} = require('zod');
 
-import {initServer, runCliCommand} from './src/utils.js';
+import {initServer, runCliCommand, log} from './src/utils.js';
 
 //Tools
-import {orgDetails} from './src/tools/orgDetails.js';
-import {currentUserDetails} from './src/tools/currentUserDetails.js';
-import {createRecord} from './src/tools/createRecord.js';
-import {deleteRecord} from './src/tools/deleteRecord.js';
-import {deployMetadata} from './src/tools/deployMetadata.js';
-import {describeObject} from './src/tools/describeObject.js';
-import {executeAnonymousApex} from './src/tools/executeAnonymousApex.js';
-import {getRecentlyViewedRecords} from './src/tools/getRecentlyViewedRecords.js';
-import {getRecord} from './src/tools/getRecord.js';
-import {getSetupAuditTrail} from './src/tools/getSetupAuditTrail.js';
-import {apexDebugLogs} from './src/tools/apexDebugLogs.js';
-import {executeSoqlQuery} from './src/tools/soqlQuery.js';
-import {toolingApiRequest} from './src/tools/toolingApiRequest.js';
-import {updateRecord} from './src/tools/updateRecord.js';
-import {triggerExecutionOrder} from './src/tools/triggerExecutionOrder.js';
-//import {metadataApiRequest} from './src/tools/metadataApiRequest.js';
-import {chatWithAgentforce} from './src/tools/chatWithAgentforce.js';
-import {generateSoqlQuery} from './src/tools/generateSoqlQuery.js';
+import getOrgAndUserDetails from './src/tools/getOrgAndUserDetails.js';
+import getCurrentDatetime from './src/tools/getCurrentDatetime.js';
+import createRecord from './src/tools/createRecord.js';
+import deleteRecord from './src/tools/deleteRecord.js';
+import deployMetadata from './src/tools/deployMetadata.js';
+import describeObject from './src/tools/describeObject.js';
+import executeAnonymousApex from './src/tools/executeAnonymousApex.js';
+import getRecentlyViewedRecords from './src/tools/getRecentlyViewedRecords.js';
+import getRecord from './src/tools/getRecord.js';
+import getSetupAuditTrail from './src/tools/getSetupAuditTrail.js';
+import apexDebugLogs from './src/tools/apexDebugLogs.js';
+import executeSoqlQuery from './src/tools/soqlQuery.js';
+import toolingApiRequest from './src/tools/toolingApiRequest.js';
+import updateRecord from './src/tools/updateRecord.js';
+import triggerExecutionOrder from './src/tools/triggerExecutionOrder.js';
+//import metadataApiRequest from './src/tools/metadataApiRequest.js';
+import chatWithAgentforce from './src/tools/chatWithAgentforce.js';
+import generateSoqlQuery from './src/tools/generateSoqlQuery.js';
 
 let orgDescription;
 let currentUserDescription;
 
 export function getOrgDescription() {
 	return orgDescription;
+}
+
+export function setOrgDescription(newOrgDescription) {
+	orgDescription = newOrgDescription;
 }
 
 export function getUserDescription() {
@@ -40,35 +44,35 @@ export function getCurrentAccessToken() {
 	return orgDescription.accessToken;
 }
 
-export function setCurrentAccessToken(accessToken) {
-	orgDescription.accessToken = accessToken;
+export function setCurrentAccessToken(newAccessToken) {
+	orgDescription.accessToken = newAccessToken;
 }
 
 //Definició dels tools
-const orgDetailsTool = {
-	name: 'orgDetails',
-	description: 'This tool allows retrieving the Salesforce organization details like Id, Name, domain url, etc.',
+const getOrgAndUserDetailsTool = {
+	name: 'getOrgAndUserDetails',
+	description: 'This tool allows retrieving the Salesforce organization details like Id, Name, domain url, etc., as well as the current user details like Id, Name, Profile, etc..',
 	inputSchema: {
 		type: 'object',
 		properties: {}
 	},
 	annotations: {
-		title: 'Get the Salesforce organization details like Id, Name, domain url, etc.',
+		title: 'Get the Salesforce organization and current user details.',
 		readOnlyHint: true,
 		idempotentHint: true,
 		openWorldHint: false
 	}
 };
 
-const currentUserDetailsTool = {
-	name: 'currentUserDetails',
-	description: 'This tool allows retrieving the current user details like Id, Name, Profile, etc.',
+const getCurrentDatetimeTool = {
+	name: 'getCurrentDatetime',
+	description: 'This tool allows retrieving the current datetime, including timezone and ISO 8601 format.',
 	inputSchema: {
 		type: 'object',
 		properties: {}
 	},
 	annotations: {
-		title: 'Get the current session user details like Id, Name, Profile, etc.',
+		title: 'Get the current datetime.',
 		readOnlyHint: true,
 		idempotentHint: true,
 		openWorldHint: false
@@ -472,8 +476,8 @@ const server = new Server(
 			resources: {},
 			tools: {
 				'listChanged': true,
-				orgDetailsTool,
-				currentUserDetailsTool,
+				getOrgAndUserDetailsTool,
+				getCurrentDatetimeTool,
 				createRecordTool,
 				deleteRecordTool,
 				deployMetadataTool,
@@ -526,8 +530,8 @@ server.setRequestHandler(ReadResourceRequestSchema, async request => {
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
 	tools: [
-		orgDetailsTool,
-		currentUserDetailsTool,
+		getOrgAndUserDetailsTool,
+		getCurrentDatetimeTool,
 		createRecordTool,
 		deleteRecordTool,
 		deployMetadataTool,
@@ -547,19 +551,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 	]
 }));
 
-server.setRequestHandler(CallToolRequestSchema, async request => {
+async function callToolRequestSchemaHandler(request) {
 	const {name, arguments: args, _meta = {}} = request.params;
 
 	try {
 		let result;
-		console.error('Executing tool:', name);
-		console.error('Args:', args);
-		console.error('Meta:', _meta);
+		log(`Executing tool: "${name}" with args: ${JSON.stringify(args, null, ' ')}`);
 
 		if (!orgDescription) {
 			({orgDescription, userDescription: currentUserDescription} = await initServer());
 			if (!orgDescription) {
-				const orgs = (await runCliCommand('sf org list auth --json'))?.result.map(o => o.alias);
+				const orgs = JSON.parse(await runCliCommand('sf org list auth --json'))?.result.map(o => o.alias);
 				return {
 					isError: true,
 					content: [{
@@ -582,10 +584,10 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 			}
 		}
 
-		if (name === 'orgDetails') {
-			result = await orgDetails(args, _meta);
-		} else if (name === 'currentUserDetails') {
-			result = await currentUserDetails(args, _meta);
+		if (name === 'getOrgAndUserDetails') {
+			result = await getOrgAndUserDetails(args, _meta);
+		} else if (name === 'getCurrentDatetime') {
+			result = await getCurrentDatetime(args, _meta);
 		} else if (name === 'createRecord') {
 			result = await createRecord(args, _meta);
 		} else if (name === 'deleteRecord') {
@@ -627,7 +629,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 			return result;
 		}
 	} catch (error) {
-		console.error(`Error executing ${name}:`, error);
+		log(`Error executing ${name}:`, error);
 		return {
 			isError: true,
 			content: [{
@@ -636,14 +638,27 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 			}]
 		};
 	}
-});
+}
+
+server.setRequestHandler(CallToolRequestSchema, callToolRequestSchemaHandler);
+
+export async function testToolHandler(request) {
+	orgDescription = {
+		accessToken: '00DKN0000000yy5!AQYAQC7Y2CcH.RQPdXVJHtnuyr0GoclFfQNi48y6OP_P6Cqog4p87Umqx3uw.fLnVoniwst4T1UxOtkMiGCKdn0wPREzuhDu',
+		instanceUrl: 'https://caixabankcc--devservice.sandbox.my.salesforce.com',
+		username: 'u0190347@cc-caixabank.com.devservice',
+		alias: 'DEVSERVICE'
+	};
+
+	return await callToolRequestSchemaHandler(request);
+}
 
 const transport = new StdioServerTransport();
 try {
 	await server.connect(transport);
-	console.error('IBM MCP Salesforce server started successfully');
-	setTimeout(async () => ({orgDescription, userDescription: currentUserDescription} = await initServer()), 1000);
+	log('IBM MCP Salesforce server started successfully');
+	setTimeout(async () => ({orgDescription, userDescription: currentUserDescription} = await initServer()), 500);
 } catch (error) {
-	console.error('Error starting IBM MCP Salesforce server:', error);
+	log('Error starting IBM MCP Salesforce server:', error);
 	process.exit(1);
 }

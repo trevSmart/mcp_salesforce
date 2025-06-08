@@ -3,7 +3,7 @@ import {promisify} from 'util';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import {runCliCommand} from '../utils.js';
+import {runCliCommand, log} from '../utils.js';
 
 const writeFilePromise = promisify(fs.writeFile);
 const unlinkPromise = promisify(fs.unlink);
@@ -36,20 +36,16 @@ async function executeAnonymousApex({apexCode}) { //, context
 
 		//Execute SF CLI command
 		const command = `sf apex run -o ${getOrgDescription().alias} --file "${tempFilePath}" --json`;
-		console.error(`Executing command: ${command}`);
-		const response = await runCliCommand(command);
-		console.error(response);
+		const response = await JSON.parse(await runCliCommand(command));
 		return {
-			content: [
-				{
-					type: 'text',
-					text: JSON.stringify(response.result, null, '\t')
-				}
-			]
+			content: [{
+				type: 'text',
+				text: JSON.stringify(response.result, null, '\t')
+			}]
 		};
 
 	} catch (error) {
-		console.error(error);
+		log(error);
 		return {
 			isError: true,
 			content: [
@@ -65,10 +61,10 @@ async function executeAnonymousApex({apexCode}) { //, context
 			try {
 				await unlinkPromise(tempFilePath);
 			} catch (error) {
-				console.error(`Error esborrant el fitxer temporal: ${error.message}`);
+				log(`Error esborrant el fitxer temporal: ${error.message}`);
 			}
 		}
 	}
 }
 
-export {executeAnonymousApex};
+export default executeAnonymousApex;

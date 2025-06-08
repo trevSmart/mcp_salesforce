@@ -268,4 +268,4 @@ async function triggerExecutionOrder(args) {
 	};
 }
 
-export {triggerExecutionOrder};
+export default triggerExecutionOrder;

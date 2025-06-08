@@ -1,5 +1,5 @@
 import {getOrgDescription} from '../../index.js';
-import {runCliCommand} from '../utils.js';
+import {runCliCommand, log} from '../utils.js';
 
 async function executeSoqlQuery({query, useToolingApi = false}) {
 	try {
@@ -9,8 +9,8 @@ async function executeSoqlQuery({query, useToolingApi = false}) {
 		const cleanQuery = query.replace(/[\n\t\r]+/g, ' ').trim();
 
 		const command = `sf data query --query "${cleanQuery.replace(/"/g, '\\"')}" -o ${getOrgDescription().alias} ${toolingFlag} --json`;
-		console.error(`Executing SOQL query command: ${command}`);
-		const response = await runCliCommand(command);
+		log(`Executing SOQL query command: ${command}`);
+		const response = await JSON.parse(await runCliCommand(command));
 		const records = response.result.records.map(r => ({...r, href: `https://${getOrgDescription().instanceUrl}.lightning.force.com/${r.Id}`}));
 		return {
 			content: [
@@ -25,7 +25,7 @@ async function executeSoqlQuery({query, useToolingApi = false}) {
 		};
 
 	} catch (error) {
-		console.error('Error in executeSoqlQuery:', error);
+		log('Error in executeSoqlQuery:', error);
 		return {
 			isError: true,
 			content: [{
@@ -36,4 +36,4 @@ async function executeSoqlQuery({query, useToolingApi = false}) {
 	}
 }
 
-export {executeSoqlQuery};
+export default executeSoqlQuery;

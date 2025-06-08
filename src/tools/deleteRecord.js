@@ -1,13 +1,12 @@
 import {getOrgDescription} from '../../index.js';
-import {runCliCommand} from '../utils.js';
+import {runCliCommand, log} from '../utils.js';
 
 async function deleteRecord({sObjectName, recordId}) {
 	try {
 		const command = `sf data delete record --sobject ${sObjectName} --record-id ${recordId} -o ${getOrgDescription().alias} --json`;
-		console.error(`Executing command: ${command}`);
-		const response = await runCliCommand(command);
+		const response = JSON.parse(await runCliCommand(command));
 		if (response.status !== 0) {
-			throw new Error(`Failed to delete record: ${response.result.errors[0].message}`);
+			throw new Error(response.message);
 		} else {
 			return {
 				content: [{
@@ -17,15 +16,15 @@ async function deleteRecord({sObjectName, recordId}) {
 			};
 		}
 	} catch (error) {
-		console.error(`Error deleting ${sObjectName} record ${recordId}:`, JSON.stringify(error, null, 2));
+		log(`Error deleting ${sObjectName} record ${recordId}:`, JSON.stringify(error, null, 2));
 		return {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: `❌ Error: ${error.message}`
+				text: `❌ Error deleting ${sObjectName} record with id ${recordId}: ${error.message}`
 			}]
 		};
 	}
 }
 
-export {deleteRecord};
+export default deleteRecord;

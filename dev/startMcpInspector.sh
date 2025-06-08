@@ -28,7 +28,8 @@ if [ -f ".env" ]; then
     set +a
 
     # Verify all required variables are defined
-    required_vars=("apiVersion" "loginUrl" "clientId" "clientSecret" "username" "password" "agentforceAgentId")
+    # required_vars=("SfApiVersion" "SfLoginUrl" "SfClientId" "SfClientSecret" "SfUsername" "SfPassword" "SfAgentforceAgentId")
+    required_vars=()
     for var in "${required_vars[@]}"; do
         if [ -z "${!var}" ]; then
             echo "Error: Variable $var is not defined in .env file"
@@ -197,7 +198,17 @@ temp_file=$(mktemp)
 
 # Execute inspector in background and redirect output to temp file
 SERVER_COMMAND="node /Users/marcpla/Documents/Feina/Projectes/mcp/mcp_salesforce/index.js"
-npx @modelcontextprotocol/inspector $SERVER_COMMAND -e apiVersion=63.0 -e loginUrl=$loginUrl -e clientId=$clientId -e clientSecret=$clientSecret -e username=$username -e password=$password -e agentforceAgentId=$agentforceAgentId > "$temp_file" 2>&1 &
+
+# Define allowed variables
+INSPECTOR_ENV_VARS=(SfApiVersion SfLoginUrl SfClientId SfClientSecret SfUsername SfPassword SfAgentforceAgentId)
+for var in "${INSPECTOR_ENV_VARS[@]}"; do
+    value="${!var}"
+    if [ -n "$value" ]; then
+        INSPECTOR_ARGS+=" -e $var=$value"
+    fi
+done
+
+npx @modelcontextprotocol/inspector $SERVER_COMMAND $INSPECTOR_ARGS > "$temp_file" 2>&1 &
 
 # Save process PID
 server_pid=$!

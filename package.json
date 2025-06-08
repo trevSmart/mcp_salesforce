@@ -8,9 +8,9 @@
     "test_research": "bin/cli.js"
   },
   "scripts": {
-    "build": "sh dev/build.sh",
     "start": "node index.js",
-    "lint": "eslint . --ext .js,.mjs,.cjs,.jsx,.ts,.tsx"
+    "test": "node scripts/test_tools.js",
+    "startMcpInspector": "sh dev/startMcpInspector.sh"
   },
   "keywords": [
     "test",

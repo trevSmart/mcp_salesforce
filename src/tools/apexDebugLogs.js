@@ -1,8 +1,8 @@
 import {getUserDescription} from '../../index.js';
-import {executeSoqlQuery} from './soqlQuery.js';
-import {createRecord} from './createRecord.js';
-import {updateRecord} from './updateRecord.js';
-import {runCliCommand} from '../utils.js';
+import executeSoqlQuery from './soqlQuery.js';
+import createRecord from './createRecord.js';
+import updateRecord from './updateRecord.js';
+import {runCliCommand, log} from '../utils.js';
 
 async function apexDebugLogs({action, logId}, _meta) {
 
@@ -11,8 +11,7 @@ async function apexDebugLogs({action, logId}, _meta) {
 		let traceFlag;
 
 		if (action === 'status') {
-			console.error('');
-			console.error('Checking existing TraceFlag...');
+			log('Checking existing TraceFlag...');
 
 			traceFlag = await executeSoqlQuery({
 				query: `SELECT Id FROM TraceFlag WHERE TracedEntityId = '${userDescription.id}' AND StartDate < ${new Date().toISOString()} AND ExpirationDate > ${new Date().toISOString()} LIMIT 1`,
@@ -29,8 +28,7 @@ async function apexDebugLogs({action, logId}, _meta) {
 			};
 
 		} else if (action === 'on') {
-			console.error('');
-			console.error('Checking existing TraceFlag...');
+			log('Checking existing TraceFlag...');
 
 			traceFlag = await executeSoqlQuery({
 				query: `SELECT DebugLevelId FROM TraceFlag WHERE TracedEntityId = '${userDescription.id}'`,
@@ -41,16 +39,14 @@ async function apexDebugLogs({action, logId}, _meta) {
 			const expirationDate = new Date(now.getTime() + 45 * 60000);
 
 			if (traceFlag) {
-				console.error('');
-				console.error('TraceFlag found. Updating expiration date...');
+				log('TraceFlag found. Updating expiration date...');
 
 				await updateRecord({sObjectName: 'TraceFlag', recordId: traceFlag.Id, fields: {
 					StartDate: now.toISOString(),
 					ExpirationDate: expirationDate.toISOString()
 				}});
 			} else {
-				console.error('');
-				console.error('No existing TraceFlag found. Creating new DebugLevel and TraceFlag...');
+				log('No existing TraceFlag found. Creating new DebugLevel and TraceFlag...');
 				const debugLogLevel = await createRecord({sObjectName: 'DebugLevel', fields: {
 					DeveloperName: `UserDebug_${Date.now()}`,
 					MasterLabel: `Debug Log Level ${userDescription.username}`,
@@ -137,8 +133,7 @@ async function apexDebugLogs({action, logId}, _meta) {
 		}
 
 	} catch (error) {
-		console.error('');
-		console.error('Complete error:', error);
+		log('Complete error:', error);
 		return {
 			isError: true,
 			content: [
@@ -151,4 +146,4 @@ async function apexDebugLogs({action, logId}, _meta) {
 	}
 }
 
-export {apexDebugLogs};
+export default apexDebugLogs;
