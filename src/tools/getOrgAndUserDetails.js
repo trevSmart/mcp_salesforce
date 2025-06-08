@@ -1,5 +1,4 @@
 import {getOrgDescription, getUserDescription} from '../../index.js';
-import {log} from '../utils.js';
 import {globalCache, CACHE_TTL} from '../utils/cache.js';
 
 async function getOrgAndUserDetails() {

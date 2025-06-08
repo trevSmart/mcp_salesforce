@@ -10,6 +10,7 @@
   "scripts": {
     "start": "node index.js",
     "test": "node scripts/test_tools.js",
+    "lint": "eslint . --ext .js,.mjs,.cjs,.jsx,.ts,.tsx",
     "startMcpInspector": "sh dev/startMcpInspector.sh"
   },
   "keywords": [

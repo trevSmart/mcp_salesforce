@@ -44,6 +44,12 @@ async function describeObject({sObjectName}) {
 							}
 							return filteredField;
 						});
+					} else if (k === 'childRelationships') {
+						filtered[k] = response.result[k].map(rel => ({
+							childSObject: rel.childSObject,
+							field: rel.field,
+							relationshipName: rel.relationshipName
+						}));
 					} else {
 						filtered[k] = response.result[k];
 					}

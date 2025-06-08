@@ -4,7 +4,7 @@ import createRecord from './createRecord.js';
 import updateRecord from './updateRecord.js';
 import {runCliCommand, log} from '../utils.js';
 
-async function apexDebugLogs({action, logId}, _meta) {
+async function apexDebugLogs({action, logId}) {
 
 	try {
 		const userDescription = getUserDescription();
@@ -118,13 +118,13 @@ async function apexDebugLogs({action, logId}, _meta) {
 			};
 
 		} else if (action === 'get') {
-			const log = await runCliCommand(`sf apex:log:get --log-id ${logId} --include-body`);
+			const apexLog = await runCliCommand(`sf apex:log:get --log-id ${logId} --include-body`);
 
 			return {
 				content: [
 					{
 						type: 'text',
-						text: JSON.stringify(log, null, '\t')
+						text: JSON.stringify(apexLog, null, '\t')
 					}
 				]
 			};

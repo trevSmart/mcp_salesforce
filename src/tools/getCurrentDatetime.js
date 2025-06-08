@@ -1,13 +1,14 @@
-import {log} from '../utils.js';
-
 async function getCurrentDatetime() {
+	const now = new Date();
+
 	return {
 		content: [{
 			type: 'text',
 			text: JSON.stringify({
-				now: new Date().toISOString(),
-				timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-				timestamp: Date.now()
+				now,
+				nowLocaleString: now.toLocaleString(),
+				nowIsoString: now.toISOString(),
+				timezone: new Intl.DateTimeFormat().resolvedOptions().timeZone
 			}, null, 2)
 		}]
 	};
