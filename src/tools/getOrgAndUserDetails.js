@@ -1,9 +1,11 @@
 import {getOrgDescription, getUserDescription} from '../../index.js';
-import {globalCache, CACHE_TTL} from '../utils/cache.js';
+import {globalCache} from '../cache.js';
 
 async function getOrgAndUserDetails() {
-	const cacheKey = `orgUserDetails:${getOrgDescription().alias}`;
-	const cached = globalCache.get(cacheKey);
+	const org = getOrgDescription().alias;
+	const tool = 'orgUserDetails';
+	const key = 'main';
+	const cached = globalCache.get(org, tool, key);
 	if (cached) {
 		return cached;
 	}
@@ -20,7 +22,7 @@ async function getOrgAndUserDetails() {
 			}
 		]
 	};
-	globalCache.set(cacheKey, result, CACHE_TTL.ORG_USER_DETAILS);
+	globalCache.set(org, tool, key, result);
 	return result;
 }
 

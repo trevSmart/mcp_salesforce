@@ -1,6 +1,6 @@
 import {getOrgDescription} from '../../index.js';
 import {runCliCommand, log} from '../utils.js';
-import {globalCache, CACHE_TTL} from '../utils/cache.js';
+import {globalCache} from '../cache.js';
 
 async function describeObject({sObjectName}) {
 	try {
@@ -10,14 +10,15 @@ async function describeObject({sObjectName}) {
 			throw new Error('SObject name must be a non-empty string');
 		}
 
-		//Comprova el cache centralitzat
-		const cacheKey = `describe:${sObjectName}:${getOrgDescription().alias}`;
-		const cached = globalCache.get(cacheKey);
+		const org = getOrgDescription().alias;
+		const tool = 'describe';
+		const key = sObjectName;
+		const cached = globalCache.get(org, tool, key);
 		if (cached) {
 			return cached;
 		}
 
-		const command = `sf sobject describe --sobject ${sObjectName} -o ${getOrgDescription().alias} --json`;
+		const command = `sf sobject describe --sobject ${sObjectName} -o ${org} --json`;
 		const response = JSON.parse(await runCliCommand(command));
 		if (response.status !== 0) {
 			throw new Error(response.message);
@@ -62,7 +63,7 @@ async function describeObject({sObjectName}) {
 				}]
 			};
 			//Desa la resposta al cache centralitzat
-			globalCache.set(cacheKey, result, CACHE_TTL.DESCRIBE_OBJECT);
+			globalCache.set(org, tool, key, result);
 			return result;
 		}
 	} catch (error) {
@@ -70,8 +71,8 @@ async function describeObject({sObjectName}) {
 		return {
 			isError: true,
 			content: [{
-				type: 'text',
-				text: `❌ Error requesting describe for SObject ${sObjectName}: ${error.message}`
+				text: `❌ Error requesting describe for SObject ${sObjectName}: ${error.message}`,
+				type: 'text'
 			}]
 		};
 	}

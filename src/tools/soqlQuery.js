@@ -6,7 +6,18 @@ async function executeSoqlQuery({query, useToolingApi = false}) {
 		const toolingFlag = useToolingApi ? '--use-tooling-api' : '';
 
 		//Clean the query by replacing line breaks and tabs with spaces
-		const cleanQuery = query.replace(/[\n\t\r]+/g, ' ').trim();
+		let cleanQuery = query.replace(/[\n\t\r]+/g, ' ').trim();
+
+		//Si la query és una SELECT, afegeix Id si no hi és present
+		const selectMatch = cleanQuery.match(/^select\s+(.+?)\s+from\s+/i);
+		if (selectMatch) {
+			let fields = selectMatch[1].split(',').map(f => f.trim());
+			const hasId = fields.some(f => f.toLowerCase() === 'id');
+			if (!hasId) {
+				fields = ['Id', ...fields];
+				cleanQuery = cleanQuery.replace(/^select\s+(.+?)\s+from\s+/i, `SELECT ${fields.join(', ')} FROM `);
+			}
+		}
 
 		const command = `sf data query --query "${cleanQuery.replace(/"/g, '\\"')}" -o ${getOrgDescription().alias} ${toolingFlag} --json`;
 		log(`Executing SOQL query command: ${command}`);

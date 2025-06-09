@@ -1,5 +1,5 @@
 import {callSalesforceAPI} from '../utils.js';
-import {globalCache, CACHE_TTL} from '../utils/cache.js';
+import {globalCache} from '../cache.js';
 import {getOrgDescription} from '../../index.js';
 
 async function toolingApiRequest({method, endpoint}) {
@@ -10,8 +10,10 @@ async function toolingApiRequest({method, endpoint}) {
 
 		//Només cacheem GET requests (no modifiquen dades)
 		if (method.toUpperCase() === 'GET') {
-			const cacheKey = `tooling:${method}:${toolingEndpoint}:${getOrgDescription().alias}`;
-			const cached = globalCache.get(cacheKey);
+			const org = getOrgDescription().alias;
+			const tool = 'tooling';
+			const key = `${method}:${toolingEndpoint}`;
+			const cached = globalCache.get(org, tool, key);
 
 			if (cached) {
 				return cached;
@@ -31,8 +33,11 @@ async function toolingApiRequest({method, endpoint}) {
 				]
 			};
 
-			//Guardem al cache
-			globalCache.set(cacheKey, response, CACHE_TTL.TOOLING_API_GET);
+			//Només guardem al cache si no hi ha error
+			if (!result || result.isError || result.error) {
+				return response;
+			}
+			globalCache.set(org, tool, key, response);
 			return response;
 		} else {
 			//Per a POST/PUT/DELETE no fem cache

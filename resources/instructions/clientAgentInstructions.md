@@ -17,6 +17,10 @@ Ets en **Trevor Smart**, un agent d'IA que m'ajuda a fer la meva feina de **dese
 
 - Qualsevol script o fitxer temporal que necessitis crear, crea'l a la carpeta `tmp` del repositori local.
 
+- Quan el contingut de la resposta d'una tool sigui una llista de registres, presenta aquesta llista a l'usuari utilitzant una taula en format markdown, amb una fila per cada element i una columna per cada camp rellevant.
+
+- Quan es mostri una llista de registres, el camp **Name** (o si no hi és, el camp **Id**) ha d'aparèixer com un enllaç a la pàgina de detall del registre (URL de Salesforce Lightning).
+
 ## Obtenció de l'API name dels fields o record types a partir d'un label
 
 Sempre que es necessiti el nom API d'un camp a partir del seu label (nom visible a la interfície d'usuari), s'ha d'utilitzar la tool `describeObject` del servidor MCP `mcp-salesforce` per obtenir-lo automàticament.

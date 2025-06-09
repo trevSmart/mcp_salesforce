@@ -2,6 +2,7 @@ import fetch from 'node-fetch';
 import {exec} from 'child_process';
 import {promisify} from 'util';
 import {getCurrentAccessToken, setCurrentAccessToken, getOrgDescription} from '../index.js';
+import {globalCache} from './cache.js';
 
 const execPromise = promisify(exec);
 
@@ -164,14 +165,32 @@ async function initServer() {
 	process.env.HOME = '/Users/marcpla';
 	await execPromise(`export HOME=${process.env.HOME}`);
 	const orgAlias = JSON.parse(await runCliCommand('sf config get target-org --json'))?.result?.[0]?.value;
+	let orgDescription = null;
+	let userDescription = null;
 	if (orgAlias) {
-		const orgDescription = JSON.parse(await runCliCommand(`sf org display -o ${orgAlias} --json`))?.result;
+		orgDescription = JSON.parse(await runCliCommand(`sf org display -o ${orgAlias} --json`))?.result;
 		log('Org details successfully retrieved: ', JSON.stringify(orgDescription, null, 2));
-		const userDescription = JSON.parse(await runCliCommand(`sf org display user -o ${orgAlias} --json`))?.result;
+		userDescription = JSON.parse(await runCliCommand(`sf org display user -o ${orgAlias} --json`))?.result;
 		log('User details successfully retrieved: ', JSON.stringify(userDescription, null, 2));
-		return {orgDescription, userDescription};
 	}
-	return {orgDescription: null, userDescription: null};
+
+	//--- SObject definitions refresh amb control de caché ---
+	if (orgDescription && orgDescription.alias) {
+		const org = orgDescription.alias;
+		const tool = 'maintenance';
+		const key = 'sobjectRefresh';
+		const lastRefresh = globalCache.get(org, tool, key);
+		const now = Date.now();
+		if (!lastRefresh || now - lastRefresh > globalCache.EXPIRATION_TIME.REFRESH_SOBJECT_DEFINITIONS) {
+			log('Llançant sf sobject definitions refresh...');
+			setTimeout(() => runCliCommand('sf sobject definitions refresh'), 1200000);
+			globalCache.set(org, tool, key, now);
+		} else {
+			log('No cal refrescar SObject definitions, ja es va fer fa menys de 2 dies.');
+		}
+	}
+
+	return {orgDescription, userDescription};
 }
 
 export {
