@@ -13,7 +13,7 @@ async function metadataApiRequest({metadataType, targetUsername}) {
 		}
 
 		//Executem la comanda
-		const result = await runCliCommand(command.join(' '));
+		const result = await JSON.parse(await runCliCommand(command.join(' ')));
 
 		return {
 			success: true,

@@ -20,8 +20,10 @@ async function describeObject({sObjectName}) {
 
 		const command = `sf sobject describe --sobject ${sObjectName} -o ${org} --json`;
 		const response = JSON.parse(await runCliCommand(command));
+
 		if (response.status !== 0) {
 			throw new Error(response.message);
+
 		} else {
 			//Filtra només les claus desitjades
 			const keys = [
@@ -34,6 +36,7 @@ async function describeObject({sObjectName}) {
 				'polymorphicForeignKey', 'precision', 'referenceTo', 'relationshipName', 'scale',
 				'type', 'updateable'
 			];
+
 			const filtered = {};
 			for (const k of keys) {
 				if (k in response.result) {
@@ -59,7 +62,7 @@ async function describeObject({sObjectName}) {
 			const result = {
 				content: [{
 					type: 'text',
-					text: JSON.stringify(filtered, null, 2)
+					text: JSON.stringify(filtered)
 				}]
 			};
 			//Desa la resposta al cache centralitzat

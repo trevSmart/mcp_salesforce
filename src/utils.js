@@ -3,6 +3,7 @@ import {exec} from 'child_process';
 import {promisify} from 'util';
 import {getCurrentAccessToken, setCurrentAccessToken, getOrgDescription} from '../index.js';
 import {globalCache} from './cache.js';
+import executeSoqlQuery from './tools/soqlQuery.js';
 
 const execPromise = promisify(exec);
 
@@ -161,7 +162,6 @@ async function callSalesforceAPI(method, baseUrl = null, path = '', body = null)
 }
 
 async function initServer() {
-	log('Retrieving org details...');
 	process.env.HOME = '/Users/marcpla';
 	await execPromise(`export HOME=${process.env.HOME}`);
 	const orgAlias = JSON.parse(await runCliCommand('sf config get target-org --json'))?.result?.[0]?.value;
@@ -169,22 +169,18 @@ async function initServer() {
 	let userDescription = null;
 	if (orgAlias) {
 		orgDescription = JSON.parse(await runCliCommand(`sf org display -o ${orgAlias} --json`))?.result;
-		log('Org details successfully retrieved: ', JSON.stringify(orgDescription, null, 2));
 		userDescription = JSON.parse(await runCliCommand(`sf org display user -o ${orgAlias} --json`))?.result;
-		log('User details successfully retrieved: ', JSON.stringify(userDescription, null, 2));
+		log(`Org and user details successfully retrieved: \n\nOrg:\n${JSON.stringify(orgDescription, null, 2)}\n\nUser:\n${JSON.stringify(userDescription, null, 2)}`);
 	}
 
 	//--- SObject definitions refresh amb control de caché ---
 	if (orgDescription && orgDescription.alias) {
-		const org = orgDescription.alias;
-		const tool = 'maintenance';
-		const key = 'sobjectRefresh';
-		const lastRefresh = globalCache.get(org, tool, key);
+		const lastRefresh = globalCache.get(orgDescription.alias, 'maintenance', 'sobjectRefreshLastRunDate');
 		const now = Date.now();
 		if (!lastRefresh || now - lastRefresh > globalCache.EXPIRATION_TIME.REFRESH_SOBJECT_DEFINITIONS) {
 			log('Llançant sf sobject definitions refresh...');
 			setTimeout(() => runCliCommand('sf sobject definitions refresh'), 1200000);
-			globalCache.set(org, tool, key, now);
+			globalCache.set(orgDescription.alias, 'maintenance', 'sobjectRefreshLastRunDate', now);
 		} else {
 			log('No cal refrescar SObject definitions, ja es va fer fa menys de 2 dies.');
 		}

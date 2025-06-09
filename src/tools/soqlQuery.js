@@ -25,13 +25,13 @@ async function executeSoqlQuery({query, useToolingApi = false}) {
 		const records = response.result.records.map(r => ({...r, href: `https://${getOrgDescription().instanceUrl}.lightning.force.com/${r.Id}`}));
 		return {
 			content: [
-				{
+			/*{
 					type: 'text',
 					text: 'Present the results of the SOQL query in markdown format.'
-				},
+				}, */
 				{
 					type: 'text',
-					text: JSON.stringify(records, null, '\t')
+					text: JSON.stringify(records, null, 2)
 				}]
 		};
 

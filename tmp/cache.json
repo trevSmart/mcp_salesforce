@@ -1,10 +1,29 @@
 {
   "DEVSERVICE": {
     "maintenance": {
-      "sobjectRefresh": {
-        "value": 1749427269679,
-        "expires": 1749427569680,
-        "created": 1749427269680
+      "sobjectRefreshLastRunDate": {
+        "value": 1749433995743,
+        "expires": 1749434295743,
+        "created": 1749433995743
+      }
+    },
+    "describe": {},
+    "orgUserDetails": {
+      "main": {
+        "value": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n\t\"id\": \"00DKN0000000yy52AA\",\n\t\"apiVersion\": \"64.0\",\n\t\"accessToken\": \"00DKN0000000yy5!AQYAQFk0bdIkg8DZqkachWH5JwN5CiKjCux8iN.6688vjBeR9ifxoclIvGEAvUnDi.LvbdMAN1gUx3Xsc3Eofk7YZ4ucVh82\",\n\t\"instanceUrl\": \"https://caixabankcc--devservice.sandbox.my.salesforce.com\",\n\t\"username\": \"u0190347@cc-caixabank.com.devservice\",\n\t\"clientId\": \"PlatformCLI\",\n\t\"connectedStatus\": \"Connected\",\n\t\"alias\": \"DEVSERVICE\"\n}"
+            },
+            {
+              "type": "text",
+              "text": "{\n\t\"accessToken\": \"00DKN0000000yy5!AQYAQFk0bdIkg8DZqkachWH5JwN5CiKjCux8iN.6688vjBeR9ifxoclIvGEAvUnDi.LvbdMAN1gUx3Xsc3Eofk7YZ4ucVh82\",\n\t\"id\": \"0053Y00000ALRTSQA5\",\n\t\"instanceUrl\": \"https://caixabankcc--devservice.sandbox.my.salesforce.com\",\n\t\"loginUrl\": \"https://test.salesforce.com/\",\n\t\"orgId\": \"00DKN0000000yy52AA\",\n\t\"profileName\": \"System Administrator\",\n\t\"username\": \"u0190347@cc-caixabank.com.devservice\",\n\t\"alias\": \"DEVSERVICE\"\n}"
+            }
+          ]
+        },
+        "expires": 1749434181788,
+        "created": 1749433881788
       }
     }
   }

@@ -21,12 +21,12 @@ import executeSoqlQuery from './src/tools/soqlQuery.js';
 import toolingApiRequest from './src/tools/toolingApiRequest.js';
 import updateRecord from './src/tools/updateRecord.js';
 import triggerExecutionOrder from './src/tools/triggerExecutionOrder.js';
-//import metadataApiRequest from './src/tools/metadataApiRequest.js';
+import metadataApiRequest from './src/tools/metadataApiRequest.js';
 import chatWithAgentforce from './src/tools/chatWithAgentforce.js';
 import generateSoqlQuery from './src/tools/generateSoqlQuery.js';
 
 let orgDescription;
-let currentUserDescription;
+let userDescription;
 
 export function getOrgDescription() {
 	return orgDescription;
@@ -37,7 +37,7 @@ export function setOrgDescription(newOrgDescription) {
 }
 
 export function getUserDescription() {
-	return currentUserDescription;
+	return userDescription;
 }
 
 export function getCurrentAccessToken() {
@@ -390,6 +390,26 @@ const triggerExecutionOrderTool = {
 	}
 };
 
+const chatWithAgentforceTool = {
+	name: 'chatWithAgentforce',
+	description: 'This tool allows you to chat with an Einstein GPT agent configured in Salesforce.',
+	inputSchema: {
+		type: 'object',
+		required: ['message'],
+		properties: {
+			message: {
+				type: 'string',
+				description: 'The message to send to the agent'
+			}
+		}
+	},
+	annotations: {
+		title: 'Chat with Agentforce agent',
+		openWorldHint: true
+	}
+};
+*/
+
 const metadataApiRequestTool = {
 	name: 'metadataApiRequest',
 	description: 'This tool allows retrieving metadata from Salesforce using force:source:retrieve.',
@@ -414,26 +434,6 @@ const metadataApiRequestTool = {
 		openWorldHint: true
 	}
 };
-
-const chatWithAgentforceTool = {
-	name: 'chatWithAgentforce',
-	description: 'This tool allows you to chat with an Einstein GPT agent configured in Salesforce.',
-	inputSchema: {
-		type: 'object',
-		required: ['message'],
-		properties: {
-			message: {
-				type: 'string',
-				description: 'The message to send to the agent'
-			}
-		}
-	},
-	annotations: {
-		title: 'Chat with Agentforce agent',
-		openWorldHint: true
-	}
-};
-*/
 
 const generateSoqlQueryTool = {
 	name: 'generateSoqlQuery',
@@ -490,9 +490,9 @@ const server = new Server(
 				executeSoqlQueryTool,
 				toolingApiRequestTool,
 				updateRecordTool,
-				generateSoqlQueryTool
+				generateSoqlQueryTool,
+				metadataApiRequestTool
 				//triggerExecutionOrderTool,
-				//metadataApiRequestTool,
 				//chatWithAgentforceTool
 			},
 		},
@@ -544,9 +544,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 		executeSoqlQueryTool,
 		toolingApiRequestTool,
 		updateRecordTool,
-		generateSoqlQueryTool
+		generateSoqlQueryTool,
+		metadataApiRequestTool
 		//triggerExecutionOrderTool,
-		//metadataApiRequestTool,
 		//chatWithAgentforceTool
 	]
 }));
@@ -559,7 +559,7 @@ async function callToolRequestSchemaHandler(request) {
 		log(`Executing tool: "${name}" with args: ${JSON.stringify(args, null, ' ')}`);
 
 		if (!orgDescription) {
-			({orgDescription, userDescription: currentUserDescription} = await initServer());
+			({orgDescription, userDescription} = await initServer());
 			if (!orgDescription) {
 				const orgs = JSON.parse(await runCliCommand('sf org list auth --json'))?.result.map(o => o.alias);
 				return {
@@ -657,7 +657,12 @@ const transport = new StdioServerTransport();
 try {
 	await server.connect(transport);
 	log('IBM MCP Salesforce server started successfully');
-	setTimeout(async () => ({orgDescription, userDescription: currentUserDescription} = await initServer()), 500);
+	setTimeout(async () => {
+		({orgDescription, userDescription} = await initServer());
+		const soqlUserResult = await executeSoqlQuery({query: `SELECT Name FROM User WHERE Id = '${userDescription.id}'`});
+		userDescription.name = JSON.parse(soqlUserResult.content[0].text)[0].Name;
+	}, 100);
+
 } catch (error) {
 	log('Error starting IBM MCP Salesforce server:', error);
 	process.exit(1);
