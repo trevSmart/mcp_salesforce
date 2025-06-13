@@ -8,7 +8,7 @@ async function toolingApiRequest({method, endpoint}) {
 			? endpoint
 			: `/tooling${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
 
-		//Només cacheem GET requests (no modifiquen dades)
+		//Only cache GET requests (do not modify data)
 		if (method.toUpperCase() === 'GET') {
 			const org = getOrgDescription().alias;
 			const tool = 'tooling';
@@ -33,14 +33,14 @@ async function toolingApiRequest({method, endpoint}) {
 				]
 			};
 
-			//Només guardem al cache si no hi ha error
+			//Only store in cache if there is no error
 			if (!result || result.isError || result.error) {
 				return response;
 			}
 			globalCache.set(org, tool, key, response);
 			return response;
 		} else {
-			//Per a POST/PUT/DELETE no fem cache
+			//For POST/PUT/DELETE do not cache
 			const result = await callSalesforceAPI(
 				method,
 				toolingEndpoint

@@ -8,7 +8,7 @@ async function executeSoqlQuery({query, useToolingApi = false}) {
 		//Clean the query by replacing line breaks and tabs with spaces
 		let cleanQuery = query.replace(/[\n\t\r]+/g, ' ').trim();
 
-		//Si la query és una SELECT, afegeix Id si no hi és present
+		//If the query is a SELECT, add Id if not present
 		const selectMatch = cleanQuery.match(/^select\s+(.+?)\s+from\s+/i);
 		if (selectMatch) {
 			let fields = selectMatch[1].split(',').map(f => f.trim());

@@ -61,7 +61,7 @@ async function executeAnonymousApex({apexCode}) { //, context
 			try {
 				await unlinkPromise(tempFilePath);
 			} catch (error) {
-				log(`Error esborrant el fitxer temporal: ${error.message}`);
+				log(`Error deleting temporary file: ${error.message}`);
 			}
 		}
 	}

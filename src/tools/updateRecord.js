@@ -3,15 +3,15 @@ import {runCliCommand} from '../utils.js';
 
 async function updateRecord({sObjectName, recordId, fields}) {
 	try {
-		//Utilitzem els camps directament si ja són un objecte, si no, intentem parsejar-los
+		//Use fields directly if already an object, otherwise try to parse them
 		const fieldsObject = typeof fields === 'string' ? JSON.parse(fields) : fields;
 
-		//Convertir els camps a format "Camp1='Valor1' Camp2='Valor2'"
+		//Convert fields to format "Field1='Value1' Field2='Value2'"
 		const valuesString = Object.entries(fieldsObject)
 			.map(([key, value]) => `${key}='${value}'`)
 			.join(' ');
 
-		//Executar la comanda CLI
+		//Execute the CLI command
 		const command = `sf data update record --sobject ${sObjectName} --where "Id='${recordId}'" --values "${valuesString}" -o "${getOrgDescription().alias}" --json`;
 		await runCliCommand(command);
 
@@ -19,7 +19,7 @@ async function updateRecord({sObjectName, recordId, fields}) {
 			content: [
 				{
 					type: 'text',
-					text: `Registre ${recordId} de l'objecte ${sObjectName} actualitzat correctament`
+					text: `Record ${recordId} from object ${sObjectName} updated successfully`
 				}
 			]
 		};
@@ -28,7 +28,7 @@ async function updateRecord({sObjectName, recordId, fields}) {
 			content: [
 				{
 					type: 'text',
-					text: `Error actualitzant el registre ${recordId} de l'objecte ${sObjectName}: ${error.message}`
+					text: `Error updating record ${recordId} from object ${sObjectName}: ${error.message}`
 				}
 			]
 		};

@@ -4,7 +4,7 @@ import {runCliCommand} from '../utils.js';
 /**
  * Returns the execution order of automation components for an SObject and operation
  * @param {Object} arguments Tool arguments
- * @param {string} arguments.sObjectName Nom del SObject
+ * @param {string} arguments.sObjectName SObject name
  * @param {string} arguments.operation DML operation (insert, update or delete)
  * @returns {Promise<Object>} Execution result
  */
@@ -16,14 +16,14 @@ async function triggerExecutionOrder(args) {
 		throw new Error('Operation must be one of: insert, update, delete');
 	}
 
-	//1. Obtenim els triggers
+	//1. Get triggers
 	const triggersQuery = `SELECT Id, Name, TableEnumOrId, Body, ApiVersion, Status
 							FROM ApexTrigger
 							WHERE TableEnumOrId = '${sObjectName}'
 							AND Status = 'Active'`;
 	const triggers = await runCliCommand(`sf data query -t -q "${triggersQuery}" -o "${getOrgDescription().alias}" --json`);
 
-	//2. Obtenim els Process Builders
+	//2. Get Process Builders
 	const processQuery = `SELECT Id, DeveloperName, LastModifiedDate, ProcessType, Status, TriggerType,
 							Description, VersionNumber, NamespacePrefix
 							FROM Flow
@@ -33,7 +33,7 @@ async function triggerExecutionOrder(args) {
 							ORDER BY LastModifiedDate DESC`;
 	const processes = await runCliCommand(`sf data query -t -q "${processQuery}" -o "${getOrgDescription().alias}" --json`);
 
-	//3. Obtenim els Flows
+	//3. Get Flows
 	const recordTriggerType = {
 		insert: '(\'Create\', \'CreateAndUpdate\')',
 		update: '(\'Update\', \'CreateAndUpdate\')',
@@ -49,7 +49,7 @@ async function triggerExecutionOrder(args) {
 							AND RecordTriggerType IN ${recordTriggerType}`;
 	const flows = await runCliCommand(`sf data query -t -q "${flowQuery}" -o "${getOrgDescription().alias}" --json`);
 
-	//4. Obtenim les Validation Rules
+	//4. Get Validation Rules
 	const validationRulesQuery = `SELECT Id, Active, ErrorDisplayField, ErrorMessage, Description,
 									EntityDefinition.QualifiedApiName, ValidationName
 							 FROM ValidationRule
@@ -57,7 +57,7 @@ async function triggerExecutionOrder(args) {
 							 AND EntityDefinition.QualifiedApiName = '${sObjectName}'`;
 	const validationRules = await runCliCommand(`sf data query -t -q "${validationRulesQuery}" -o "${getOrgDescription().alias}" --json`);
 
-	//5. Obtenim els Workflow Rules
+	//5. Get Workflow Rules
 	const workflowRulesQuery = `SELECT Id, Name, TableEnumOrId, Active, Description, TriggerType
 								FROM WorkflowRule
 								WHERE Active = true
@@ -73,11 +73,11 @@ async function triggerExecutionOrder(args) {
 			apex: []
 		};
 
-		//Busquem crides a Flow.Interview
+		//Find calls to Flow.Interview
 		const flowMatches = body.match(/Flow\.Interview\.[A-Za-z0-9_]+/g) || [];
 		dependencies.flows = [...new Set(flowMatches.map(m => m.split('.')[2]))];
 
-		//Busquem crides a classes Apex
+		//Find calls to Apex classes
 		const apexMatches = body.match(/[A-Za-z0-9_]+\.[A-Za-z0-9_]+/g) || [];
 		dependencies.apex = [...new Set(apexMatches.map(m => m.split('.')[0]))];
 
@@ -162,7 +162,7 @@ async function triggerExecutionOrder(args) {
 	executionOrder.push({
 		step: 7,
 		name: 'Save Record to Database',
-		description: 'Salesforce guarda el registre a la base de dades'
+		description: 'Salesforce saves the record to the database'
 	});
 
 	//8. After Save Flow
@@ -230,28 +230,28 @@ async function triggerExecutionOrder(args) {
 	executionOrder.push({
 		step: 12,
 		name: 'Roll-Up Summary Fields',
-		description: 'Actualització de camps Roll-Up Summary'
+		description: 'Roll-Up Summary Fields update'
 	});
 
 	//13. Sharing Rules
 	executionOrder.push({
 		step: 13,
 		name: 'Sharing Rule Evaluation',
-		description: 'Avaluació de regles de sharing'
+		description: 'Sharing rules evaluation'
 	});
 
 	//14. Commit
 	executionOrder.push({
 		step: 14,
 		name: 'Commit',
-		description: 'Commit de la transacció'
+		description: 'Transaction commit'
 	});
 
 	//15. Post-Commit Logic
 	executionOrder.push({
 		step: 15,
 		name: 'Post-Commit Logic',
-		description: 'Lògica post-commit (emails, outbound messages, etc.)'
+		description: 'Post-commit logic (emails, outbound messages, etc.)'
 	});
 
 	return {

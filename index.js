@@ -50,7 +50,7 @@ export function setCurrentAccessToken(newAccessToken) {
 	orgDescription.accessToken = newAccessToken;
 }
 
-//Definició dels tools
+//Definitions of tools
 const clearCacheTool = {
 	name: 'clearCache',
 	description: 'This tool allows clearing the cache of the Salesforce MCP server.',
@@ -68,7 +68,7 @@ const clearCacheTool = {
 
 const getOrgAndUserDetailsTool = {
 	name: 'getOrgAndUserDetails',
-	description: 'This tool allows retrieving the Salesforce organization details like Id, Name, domain url, etc., as well as the current user details like Id, Name, Profile, etc..',
+	description: 'This tool allows retrieving the Salesforce organization details like Id, Name, domain URL, etc., as well as the current user details like Id, Name, Profile, etc.',
 	inputSchema: {
 		type: 'object',
 		properties: {}
@@ -452,36 +452,6 @@ const metadataApiRequestTool = {
 	}
 };
 
-const generateSoqlQueryTool = {
-	name: 'generateSoqlQuery',
-	description: 'Esta herramienta permite generar y ejecutar consultas SOQL de manera estructurada, con soporte para condiciones, ordenamiento y límites.',
-	inputSchema: {
-		type: 'object',
-		required: ['soqlQueryDescription'],
-		properties: {
-			soqlQueryDescription: {
-				type: 'string',
-				description: 'Descripción de la consulta SOQL'
-			},
-			involvedSObjects: {
-				type: 'array',
-				description: 'SObjects involucrats en la consulta (per exemple ["Account", "Contact"])',
-				items: {
-					type: 'string'
-				},
-				minItems: 1,
-				uniqueItems: true
-			}
-		}
-	},
-	annotations: {
-		title: 'Generar consulta SOQL',
-		readOnlyHint: true,
-		idempotentHint: false,
-		openWorldHint: true
-	}
-};
-
 const server = new Server(
 	{
 		name: 'salesforce-mcp',
@@ -646,7 +616,7 @@ async function callToolRequestSchemaHandler(request) {
 			throw new Error(`Unknown tool: ${name}`);
 		}
 
-		//Si la tool ja retorna un objecte amb el format correcte, el retornem directament
+		//If the tool already returns an object with the correct format, we return it directly
 		if (result && result.content) {
 			return result;
 		}

@@ -4,7 +4,7 @@ async function metadataApiRequest({metadataType, targetUsername}) {
 	try {
 		const command = ['force:source:retrieve'];
 
-		//Afegim el tipus de metadada
+		//Add the metadata type
 		command.push('-m', metadataType);
 
 		//If a username is specified, add it
@@ -12,7 +12,7 @@ async function metadataApiRequest({metadataType, targetUsername}) {
 			command.push('-u', targetUsername);
 		}
 
-		//Executem la comanda
+		//Execute the command
 		const result = await JSON.parse(await runCliCommand(command.join(' ')));
 
 		return {
