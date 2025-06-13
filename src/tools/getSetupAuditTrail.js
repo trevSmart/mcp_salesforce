@@ -26,7 +26,7 @@ async function getSetupAuditTrail({lastDays, createdByName, metadataName}) {
 		//Clean the query by replacing line breaks and tabs with spaces
 		const cleanQuery = soqlQuery.replace(/[\n\t\r]+/g, ' ').trim();
 
-		const command = `sf data query --query "${cleanQuery.replace(/"/g, '\\"')}" -o ${getOrgDescription().alias} --json`;
+		const command = `sf data query --query "${cleanQuery.replace(/"/g, '\\"')}" -o "${getOrgDescription().alias}" --json`;
 		log(`Executing SOQL query command: ${command}`);
 		const response = await JSON.parse(await runCliCommand(command));
 
