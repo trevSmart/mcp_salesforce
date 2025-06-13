@@ -27,9 +27,9 @@ async function createRecord({sObjectName, fields}) {
 			}).join(' ');
 
 		//Execute sf CLI command
-		const command = `sf data create record --sobject ${sObjectName} --values "${valuesString}" -o ${getOrgDescription().alias} --json`;
+		const command = `sf data create record --sobject ${sObjectName} --values "${valuesString}" -o "${getOrgDescription().alias}" --json`;
 		log(`Executing create record command: ${command}`);
-		const response = JSON.parse(await runCliCommand(cowmmand));
+		const response = JSON.parse(await runCliCommand(command));
 
 		if (response.status !== 0) {
 			throw new Error(`Failed to create record: ${response.result.errors[0].message}`);

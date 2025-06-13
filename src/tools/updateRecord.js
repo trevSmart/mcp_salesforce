@@ -12,7 +12,7 @@ async function updateRecord({sObjectName, recordId, fields}) {
 			.join(' ');
 
 		//Executar la comanda CLI
-		const command = `sf data update record --sobject ${sObjectName} --where "Id='${recordId}'" --values "${valuesString}" -o ${getOrgDescription().alias} --json`;
+		const command = `sf data update record --sobject ${sObjectName} --where "Id='${recordId}'" --values "${valuesString}" -o "${getOrgDescription().alias}" --json`;
 		await runCliCommand(command);
 
 		return {

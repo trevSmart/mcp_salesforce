@@ -3,7 +3,7 @@ import {runCliCommand, log} from '../utils.js';
 
 async function deleteRecord({sObjectName, recordId}) {
 	try {
-		const command = `sf data delete record --sobject ${sObjectName} --record-id ${recordId} -o ${getOrgDescription().alias} --json`;
+		const command = `sf data delete record --sobject ${sObjectName} --record-id ${recordId} -o "${getOrgDescription().alias}" --json`;
 		const response = JSON.parse(await runCliCommand(command));
 		if (response.status !== 0) {
 			throw new Error(response.message);

@@ -33,7 +33,7 @@ async function startSession() {
 		const response = await callSalesforceAPI(
 			'POST',
 			'https://api.salesforce.com/einstein/ai-agent/v1',
-			`/agents/${process.env.agentforceAgentId}/sessions`,
+			`/agents/${process.env.SF_MCP_AGENTFORCE_AGENT_ID}/sessions`,
 			body
 		);
 
@@ -97,7 +97,7 @@ async function sendMessage(message) {
 }
 
 async function chatWithAgentforce({message}) {
-	if (!process.env.agentforceAgentId) {
+	if (!process.env.SF_MCP_AGENTFORCE_AGENT_ID) {
 		throw new Error('Missing agentforceAgentId environment variable');
 	}
 

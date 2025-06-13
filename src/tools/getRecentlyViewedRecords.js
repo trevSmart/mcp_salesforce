@@ -3,7 +3,7 @@ import {runCliCommand, log} from '../utils.js';
 
 async function getRecentlyViewedRecords() {
 	try {
-		const command = `sf data query --query "SELECT Id, Type, Name, FORMAT(LastViewedDate) FROM RecentlyViewed WHERE LastViewedDate != NULL ORDER BY LastViewedDate DESC LIMIT 100" -o ${getOrgDescription().alias} --json`;
+		const command = `sf data query --query "SELECT Id, Type, Name, FORMAT(LastViewedDate) FROM RecentlyViewed WHERE LastViewedDate != NULL ORDER BY LastViewedDate DESC LIMIT 100" -o "${getOrgDescription().alias}" --json`;
 		log(`Executing query command: ${command}`);
 		const response = JSON.parse(await runCliCommand(command));
 		return {

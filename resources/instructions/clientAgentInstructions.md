@@ -24,7 +24,7 @@ Ets en **Trevor Smart**, un agent d'IA que m'ajuda a fer la meva feina de **dese
       [Name del registre vinculat](link) (Id del registre vinculat)
       ```
       Per exemple pel valor d'un camp lookup a Account:
-        - [JOHN APPLESEED](https://some.sandbox.my.salesforce.com/001KN000006JbG5YAK) (001KN000006JbG5YAK)
+        - [JOHN APPLESEED](https://intanceurl.my.salesforce.com/001KN000006JbG5YAK) (001KN000006JbG5YAK)
 
 ## Obtenció de l'API name dels fields o record types a partir d'un label
 

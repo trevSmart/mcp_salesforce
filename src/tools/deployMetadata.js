@@ -3,9 +3,9 @@ import {runCliCommand, log} from '../utils.js';
 
 async function deployMetadata({sourceDir}) { //, context
 	try {
-		const command = `sf project deploy start --source-dir ${sourceDir} --ignore-conflicts -o ${getOrgDescription().alias} --json`;
+		const command = `sf project deploy start --source-dir ${sourceDir} --ignore-conflicts -o "${getOrgDescription().alias}" --json`;
 		log(`Executing deploy command: ${command}`);
-		const response = await runCliCommand(command);
+		const response = JSON.parse(await runCliCommand(command));
 		return {
 			content: [
 				{

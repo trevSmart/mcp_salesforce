@@ -1,23 +1,27 @@
 import fetch from 'node-fetch';
 import {exec} from 'child_process';
 import {promisify} from 'util';
-import {getCurrentAccessToken, setCurrentAccessToken, getOrgDescription} from '../index.js';
+import {CONFIG} from './config.js';
+import {getCurrentAccessToken, setCurrentAccessToken, getOrgDescription, getUserDescription} from '../index.js';
 import {globalCache} from './cache.js';
-import executeSoqlQuery from './tools/soqlQuery.js';
-
 const execPromise = promisify(exec);
 
 const salesforceConfig = {
-	apiVersion: process.env.apiVersion || '63.0',
+	apiVersion: process.env.SF_API_VERSION || '63.0',
 	loginUrl: process.env.loginUrl || 'https://test.salesforce.com',
-	clientId: process.env.clientId,
-	clientSecret: process.env.clientSecret,
-	username: process.env.username,
+	clientId: process.env.SF_CON,
+	clientSecret: process.env.SF_MCP_CONNECTED_APP_CLIENT_SECRET,
 	password: process.env.password
 };
 
 
-async function log(message) {
+async function log(message, logLevel = 'info') {
+	const LOG_LEVEL_PRIORITY = {info: 0, debug: 1, warn: 2, error: 3};
+
+	if (LOG_LEVEL_PRIORITY[logLevel] > LOG_LEVEL_PRIORITY[CONFIG.currentLogLevel]) {
+		return;
+	}
+
 	if (typeof message === 'object') {
 		message = JSON.stringify(message, null, '\t');
 	}
@@ -91,9 +95,10 @@ async function requestAccessToken() {
 	try {
 		log('Requesting new access token...');
 
-		const {loginUrl, clientId, clientSecret, username, password} = salesforceConfig;
+		const username = getUserDescription()?.username;
+		const {loginUrl, clientId, clientSecret, password} = salesforceConfig;
 
-		if (!loginUrl || !clientId || !clientSecret || !username || !password) {
+		if (!username || !loginUrl || !clientId || !clientSecret || !password) {
 			throw new Error('Missing required environment variables for token request');
 		}
 
@@ -162,27 +167,49 @@ async function callSalesforceAPI(method, baseUrl = null, path = '', body = null)
 }
 
 async function initServer() {
+	log('initServer', 'debug');
+
 	process.env.HOME = '/Users/marcpla';
 	await execPromise(`export HOME=${process.env.HOME}`);
 	const orgAlias = JSON.parse(await runCliCommand('sf config get target-org --json'))?.result?.[0]?.value;
 	let orgDescription = null;
 	let userDescription = null;
 	if (orgAlias) {
-		orgDescription = JSON.parse(await runCliCommand(`sf org display -o ${orgAlias} --json`))?.result;
-		userDescription = JSON.parse(await runCliCommand(`sf org display user -o ${orgAlias} --json`))?.result;
-		log(`Org and user details successfully retrieved: \n\nOrg:\n${JSON.stringify(orgDescription, null, 2)}\n\nUser:\n${JSON.stringify(userDescription, null, 2)}`);
+		orgDescription = JSON.parse(await runCliCommand(`sf org display -o "${orgAlias}" --json`))?.result;
+		userDescription = JSON.parse(await runCliCommand(`sf org display user -o "${orgAlias}" --json`))?.result;
+		log(`Org and user details successfully retrieved: \n\nOrg:\n${JSON.stringify(orgDescription, null, 2)}\n\nUser:\n${JSON.stringify(userDescription, null, 'debug')}`);
 	}
 
-	//--- SObject definitions refresh amb control de caché ---
 	if (orgDescription && orgDescription.alias) {
+		//SObject definitions refresh every 2 days
 		const lastRefresh = globalCache.get(orgDescription.alias, 'maintenance', 'sobjectRefreshLastRunDate');
 		const now = Date.now();
-		if (!lastRefresh || now - lastRefresh > globalCache.EXPIRATION_TIME.REFRESH_SOBJECT_DEFINITIONS) {
-			log('Llançant sf sobject definitions refresh...');
-			setTimeout(() => runCliCommand('sf sobject definitions refresh'), 1200000);
+		if (
+			lastRefresh && now - lastRefresh > globalCache.EXPIRATION_TIME.REFRESH_SOBJECT_DEFINITIONS ||
+			!lastRefresh && Math.random() < 0.1
+		) {
+			log('Launching sf sobject definitions refresh...');
+			setTimeout(() => runCliCommand('sf sobject definitions refresh'), 172800000); //2 days
 			globalCache.set(orgDescription.alias, 'maintenance', 'sobjectRefreshLastRunDate', now);
+		} else if (!lastRefresh) {
+			log('No last SObject definitions refresh date and not selected by probability.');
 		} else {
-			log('No cal refrescar SObject definitions, ja es va fer fa menys de 2 dies.');
+			log('No need to refresh SObject definitions, last refresh was less than 2 days ago.');
+		}
+
+		//SF CLI update every week
+		const lastSfCliUpdate = globalCache.get(orgDescription.alias, 'maintenance', 'sfCliUpdateLastRunDate');
+		if (
+			lastSfCliUpdate && now - lastSfCliUpdate > globalCache.EXPIRATION_TIME.UPDATE_SF_CLI ||
+			!lastSfCliUpdate && Math.random() < 0.1
+		) {
+			log('Launching sf update...');
+			setTimeout(() => runCliCommand('sf update'), 0); //immediate
+			globalCache.set(orgDescription.alias, 'maintenance', 'sfCliUpdateLastRunDate', now);
+		} else if (!lastSfCliUpdate) {
+			log('No last SF CLI update date and not selected by probability.');
+		} else {
+			log('No need to update SF CLI, last update was less than a week ago.');
 		}
 	}
 

@@ -1,11 +1,13 @@
+import {CONFIG} from './src/config.js';
+
 import {Server} from '@modelcontextprotocol/sdk/server/index.js';
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
 import {ListToolsRequestSchema, CallToolRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema} from '@modelcontextprotocol/sdk/types.js';
-//const {z} = require('zod');
 
 import {initServer, runCliCommand, log} from './src/utils.js';
 
 //Tools
+import clearCache from './src/tools/mcpUtils.js';
 import getOrgAndUserDetails from './src/tools/getOrgAndUserDetails.js';
 import getCurrentDatetime from './src/tools/getCurrentDatetime.js';
 import createRecord from './src/tools/createRecord.js';
@@ -49,6 +51,21 @@ export function setCurrentAccessToken(newAccessToken) {
 }
 
 //Definició dels tools
+const clearCacheTool = {
+	name: 'clearCache',
+	description: 'This tool allows clearing the cache of the Salesforce MCP server.',
+	inputSchema: {
+		type: 'object',
+		properties: {}
+	},
+	annotations: {
+		title: 'Clear the cache of the Salesforce MCP server.',
+		readOnlyHint: false,
+		idempotentHint: false,
+		openWorldHint: false
+	}
+};
+
 const getOrgAndUserDetailsTool = {
 	name: 'getOrgAndUserDetails',
 	description: 'This tool allows retrieving the Salesforce organization details like Id, Name, domain url, etc., as well as the current user details like Id, Name, Profile, etc..',
@@ -238,7 +255,7 @@ const getSetupAuditTrailTool = {
 	description: 'This tool allows retrieving a list of the configuration changes performed in the Salesforce org metadata.',
 	inputSchema: {
 		type: 'object',
-		required: ['lastDays'],
+		required: ['lastDays', 'createdByName'],
 		properties: {
 			lastDays: {
 				type: 'number',
@@ -246,7 +263,7 @@ const getSetupAuditTrailTool = {
 			},
 			createdByName: {
 				type: 'string',
-				description: 'If provided, only the changes performed by this user will be returned'
+				description: 'Only the changes performed by this user will be returned (null to return changes from all users)'
 			},
 			metadataName: {
 				type: 'string',
@@ -474,8 +491,10 @@ const server = new Server(
 		capabilities: {
 			logging: {},
 			resources: {},
+			prompts: {},
 			tools: {
-				'listChanged': true,
+				listChanged: true,
+				clearCacheTool,
 				getOrgAndUserDetailsTool,
 				getCurrentDatetimeTool,
 				createRecordTool,
@@ -495,7 +514,7 @@ const server = new Server(
 				//triggerExecutionOrderTool,
 				//chatWithAgentforceTool
 			},
-		},
+		}
 	}
 );
 
@@ -530,6 +549,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async request => {
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
 	tools: [
+		clearCacheTool,
 		getOrgAndUserDetailsTool,
 		getCurrentDatetimeTool,
 		createRecordTool,
@@ -572,7 +592,7 @@ async function callToolRequestSchemaHandler(request) {
 							'Please set a default org using the command:',
 							'',
 							'```bash',
-							'sf config set target-org <orgAlias>',
+							'sf config set target-org "<orgAlias>"',
 							'```',
 							'',
 							'*Available orgs:*',
@@ -584,7 +604,9 @@ async function callToolRequestSchemaHandler(request) {
 			}
 		}
 
-		if (name === 'getOrgAndUserDetails') {
+		if (name === 'clearCache') {
+			result = await clearCache(args, _meta);
+		} else if (name === 'getOrgAndUserDetails') {
 			result = await getOrgAndUserDetails(args, _meta);
 		} else if (name === 'getCurrentDatetime') {
 			result = await getCurrentDatetime(args, _meta);
@@ -642,6 +664,7 @@ async function callToolRequestSchemaHandler(request) {
 
 server.setRequestHandler(CallToolRequestSchema, callToolRequestSchemaHandler);
 
+/*
 export async function testToolHandler(request) {
 	orgDescription = {
 		accessToken: '00DKN0000000yy5!AQYAQC7Y2CcH.RQPdXVJHtnuyr0GoclFfQNi48y6OP_P6Cqog4p87Umqx3uw.fLnVoniwst4T1UxOtkMiGCKdn0wPREzuhDu',
@@ -652,14 +675,18 @@ export async function testToolHandler(request) {
 
 	return await callToolRequestSchemaHandler(request);
 }
+*/
 
 const transport = new StdioServerTransport();
+
 try {
 	await server.connect(transport);
 	log('IBM MCP Salesforce server started successfully');
 	setTimeout(async () => {
 		({orgDescription, userDescription} = await initServer());
-		const soqlUserResult = await executeSoqlQuery({query: `SELECT Name FROM User WHERE Id = '${userDescription.id}'`});
+
+		const soqlUserQuery = `SELECT Name FROM User WHERE Id = '${userDescription.id}'`;
+		const soqlUserResult = await executeSoqlQuery({query: soqlUserQuery});
 		userDescription.name = JSON.parse(soqlUserResult.content[0].text)[0].Name;
 	}, 100);
 

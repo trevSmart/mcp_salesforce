@@ -19,7 +19,7 @@ async function executeSoqlQuery({query, useToolingApi = false}) {
 			}
 		}
 
-		const command = `sf data query --query "${cleanQuery.replace(/"/g, '\\"')}" -o ${getOrgDescription().alias} ${toolingFlag} --json`;
+		const command = `sf data query --query "${cleanQuery.replace(/"/g, '\\"')}" -o "${getOrgDescription().alias}" ${toolingFlag} --json`;
 		log(`Executing SOQL query command: ${command}`);
 		const response = await JSON.parse(await runCliCommand(command));
 		const records = response.result.records.map(r => ({...r, href: `https://${getOrgDescription().instanceUrl}.lightning.force.com/${r.Id}`}));

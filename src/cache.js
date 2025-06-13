@@ -1,7 +1,7 @@
 import fs from 'fs';
-import path from 'path';
+import path, {dirname} from 'path';
 import {fileURLToPath} from 'url';
-import {dirname} from 'path';
+import {CONFIG} from './config.js';
 import {log} from './utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -9,27 +9,31 @@ const __dirname = dirname(__filename);
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 
 class GlobalCache {
-
 	EXPIRATION_TIME = {
-		TOOLING_API_GET: 300000, //5 minuts
-		ORG_USER_DETAILS: 300000, //5 minuts
-		REFRESH_SOBJECT_DEFINITIONS: 1200000, //20 minuts
-		DESCRIBE_SOBJECT_RESULT: 300000, //5 minuts
-		TOOLING_API_REQUEST: 300000 //5 minuts
+		TOOLING_API_GET: 300000, //5 minutes
+		ORG_USER_DETAILS: 300000, //5 minutes
+		REFRESH_SOBJECT_DEFINITIONS: 1200000, //20 minutes
+		DESCRIBE_SOBJECT_RESULT: 300000, //5 minutes
+		TOOLING_API_REQUEST: 300000, //5 minutes
+		UPDATE_SF_CLI: 604800000 //1 week
 	};
 
 	constructor() {
 		this.cache = {};
-		console.error('[CACHE] PROJECT_ROOT:', PROJECT_ROOT);
+		log('[CACHE] PROJECT_ROOT:', PROJECT_ROOT);
 		this.cacheFile = path.join(PROJECT_ROOT, 'tmp', 'cache.json');
 		this.stats = {hits: 0, misses: 0, sets: 0};
-		log('[CACHE] Constructor. Ruta fitxer:', this.cacheFile);
+		log('[CACHE] Constructor. File path:', this.cacheFile);
 		this._loadFromFile();
-		//Neteja periòdica d'entrades expirades cada 15 minuts
+		//Periodic cleanup of expired entries every 15 minutes
 		setInterval(() => this.cleanup(), 15 * 60 * 1000);
 	}
 
 	set(org, tool, key, value, ttl = 300000) {
+		if (!CONFIG.cacheEnabled) {
+			return;
+		}
+
 		log(`[CACHE] SET org=${org} tool=${tool} key=${key}`);
 		if (!this.cache[org]) {this.cache[org] = {}}
 		if (!this.cache[org][tool]) {this.cache[org][tool] = {}}
@@ -43,6 +47,10 @@ class GlobalCache {
 	}
 
 	get(org, tool, key) {
+		if (!CONFIG.cacheEnabled) {
+			return null;
+		}
+
 		log(`[CACHE] GET org=${org} tool=${tool} key=${key}`);
 		const item = this.cache?.[org]?.[tool]?.[key];
 		if (!item) {
@@ -70,11 +78,19 @@ class GlobalCache {
 		}
 	}
 
-	clear() {
+	clear(deleteFile = false) {
 		log('[CACHE] CLEAR');
 		this.cache = {};
 		this.stats = {hits: 0, misses: 0, sets: 0};
-		this._saveToFile();
+		try {
+			if (fs.existsSync(this.cacheFile)) {
+				fs.unlinkSync(this.cacheFile);
+				log('[CACHE] Cache file deleted');
+			}
+		} catch (err) {
+			log('[CACHE] Error deleting cache file:', err);
+		}
+		this._saveToFile(deleteFile);
 	}
 
 	getStats() {
@@ -113,17 +129,17 @@ class GlobalCache {
 		}
 		if (cleanedCount > 0) {
 			this._saveToFile();
-			log(`[CACHE] CLEANUP: ${cleanedCount} entrades expirades eliminades`);
+			log(`[CACHE] CLEANUP: ${cleanedCount} expired entries deleted`);
 		}
 		return cleanedCount;
 	}
 
-	_saveToFile() {
-		log('[CACHE] _saveToFile INICI');
-		log(`[CACHE] _saveToFile INICI. Ruta: ${this.cacheFile}`);
+	_saveToFile(deleteFile = false) {
+		log('[CACHE] _saveToFile START');
+		log(`[CACHE] _saveToFile START. Path: ${this.cacheFile}`);
 		try {
 			fs.mkdirSync(path.dirname(this.cacheFile), {recursive: true});
-			//Només guardem entrades no expirades
+			//Only save non-expired entries
 			const now = Date.now();
 			const cacheToSave = {};
 			for (const org of Object.keys(this.cache)) {
@@ -138,20 +154,30 @@ class GlobalCache {
 					}
 				}
 			}
+			//If the cache is completely empty, delete the file if it exists and exit
+			const isEmpty = Object.keys(cacheToSave).length === 0 || Object.values(cacheToSave).every(orgObj => Object.keys(orgObj).length === 0);
+			if (isEmpty && deleteFile) {
+				if (fs.existsSync(this.cacheFile)) {
+					fs.unlinkSync(this.cacheFile);
+					log('[CACHE] _saveToFile: file deleted because cache is empty');
+				}
+				return;
+			}
+
 			fs.writeFileSync(this.cacheFile, JSON.stringify(cacheToSave, null, 2), 'utf8');
 			log('[CACHE] _saveToFile OK');
 		} catch (err) {
-			log('[CACHE] Error guardant la caché:', err);
+			log('[CACHE] Error saving cache:', err);
 		}
 	}
 
 	_loadFromFile() {
-		log('[CACHE] _loadFromFile INICI');
+		log('[CACHE] _loadFromFile START');
 		try {
 			if (fs.existsSync(this.cacheFile)) {
 				const data = fs.readFileSync(this.cacheFile, 'utf8');
 				const loaded = JSON.parse(data);
-				//Només carreguem entrades no expirades
+				//Only load non-expired entries
 				const now = Date.now();
 				for (const org of Object.keys(loaded)) {
 					if (!this.cache[org]) {this.cache[org] = {}}
@@ -167,10 +193,10 @@ class GlobalCache {
 				}
 				log('[CACHE] _loadFromFile OK');
 			} else {
-				log('[CACHE] _loadFromFile: fitxer no existeix');
+				log('[CACHE] _loadFromFile: file does not exist');
 			}
 		} catch (err) {
-			log('[CACHE] Error carregant la caché:', err);
+			log('[CACHE] Error loading cache:', err);
 		}
 	}
 }

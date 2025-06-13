@@ -18,7 +18,7 @@ async function describeObject({sObjectName}) {
 			return cached;
 		}
 
-		const command = `sf sobject describe --sobject ${sObjectName} -o ${org} --json`;
+		const command = `sf sobject describe --sobject ${sObjectName} -o "${org}" --json`;
 		const response = JSON.parse(await runCliCommand(command));
 
 		if (response.status !== 0) {
@@ -32,7 +32,7 @@ async function describeObject({sObjectName}) {
 			];
 			const fieldKeys = [
 				'calculated', 'cascadeDelete', 'createable', 'custom', 'defaultValue', 'digits',
-				'encrypted', 'label', 'length', 'name', 'nameField', 'picklistValues',
+				'encrypted', 'label', 'length', 'name', 'nameField', 'picklistValues', 'filterable',
 				'polymorphicForeignKey', 'precision', 'referenceTo', 'relationshipName', 'scale',
 				'type', 'updateable'
 			];

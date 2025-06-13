@@ -14,11 +14,11 @@ async function getOrgAndUserDetails() {
 		content: [
 			{
 				type: 'text',
-				text: JSON.stringify(getOrgDescription(), null, '\t')
+				text: 'Org details:\n\n' + JSON.stringify(getOrgDescription(), null, '\t')
 			},
 			{
 				type: 'text',
-				text: JSON.stringify(getUserDescription(), null, '\t')
+				text: 'User details:\n\n' + JSON.stringify(getUserDescription(), null, '\t')
 			}
 		]
 	};

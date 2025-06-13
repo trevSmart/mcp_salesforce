@@ -200,7 +200,7 @@ temp_file=$(mktemp)
 SERVER_COMMAND="node /Users/marcpla/Documents/Feina/Projectes/mcp/mcp_salesforce/index.js"
 
 # Define allowed variables
-INSPECTOR_ENV_VARS=(SfApiVersion SfLoginUrl SfClientId SfClientSecret SfUsername SfPassword SfAgentforceAgentId)
+INSPECTOR_ENV_VARS=(SF_MCP_API_VERSION SF_MCP_LOGIN_URL SF_MCP_CONNECTED_APP_CLIENT_ID SF_MCP_CONNECTED_APP_CLIENT_SECRET SF_MCP_USERNAME SF_MCP_PASSWORD SF_MCP_AGENTFORCE_AGENT_ID)
 for var in "${INSPECTOR_ENV_VARS[@]}"; do
     value="${!var}"
     if [ -n "$value" ]; then
