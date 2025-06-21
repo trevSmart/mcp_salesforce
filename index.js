@@ -11,9 +11,8 @@ import {initServer, runCliCommand, log} from './src/utils.js';
 import {salesforceState} from './src/state.js';
 
 //Tools
-import salesforceMcpUtils from './src/tools/mcpUtils.js';
+import salesforceMcpUtils from './src/tools/salesforceMcpUtils.js';
 import getOrgAndUserDetails from './src/tools/getOrgAndUserDetails.js';
-import getCurrentDatetime from './src/tools/getCurrentDatetime.js';
 import createRecord from './src/tools/createRecord.js';
 import deleteRecord from './src/tools/deleteRecord.js';
 import deployMetadata from './src/tools/deployMetadata.js';
@@ -35,7 +34,6 @@ import test from './src/tools/test.js';
 const toolImplementations = {
 	salesforceMcpUtils,
 	getOrgAndUserDetails,
-	getCurrentDatetime,
 	createRecord,
 	deleteRecord,
 	deployMetadata,
@@ -59,21 +57,21 @@ const toolImplementations = {
 const salesforceMcpUtilsTool = {
 	name: 'salesforceMcpUtils',
 	title: 'Salesforce MCP Utils',
-	description: 'This tool allows clearing the cache of the Salesforce MCP server.',
+	description: 'This tool allows performing utility actions on the Salesforce MCP server.',
 	inputSchema: {
 		type: 'object',
 		required: ['action'],
 		properties: {
 			action: {
 				type: 'string',
-				description: 'The action to perform (clearCache, refreshSObjectDefinitions, updateSfCli, refreshSfCli)'
+				description: 'The action to perform, possible values: "clearCache", "refreshSObjectDefinitions", "getCurrentDatetime"'
 			}
 		}
 	},
 	annotations: {
 		readOnlyHint: false,
 		idempotentHint: false,
-		openWorldHint: true
+		openWorldHint: false
 	}
 };
 
@@ -81,21 +79,6 @@ const getOrgAndUserDetailsTool = {
 	name: 'getOrgAndUserDetails',
 	title: 'Get the Salesforce organization and current user details.',
 	description: 'This tool allows retrieving the Salesforce organization details like Id, Name, domain URL, etc., as well as the current user details like Id, Name, Profile, etc.',
-	inputSchema: {
-		type: 'object',
-		properties: {}
-	},
-	annotations: {
-		readOnlyHint: true,
-		idempotentHint: true,
-		openWorldHint: false
-	}
-};
-
-const getCurrentDatetimeTool = {
-	name: 'getCurrentDatetime',
-	title: 'Get the current datetime.',
-	description: 'This tool allows retrieving the current datetime, including timezone and ISO 8601 format.',
 	inputSchema: {
 		type: 'object',
 		properties: {}
@@ -474,7 +457,6 @@ const server = new Server({name: 'salesforce-mcp', version: '1.0.0'}, {
 		tools: {
 			salesforceMcpUtilsTool,
 			getOrgAndUserDetailsTool,
-			getCurrentDatetimeTool,
 			createRecordTool,
 			deleteRecordTool,
 			deployMetadataTool,
@@ -519,7 +501,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 		tools: [
 			salesforceMcpUtilsTool,
 			getOrgAndUserDetailsTool,
-			getCurrentDatetimeTool,
 			createRecordTool,
 			deleteRecordTool,
 			deployMetadataTool,

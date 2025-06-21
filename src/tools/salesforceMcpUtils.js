@@ -1,12 +1,27 @@
 import {globalCache} from '../cache.js';
 import {log} from '../utils.js';
 
-async function salesforceMcpUtils({action}) {
+export default async function salesforceMcpUtils({action}) {
 	try {
 		if (action === 'clearCache') {
 			globalCache.clear(true);
+
 		} else if (action === 'refreshSObjectDefinitions') {
 			runCliCommand('sf sobject definitions refresh');
+
+		} else if (action === 'getCurrentDatetime') {
+			const now = new Date();
+			return {
+				content: [{
+					type: 'text',
+					text: JSON.stringify({
+						now,
+						nowLocaleString: now.toLocaleString(),
+						nowIsoString: now.toISOString(),
+						timezone: new Intl.DateTimeFormat().resolvedOptions().timeZone
+					}, null, 2)
+				}]
+			};
 		} else {
 			throw new Error(`Invalid action: ${action}`);
 		}
@@ -28,5 +43,3 @@ async function salesforceMcpUtils({action}) {
 		};
 	}
 }
-
-export default salesforceMcpUtils;
