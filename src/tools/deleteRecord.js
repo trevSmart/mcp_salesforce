@@ -1,10 +1,13 @@
-import {getOrgDescription} from '../../index.js';
+import {salesforceState} from '../state.js';
 import {runCliCommand, log} from '../utils.js';
 
 async function deleteRecord({sObjectName, recordId}) {
 	try {
-		const command = `sf data delete record --sobject ${sObjectName} --record-id ${recordId} -o "${getOrgDescription().alias}" --json`;
-		const response = JSON.parse(await runCliCommand(command));
+		log(`Executing delete record command: ${sObjectName} ${recordId}`);
+		const command = `sf data delete record --sobject ${sObjectName} --record-id ${recordId} -o "${salesforceState.orgDescription.alias}" --json`;
+		const response = await runCliCommand(command);
+
+		log(`Tool response: ${response}`, 'debug');
 		if (response.status !== 0) {
 			throw new Error(response.message);
 		} else {

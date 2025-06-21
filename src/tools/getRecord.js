@@ -1,9 +1,9 @@
-import {getOrgDescription} from '../../index.js';
+import {salesforceState} from '../state.js';
 import {runCliCommand, log} from '../utils.js';
 
 async function getRecord({sObjectName, recordId}) {
 	try {
-		const command = `sf data get record --sobject ${sObjectName} --record-id ${recordId} -o "${getOrgDescription().alias}" --json`;
+		const command = `sf data get record --sobject ${sObjectName} --record-id ${recordId} -o "${salesforceState.orgDescription.alias}" --json`;
 		log(`Executing get record command: ${command}`);
 		const response = await JSON.parse(await runCliCommand(command));
 		//const {attributes, ...fields} = response.result;

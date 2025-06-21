@@ -1,9 +1,9 @@
-import {getOrgDescription} from '../../index.js';
+import {salesforceState} from '../state.js';
 import {runCliCommand, log} from '../utils.js';
 
-async function deployMetadata({sourceDir}) { //, context
+async function deployMetadata({sourceDir}) {
 	try {
-		const command = `sf project deploy start --source-dir ${sourceDir} --ignore-conflicts -o "${getOrgDescription().alias}" --json`;
+		const command = `sf project deploy start --source-dir ${sourceDir} --ignore-conflicts -o "${salesforceState.orgDescription.alias}" --json`;
 		log(`Executing deploy command: ${command}`);
 		const response = JSON.parse(await runCliCommand(command));
 		return {

@@ -1,12 +1,10 @@
-import {getOrgDescription} from '../../index.js';
+import {salesforceState} from '../state.js';
 import {runCliCommand, log} from '../utils.js';
 
 async function executeSoqlQuery({query, useToolingApi = false}) {
 	try {
-		const toolingFlag = useToolingApi ? '--use-tooling-api' : '';
-
-		//Clean the query by replacing line breaks and tabs with spaces
-		let cleanQuery = query.replace(/[\n\t\r]+/g, ' ').trim();
+		const cleanQuery = query.replace(/\s+/g, ' ').trim();
+		const toolingFlag = useToolingApi ? '-t' : '';
 
 		//If the query is a SELECT, add Id if not present
 		const selectMatch = cleanQuery.match(/^select\s+(.+?)\s+from\s+/i);
@@ -19,10 +17,23 @@ async function executeSoqlQuery({query, useToolingApi = false}) {
 			}
 		}
 
-		const command = `sf data query --query "${cleanQuery.replace(/"/g, '\\"')}" -o "${getOrgDescription().alias}" ${toolingFlag} --json`;
+		const command = `sf data query --query "${cleanQuery.replace(/"/g, '\\"')}" -o "${salesforceState.orgDescription.alias}" ${toolingFlag} --json`;
 		log(`Executing SOQL query command: ${command}`);
 		const response = await JSON.parse(await runCliCommand(command));
-		const records = response.result.records.map(r => ({...r, href: `https://${getOrgDescription().instanceUrl}.lightning.force.com/${r.Id}`}));
+
+		const records = response.result.records.map(r => ({...r, href: `https://${salesforceState.orgDescription.instanceUrl}.lightning.force.com/${r.Id}`}));
+		response.result.records = records;
+
+		if (response.status !== 0) {
+			return {
+				isError: true,
+				content: [{
+					type: 'text',
+					text: `Error executing SOQL query: ${response.error}`
+				}]
+			};
+		}
+
 		return {
 			content: [
 			/*{
@@ -31,7 +42,7 @@ async function executeSoqlQuery({query, useToolingApi = false}) {
 				}, */
 				{
 					type: 'text',
-					text: JSON.stringify(records, null, 2)
+					text: JSON.stringify(response.result.records, null, 2)
 				}]
 		};
 

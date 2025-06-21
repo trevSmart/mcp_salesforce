@@ -1,13 +1,17 @@
-import {CONFIG} from './src/config.js';
-
 import {Server} from '@modelcontextprotocol/sdk/server/index.js';
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
-import {ListToolsRequestSchema, CallToolRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema} from '@modelcontextprotocol/sdk/types.js';
+import {
+	ListToolsRequestSchema,
+	CallToolRequestSchema,
+	ListResourcesRequestSchema,
+	ReadResourceRequestSchema
+} from '@modelcontextprotocol/sdk/types.js';
 
 import {initServer, runCliCommand, log} from './src/utils.js';
+import {salesforceState} from './src/state.js';
 
 //Tools
-import clearCache from './src/tools/mcpUtils.js';
+import salesforceMcpUtils from './src/tools/mcpUtils.js';
 import getOrgAndUserDetails from './src/tools/getOrgAndUserDetails.js';
 import getCurrentDatetime from './src/tools/getCurrentDatetime.js';
 import createRecord from './src/tools/createRecord.js';
@@ -26,55 +30,62 @@ import triggerExecutionOrder from './src/tools/triggerExecutionOrder.js';
 import metadataApiRequest from './src/tools/metadataApiRequest.js';
 import chatWithAgentforce from './src/tools/chatWithAgentforce.js';
 import generateSoqlQuery from './src/tools/generateSoqlQuery.js';
+import test from './src/tools/test.js';
 
-let orgDescription;
-let userDescription;
-
-export function getOrgDescription() {
-	return orgDescription;
-}
-
-export function setOrgDescription(newOrgDescription) {
-	orgDescription = newOrgDescription;
-}
-
-export function getUserDescription() {
-	return userDescription;
-}
-
-export function getCurrentAccessToken() {
-	return orgDescription.accessToken;
-}
-
-export function setCurrentAccessToken(newAccessToken) {
-	orgDescription.accessToken = newAccessToken;
-}
+const toolImplementations = {
+	salesforceMcpUtils,
+	getOrgAndUserDetails,
+	getCurrentDatetime,
+	createRecord,
+	deleteRecord,
+	deployMetadata,
+	describeObject,
+	executeAnonymousApex,
+	getRecentlyViewedRecords,
+	getRecord,
+	getSetupAuditTrail,
+	apexDebugLogs,
+	executeSoqlQuery,
+	toolingApiRequest,
+	updateRecord,
+	triggerExecutionOrder,
+	metadataApiRequest,
+	chatWithAgentforce,
+	generateSoqlQuery,
+	test
+};
 
 //Definitions of tools
-const clearCacheTool = {
-	name: 'clearCache',
+const salesforceMcpUtilsTool = {
+	name: 'salesforceMcpUtils',
+	title: 'Salesforce MCP Utils',
 	description: 'This tool allows clearing the cache of the Salesforce MCP server.',
 	inputSchema: {
 		type: 'object',
-		properties: {}
+		required: ['action'],
+		properties: {
+			action: {
+				type: 'string',
+				description: 'The action to perform (clearCache, refreshSObjectDefinitions, updateSfCli, refreshSfCli)'
+			}
+		}
 	},
 	annotations: {
-		title: 'Clear the cache of the Salesforce MCP server.',
 		readOnlyHint: false,
 		idempotentHint: false,
-		openWorldHint: false
+		openWorldHint: true
 	}
 };
 
 const getOrgAndUserDetailsTool = {
 	name: 'getOrgAndUserDetails',
+	title: 'Get the Salesforce organization and current user details.',
 	description: 'This tool allows retrieving the Salesforce organization details like Id, Name, domain URL, etc., as well as the current user details like Id, Name, Profile, etc.',
 	inputSchema: {
 		type: 'object',
 		properties: {}
 	},
 	annotations: {
-		title: 'Get the Salesforce organization and current user details.',
 		readOnlyHint: true,
 		idempotentHint: true,
 		openWorldHint: false
@@ -83,13 +94,13 @@ const getOrgAndUserDetailsTool = {
 
 const getCurrentDatetimeTool = {
 	name: 'getCurrentDatetime',
+	title: 'Get the current datetime.',
 	description: 'This tool allows retrieving the current datetime, including timezone and ISO 8601 format.',
 	inputSchema: {
 		type: 'object',
 		properties: {}
 	},
 	annotations: {
-		title: 'Get the current datetime.',
 		readOnlyHint: true,
 		idempotentHint: true,
 		openWorldHint: false
@@ -98,6 +109,7 @@ const getCurrentDatetimeTool = {
 
 const createRecordTool = {
 	name: 'createRecord',
+	title: 'Create Record',
 	description: 'This tool allows creating a record in Salesforce with the given field values.',
 	inputSchema: {
 		type: 'object',
@@ -111,18 +123,18 @@ const createRecordTool = {
 				type: 'object',
 				description: 'The field values to create the record with (e.g. {"Name": "New Name", "Description": "New Description"})'
 			}
-		},
-		annotations: {
-			title: 'Create Record',
-			readOnlyHint: false,
-			idempotentHint: false,
-			openWorldHint: true
 		}
+	},
+	annotations: {
+		readOnlyHint: false,
+		idempotentHint: false,
+		openWorldHint: true
 	}
 };
 
 const deleteRecordTool = {
 	name: 'deleteRecord',
+	title: 'Delete Record',
 	description: 'This tool allows deleting a record in Salesforce.',
 	inputSchema: {
 		type: 'object',
@@ -139,7 +151,6 @@ const deleteRecordTool = {
 		}
 	},
 	annotations: {
-		title: 'Delete Record',
 		destructiveHint: true,
 		idempotentHint: false,
 		openWorldHint: true
@@ -148,6 +159,7 @@ const deleteRecordTool = {
 
 const deployMetadataTool = {
 	name: 'deployMetadata',
+	title: 'Deploy Metadata',
 	description: 'This tool allows deploying a local metadata file to the Salesforce org.',
 	inputSchema: {
 		type: 'object',
@@ -160,7 +172,6 @@ const deployMetadataTool = {
 		}
 	},
 	annotations: {
-		title: 'Deploy Metadata',
 		readOnlyHint: false,
 		destructiveHint: true,
 		idempotentHint: false,
@@ -170,6 +181,7 @@ const deployMetadataTool = {
 
 const describeObjectTool = {
 	name: 'describeObject',
+	title: 'Describe Object',
 	description: 'This tool allows to get all the information of a Salesforce SObject, including its fields, relationships, and other metadata.',
 	inputSchema: {
 		type: 'object',
@@ -182,7 +194,6 @@ const describeObjectTool = {
 		}
 	},
 	annotations: {
-		title: 'Describe Object',
 		readOnlyHint: true,
 		idempotentHint: false,
 		openWorldHint: true
@@ -191,6 +202,7 @@ const describeObjectTool = {
 
 const executeAnonymousApexTool = {
 	name: 'executeAnonymousApex',
+	title: 'Execute Anonymous Apex',
 	description: 'This tool allows executing anonymous Apex code in Salesforce.',
 	inputSchema: {
 		type: 'object',
@@ -203,7 +215,6 @@ const executeAnonymousApexTool = {
 		}
 	},
 	annotations: {
-		title: 'Execute Anonymous Apex',
 		readOnlyHint: false,
 		idempotentHint: true,
 		openWorldHint: true
@@ -212,13 +223,13 @@ const executeAnonymousApexTool = {
 
 const getRecentlyViewedRecordsTool = {
 	name: 'getRecentlyViewedRecords',
+	title: 'Get Recently Viewed Records',
 	description: 'This tool allows retrieving recently viewed records in Salesforce.',
 	inputSchema: {
 		type: 'object',
 		properties: {}
 	},
 	annotations: {
-		title: 'Get Recently Viewed Records',
 		readOnlyHint: true,
 		idempotentHint: false,
 		openWorldHint: true
@@ -227,6 +238,7 @@ const getRecentlyViewedRecordsTool = {
 
 const getRecordTool = {
 	name: 'getRecord',
+	title: 'Get Record',
 	description: 'This tool allows retrieving a record in Salesforce.',
 	inputSchema: {
 		type: 'object',
@@ -243,7 +255,6 @@ const getRecordTool = {
 		}
 	},
 	annotations: {
-		title: 'Get Record',
 		readOnlyHint: true,
 		idempotentHint: false,
 		openWorldHint: true
@@ -252,6 +263,7 @@ const getRecordTool = {
 
 const getSetupAuditTrailTool = {
 	name: 'getSetupAuditTrail',
+	title: 'Get the changes in the Salesforce org metadata performed in the last days from the Salesforce Setup Audit Trail data',
 	description: 'This tool allows retrieving a list of the configuration changes performed in the Salesforce org metadata.',
 	inputSchema: {
 		type: 'object',
@@ -272,7 +284,6 @@ const getSetupAuditTrailTool = {
 		},
 	},
 	annotations: {
-		title: 'Get the changes in the Salesforce org metadata performed in the last days from the Salesforce Setup Audit Trail data',
 		readOnlyHint: true,
 		idempotentHint: false,
 		openWorldHint: true
@@ -281,6 +292,7 @@ const getSetupAuditTrailTool = {
 
 const apexDebugLogsTool = {
 	name: 'apexDebugLogs',
+	title: 'Manage Apex debug logs',
 	description: 'This tool allows activating, deactivating, checking status or retrieving the debug logs in Salesforce.',
 	inputSchema: {
 		type: 'object',
@@ -297,7 +309,6 @@ const apexDebugLogsTool = {
 		}
 	},
 	annotations: {
-		title: 'Manage Apex debug logs',
 		readOnlyHint: false,
 		idempotentHint: false,
 		openWorldHint: true
@@ -306,6 +317,7 @@ const apexDebugLogsTool = {
 
 const executeSoqlQueryTool = {
 	name: 'executeSoqlQuery',
+	title: 'Execute SOQL Query',
 	description: 'This tool allows executing SOQL queries using Salesforce CLI.',
 	inputSchema: {
 		type: 'object',
@@ -322,7 +334,6 @@ const executeSoqlQueryTool = {
 		}
 	},
 	annotations: {
-		title: 'Execute SOQL Query',
 		readOnlyHint: true,
 		idempotentHint: false,
 		openWorldHint: true
@@ -331,6 +342,7 @@ const executeSoqlQueryTool = {
 
 const toolingApiRequestTool = {
 	name: 'toolingApiRequest',
+	title: 'Make Tooling API Request',
 	description: 'This tool allows making a tooling API request in Salesforce.',
 	inputSchema: {
 		type: 'object',
@@ -347,13 +359,13 @@ const toolingApiRequestTool = {
 		}
 	},
 	annotations: {
-		title: 'Make Tooling API Request',
 		openWorldHint: true
 	}
 };
 
 const updateRecordTool = {
 	name: 'updateRecord',
+	title: 'Update Record',
 	description: 'This tool allows updating a record in Salesforce.',
 	inputSchema: {
 		type: 'object',
@@ -374,61 +386,15 @@ const updateRecordTool = {
 		}
 	},
 	annotations: {
-		title: 'Update Record',
 		readOnlyHint: false,
 		idempotentHint: false,
 		openWorldHint: true
 	}
 };
 
-/*
-const triggerExecutionOrderTool = {
-	name: 'triggerExecutionOrder',
-	description: 'This tool analyzes the execution order of all automation components (triggers, flows, processes, etc.) for a given SObject and DML operation.',
-	inputSchema: {
-		type: 'object',
-		required: ['sObjectName', 'operation'],
-		properties: {
-			sObjectName: {
-				type: 'string',
-				description: 'The API name of the SObject to analyze'
-			},
-			operation: {
-				type: 'string',
-				description: 'The DML operation (insert, update, or delete)'
-			}
-		}
-	},
-	annotations: {
-		title: 'Trigger Execution Order',
-		readOnlyHint: true,
-		idempotentHint: false,
-		openWorldHint: true
-	}
-};
-
-const chatWithAgentforceTool = {
-	name: 'chatWithAgentforce',
-	description: 'This tool allows you to chat with an Einstein GPT agent configured in Salesforce.',
-	inputSchema: {
-		type: 'object',
-		required: ['message'],
-		properties: {
-			message: {
-				type: 'string',
-				description: 'The message to send to the agent'
-			}
-		}
-	},
-	annotations: {
-		title: 'Chat with Agentforce agent',
-		openWorldHint: true
-	}
-};
-*/
-
 const metadataApiRequestTool = {
 	name: 'metadataApiRequest',
+	title: 'Retrieve Metadata',
 	description: 'This tool allows retrieving metadata from Salesforce using force:source:retrieve.',
 	inputSchema: {
 		type: 'object',
@@ -445,112 +411,149 @@ const metadataApiRequestTool = {
 		}
 	},
 	annotations: {
-		title: 'Retrieve Metadata',
 		readOnlyHint: true,
 		idempotentHint: false,
 		openWorldHint: true
 	}
 };
 
-const server = new Server(
-	{
-		name: 'salesforce-mcp',
-		version: '1.0.0',
-	},
-	{
-		capabilities: {
-			logging: {},
-			resources: {},
-			prompts: {},
-			tools: {
-				listChanged: true,
-				clearCacheTool,
-				getOrgAndUserDetailsTool,
-				getCurrentDatetimeTool,
-				createRecordTool,
-				deleteRecordTool,
-				deployMetadataTool,
-				describeObjectTool,
-				executeAnonymousApexTool,
-				getRecentlyViewedRecordsTool,
-				getRecordTool,
-				getSetupAuditTrailTool,
-				apexDebugLogsTool,
-				executeSoqlQueryTool,
-				toolingApiRequestTool,
-				updateRecordTool,
-				generateSoqlQueryTool,
-				metadataApiRequestTool
-				//triggerExecutionOrderTool,
-				//chatWithAgentforceTool
+const generateSoqlQueryTool = {
+	name: 'generateSoqlQuery',
+	title: 'Generate SOQL Query',
+	description: 'This tool allows generating a SOQL query based on a description and involved SObjects.',
+	inputSchema: {
+		type: 'object',
+		required: ['soqlQueryDescription', 'involvedSObjects'],
+
+		properties: {
+			soqlQueryDescription: {
+				type: 'string',
+				description: 'The description of the SOQL query to generate'
 			},
+			involvedSObjects: {
+				type: 'array',
+				description: 'The SObjects involved in the query (e.g. ["Account", "Contact"])',
+				items: {
+					type: 'string'
+				}
+			}
+		}
+	},
+	annotations: {
+		readOnlyHint: true,
+		idempotentHint: false,
+		openWorldHint: true
+	}
+};
+
+const testTool = {
+	name: 'test',
+	title: 'Test Tool',
+	description: 'This is a test tool.',
+	inputSchema: {
+		type: 'object',
+		properties: {
+			param1: {
+				type: 'string',
+				description: 'Generic input parameter.'
+			}
+		}
+	},
+	annotations: {
+		readOnlyHint: true,
+		idempotentHint: true,
+		openWorldHint: false
+	}
+};
+
+const server = new Server({name: 'salesforce-mcp', version: '1.0.0'}, {
+	capabilities: {
+		logging: {},
+		resources: {},
+		prompts: {},
+		tools: {
+			salesforceMcpUtilsTool,
+			getOrgAndUserDetailsTool,
+			getCurrentDatetimeTool,
+			createRecordTool,
+			deleteRecordTool,
+			deployMetadataTool,
+			describeObjectTool,
+			executeAnonymousApexTool,
+			getRecentlyViewedRecordsTool,
+			getRecordTool,
+			getSetupAuditTrailTool,
+			apexDebugLogsTool,
+			executeSoqlQueryTool,
+			toolingApiRequestTool,
+			updateRecordTool,
+			generateSoqlQueryTool,
+			metadataApiRequestTool,
+			testTool
+			//triggerExecutionOrderTool,
+			//chatWithAgentforceTool
 		}
 	}
-);
+});
 
-server.setRequestHandler(ListResourcesRequestSchema, async () => ({
-	resources: [
-		{
-			uri: 'file:///orgDetails.json',
-			name: 'Org details',
-			mimeType: 'text/plain',
-			description: 'Org details'
-		}
-	]
-}));
+salesforceState.server = server;
+
+server.setRequestHandler(ListResourcesRequestSchema, async () => ({resources: [{
+	uri: 'file:///orgDetails.json',
+	name: 'Org details',
+	mimeType: 'text/plain',
+	description: 'Org details'
+}]}));
 
 server.setRequestHandler(ReadResourceRequestSchema, async request => {
 	const uri = request.params.uri;
-
 	if (uri === 'file:///orgDetails.json') {
-		return {
-			contents: [
-				{
-					uri,
-					mimeType: 'text/plain',
-					text: JSON.stringify(orgDescription)
-				}
-			]
-		};
+		return {contents: [{uri, mimeType: 'text/plain', text: JSON.stringify(salesforceState.orgDescription)}]};
 	}
-
 	throw new Error('Resource not found');
 });
 
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-	tools: [
-		clearCacheTool,
-		getOrgAndUserDetailsTool,
-		getCurrentDatetimeTool,
-		createRecordTool,
-		deleteRecordTool,
-		deployMetadataTool,
-		describeObjectTool,
-		executeAnonymousApexTool,
-		getRecentlyViewedRecordsTool,
-		getRecordTool,
-		getSetupAuditTrailTool,
-		apexDebugLogsTool,
-		executeSoqlQueryTool,
-		toolingApiRequestTool,
-		updateRecordTool,
-		generateSoqlQueryTool,
-		metadataApiRequestTool
-		//triggerExecutionOrderTool,
-		//chatWithAgentforceTool
-	]
-}));
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+	log('ListToolsRequestSchema', 'debug');
+	return {
+		tools: [
+			salesforceMcpUtilsTool,
+			getOrgAndUserDetailsTool,
+			getCurrentDatetimeTool,
+			createRecordTool,
+			deleteRecordTool,
+			deployMetadataTool,
+			describeObjectTool,
+			executeAnonymousApexTool,
+			getRecentlyViewedRecordsTool,
+			getRecordTool,
+			getSetupAuditTrailTool,
+			apexDebugLogsTool,
+			executeSoqlQueryTool,
+			toolingApiRequestTool,
+			updateRecordTool,
+			generateSoqlQueryTool,
+			metadataApiRequestTool,
+			testTool
+			//triggerExecutionOrderTool,
+			//chatWithAgentforceTool
+		]
+	};
+});
 
 async function callToolRequestSchemaHandler(request) {
 	const {name, arguments: args, _meta = {}} = request.params;
 
-	try {
-		let result;
-		log(`Executing tool: "${name}" with args: ${JSON.stringify(args, null, ' ')}`);
+	const progressToken = _meta.progressToken;
 
-		if (!orgDescription) {
-			({orgDescription, userDescription} = await initServer());
-			if (!orgDescription) {
+	try {
+		log(`Executing tool: "${name}" with args: ${JSON.stringify(args, null, ' ')}`);
+		let result;
+
+		if (!salesforceState.orgDescription) {
+			await initServer();
+
+			if (!salesforceState.orgDescription) {
 				const orgs = JSON.parse(await runCliCommand('sf org list auth --json'))?.result.map(o => o.alias);
 				return {
 					isError: true,
@@ -574,44 +577,9 @@ async function callToolRequestSchemaHandler(request) {
 			}
 		}
 
-		if (name === 'clearCache') {
-			result = await clearCache(args, _meta);
-		} else if (name === 'getOrgAndUserDetails') {
-			result = await getOrgAndUserDetails(args, _meta);
-		} else if (name === 'getCurrentDatetime') {
-			result = await getCurrentDatetime(args, _meta);
-		} else if (name === 'createRecord') {
-			result = await createRecord(args, _meta);
-		} else if (name === 'deleteRecord') {
-			result = await deleteRecord(args, _meta);
-		} else if (name === 'deployMetadata') {
-			result = await deployMetadata(args, _meta);
-		} else if (name === 'describeObject') {
-			result = await describeObject(args, _meta);
-		} else if (name === 'executeAnonymousApex') {
-			result = await executeAnonymousApex(args, _meta);
-		} else if (name === 'getRecentlyViewedRecords') {
-			result = await getRecentlyViewedRecords(args, _meta);
-		} else if (name === 'getRecord') {
-			result = await getRecord(args, _meta);
-		} else if (name === 'getSetupAuditTrail') {
-			result = await getSetupAuditTrail(args, _meta);
-		} else if (name === 'apexDebugLogs') {
-			result = await apexDebugLogs(args, _meta);
-		} else if (name === 'executeSoqlQuery') {
-			result = await executeSoqlQuery(args, _meta);
-		} else if (name === 'toolingApiRequest') {
-			result = await toolingApiRequest(args, _meta);
-		} else if (name === 'updateRecord') {
-			result = await updateRecord(args, _meta);
-		} else if (name === 'triggerExecutionOrder') {
-			result = await triggerExecutionOrder(args, _meta);
-		} else if (name === 'metadataApiRequest') {
-			result = await metadataApiRequest(args, _meta);
-		} else if (name === 'chatWithAgentforce') {
-			result = await chatWithAgentforce(args, _meta);
-		} else if (name === 'generateSoqlQuery') {
-			result = await generateSoqlQuery(args, _meta);
+		const toolFunction = toolImplementations[name];
+		if (toolFunction) {
+			result = await toolFunction(args, _meta);
 		} else {
 			throw new Error(`Unknown tool: ${name}`);
 		}
@@ -622,6 +590,14 @@ async function callToolRequestSchemaHandler(request) {
 		}
 	} catch (error) {
 		log(`Error executing ${name}:`, error);
+		if (progressToken) {
+			server.notification('notifications/progress', {
+				progressToken,
+				progress: 100,
+				total: 100,
+				message: `Tool execution failed: ${error.message}`
+			});
+		}
 		return {
 			isError: true,
 			content: [{
@@ -650,14 +626,13 @@ export async function testToolHandler(request) {
 const transport = new StdioServerTransport();
 
 try {
+	log('Connecting to IBM MCP Salesforce server...', 'debug');
 	await server.connect(transport);
-	log('IBM MCP Salesforce server started successfully');
 	setTimeout(async () => {
-		({orgDescription, userDescription} = await initServer());
-
-		const soqlUserQuery = `SELECT Name FROM User WHERE Id = '${userDescription.id}'`;
-		const soqlUserResult = await executeSoqlQuery({query: soqlUserQuery});
-		userDescription.name = JSON.parse(soqlUserResult.content[0].text)[0].Name;
+		await initServer();
+		const soqlUserQuery = `SELECT Name FROM User WHERE Id = '${salesforceState.userDescription.id}'`;
+		const soqlUserResult = await runCliCommand(`sf data query --query "${soqlUserQuery.replace(/"/g, '\\"')}" -o "${salesforceState.orgDescription.alias}" --json`);
+		salesforceState.userDescription.name = JSON.parse(soqlUserResult)?.result?.records?.[0]?.Name;
 	}, 100);
 
 } catch (error) {

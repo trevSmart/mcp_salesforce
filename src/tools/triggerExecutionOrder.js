@@ -1,4 +1,4 @@
-import {getOrgDescription} from '../../index.js';
+import {salesforceState} from '../state.js';
 import {runCliCommand} from '../utils.js';
 
 /**
@@ -17,11 +17,10 @@ async function triggerExecutionOrder(args) {
 	}
 
 	//1. Get triggers
-	const triggersQuery = `SELECT Id, Name, TableEnumOrId, Body, ApiVersion, Status
-							FROM ApexTrigger
-							WHERE TableEnumOrId = '${sObjectName}'
-							AND Status = 'Active'`;
-	const triggers = await runCliCommand(`sf data query -t -q "${triggersQuery}" -o "${getOrgDescription().alias}" --json`);
+	const operationFilter = operation === 'insert' ? 'before insert, after insert' : operation === 'update' ? 'before update, after update' : 'before delete, after delete';
+	const triggersQuery = `SELECT Name, NamespacePrefix FROM ApexTrigger WHERE TableEnumOrId = '${sObjectName}' AND (Status = 'Active') AND (NamespacePrefix = '' OR NamespacePrefix = NULL) ORDER BY Name`;
+	log(`Executing query: ${triggersQuery}`);
+	const triggers = await runCliCommand(`sf data query -t -q "${triggersQuery}" -o "${salesforceState.orgDescription.alias}" --json`);
 
 	//2. Get Process Builders
 	const processQuery = `SELECT Id, DeveloperName, LastModifiedDate, ProcessType, Status, TriggerType,
@@ -31,7 +30,9 @@ async function triggerExecutionOrder(args) {
 							AND Status = 'Active'
 							AND (TableEnumOrId = '${sObjectName}' OR TableEnumOrId = null)
 							ORDER BY LastModifiedDate DESC`;
-	const processes = await runCliCommand(`sf data query -t -q "${processQuery}" -o "${getOrgDescription().alias}" --json`);
+	log(`Executing query: ${processQuery}`);
+	const processes = await runCliCommand(`sf data query -t -q "${processQuery}" -o "${salesforceState.orgDescription.alias}" --json`);
+	log('Processes: ', processes);
 
 	//3. Get Flows
 	const recordTriggerType = {
@@ -46,8 +47,10 @@ async function triggerExecutionOrder(args) {
 							WHERE IsActive = TRUE AND ProcessType = 'AutoLaunchedFlow' AND NamespacePrefix = NULL AND
 							AND TriggerObjectOrEventId.QualifiedApiName = '${sObjectName}'
 							AND TriggerType IN ('RecordBeforeSave', 'RecordAfterSave', 'RecordBeforeDelete')
-							AND RecordTriggerType IN ${recordTriggerType}`;
-	const flows = await runCliCommand(`sf data query -t -q "${flowQuery}" -o "${getOrgDescription().alias}" --json`);
+							AND RecordTriggerType IN ${recordTriggerType}
+							AND IsTemplate = FALSE`;
+	log(`Executing query: ${flowQuery}`);
+	const flows = await runCliCommand(`sf data query -t -q "${flowQuery}" -o "${salesforceState.orgDescription.alias}" --json`);
 
 	//4. Get Validation Rules
 	const validationRulesQuery = `SELECT Id, Active, ErrorDisplayField, ErrorMessage, Description,
@@ -55,14 +58,16 @@ async function triggerExecutionOrder(args) {
 							 FROM ValidationRule
 							 WHERE Active = true
 							 AND EntityDefinition.QualifiedApiName = '${sObjectName}'`;
-	const validationRules = await runCliCommand(`sf data query -t -q "${validationRulesQuery}" -o "${getOrgDescription().alias}" --json`);
+	log(`Executing query: ${validationRulesQuery}`);
+	const validationRules = await runCliCommand(`sf data query -t -q "${validationRulesQuery}" -o "${salesforceState.orgDescription.alias}" --json`);
 
 	//5. Get Workflow Rules
 	const workflowRulesQuery = `SELECT Id, Name, TableEnumOrId, Active, Description, TriggerType
 								FROM WorkflowRule
 								WHERE Active = true
 								AND TableEnumOrId = '${sObjectName}'`;
-	const workflowRules = await runCliCommand(`sf data query -t -q "${workflowRulesQuery}" -o "${getOrgDescription().alias}" --json`);
+	log(`Executing query: ${workflowRulesQuery}`);
+	const workflowRules = await runCliCommand(`sf data query -t -q "${workflowRulesQuery}" -o "${salesforceState.orgDescription.alias}" --json`);
 
 	//Analyze the trigger code to detect dependencies
 	const triggerAnalysis = triggers.result.records.map(trigger => {

@@ -1,18 +1,24 @@
 import {globalCache} from '../cache.js';
 import {log} from '../utils.js';
 
-async function clearCache() {
+async function salesforceMcpUtils({action}) {
 	try {
-		globalCache.clear(true);
+		if (action === 'clearCache') {
+			globalCache.clear(true);
+		} else if (action === 'refreshSObjectDefinitions') {
+			runCliCommand('sf sobject definitions refresh');
+		} else {
+			throw new Error(`Invalid action: ${action}`);
+		}
 		return {
 			content: [{
 				type: 'text',
-				text: '✅ Cache cleared successfully'
+				text: `✅ Action "${action}" executed successfully`
 			}]
 		};
 
 	} catch (error) {
-		log('Error clearing cache:', JSON.stringify(error, null, 2));
+		log(`Error executing action "${action}":`, JSON.stringify(error, null, 2));
 		return {
 			isError: true,
 			content: [{
@@ -23,4 +29,4 @@ async function clearCache() {
 	}
 }
 
-export default clearCache;
+export default salesforceMcpUtils;

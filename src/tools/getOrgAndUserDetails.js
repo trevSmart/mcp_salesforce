@@ -1,8 +1,9 @@
-import {getOrgDescription, getUserDescription} from '../../index.js';
+import {salesforceState} from '../state.js';
 import {globalCache} from '../cache.js';
+import {log, runCliCommand} from '../utils.js';
 
 async function getOrgAndUserDetails() {
-	const org = getOrgDescription().alias;
+	const org = salesforceState.orgDescription.alias;
 	const tool = 'orgUserDetails';
 	const key = 'main';
 	const cached = globalCache.get(org, tool, key);
@@ -14,11 +15,11 @@ async function getOrgAndUserDetails() {
 		content: [
 			{
 				type: 'text',
-				text: 'Org details:\n\n' + JSON.stringify(getOrgDescription(), null, '\t')
+				text: 'Org details:\n\n' + JSON.stringify(salesforceState.orgDescription, null, '\t')
 			},
 			{
 				type: 'text',
-				text: 'User details:\n\n' + JSON.stringify(getUserDescription(), null, '\t')
+				text: 'User details:\n\n' + JSON.stringify(salesforceState.userDescription, null, '\t')
 			}
 		]
 	};

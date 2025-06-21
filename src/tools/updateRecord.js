@@ -1,5 +1,7 @@
-import {getOrgDescription} from '../../index.js';
+import {salesforceState} from '../state.js';
 import {runCliCommand} from '../utils.js';
+import pkg from 'lodash';
+const {escape} = pkg;
 
 async function updateRecord({sObjectName, recordId, fields}) {
 	try {
@@ -8,12 +10,14 @@ async function updateRecord({sObjectName, recordId, fields}) {
 
 		//Convert fields to format "Field1='Value1' Field2='Value2'"
 		const valuesString = Object.entries(fieldsObject)
-			.map(([key, value]) => `${key}='${value}'`)
+			.map(([key, value]) => `${key}='${escape(value)}'`)
 			.join(' ');
 
 		//Execute the CLI command
-		const command = `sf data update record --sobject ${sObjectName} --where "Id='${recordId}'" --values "${valuesString}" -o "${getOrgDescription().alias}" --json`;
-		await runCliCommand(command);
+		const command = `sf data update record --sobject ${sObjectName} --where "Id='${recordId}'" --values "${valuesString}" -o "${salesforceState.orgDescription.alias}" --json`;
+		const response = await runCliCommand(command);
+
+		log(`Tool response: ${response}`, 'debug');
 
 		return {
 			content: [

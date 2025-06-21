@@ -1,4 +1,4 @@
-import {getOrgDescription} from '../../index.js';
+import {salesforceState} from '../state.js';
 import {runCliCommand, log} from '../utils.js';
 
 async function createRecord({sObjectName, fields}) {
@@ -27,15 +27,17 @@ async function createRecord({sObjectName, fields}) {
 			}).join(' ');
 
 		//Execute sf CLI command
-		const command = `sf data create record --sobject ${sObjectName} --values "${valuesString}" -o "${getOrgDescription().alias}" --json`;
+		const command = `sf data create record --sobject ${sObjectName} --values "${valuesString}" -o "${salesforceState.orgDescription.alias}" --json`;
 		log(`Executing create record command: ${command}`);
-		const response = JSON.parse(await runCliCommand(command));
+		const response = await runCliCommand(command);
+
+		log(`Tool response: ${response}`, 'debug');
 
 		if (response.status !== 0) {
 			throw new Error(`Failed to create record: ${response.result.errors[0].message}`);
 		} else {
-			const recordId = response.result.id;
-			const recordUrl = `https://${getOrgDescription().instanceUrl}/${recordId}`;
+			const recordId = JSON.parse(response).result.Id;
+			const recordUrl = `https://${salesforceState.orgDescription.instanceUrl}/${recordId}`;
 			return {
 				content: [{
 					type: 'text',

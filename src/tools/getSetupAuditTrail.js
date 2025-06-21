@@ -1,4 +1,4 @@
-import {getOrgDescription} from '../../index.js';
+import {salesforceState} from '../state.js';
 import {runCliCommand, log} from '../utils.js';
 const SOQL_LIMIT = 1000;
 
@@ -21,13 +21,17 @@ async function getSetupAuditTrail({lastDays, createdByName, metadataName}) {
 			soqlQuery += ' WHERE ' + conditions.join(' AND ');
 		}
 
+		if (metadataName) {
+			soqlQuery += ` AND Display LIKE '%${metadataName}%'`;
+		}
+
 		soqlQuery += ` ORDER BY CreatedDate DESC LIMIT ${SOQL_LIMIT}`;
 
 		//Clean the query by replacing line breaks and tabs with spaces
 		const cleanQuery = soqlQuery.replace(/[\n\t\r]+/g, ' ').trim();
 
-		const command = `sf data query --query "${cleanQuery.replace(/"/g, '\\"')}" -o "${getOrgDescription().alias}" --json`;
-		log(`Executing SOQL query command: ${command}`);
+		const command = `sf data query --query "${cleanQuery.replace(/"/g, '\\"')}" -o "${salesforceState.orgDescription.alias}" --json`;
+		log(`Executing query command: ${command}`);
 		const response = await JSON.parse(await runCliCommand(command));
 
 		if (!response || !response.result || !Array.isArray(response.result.records)) {

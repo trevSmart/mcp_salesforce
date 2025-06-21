@@ -1,12 +1,12 @@
 import fs from 'fs';
 import path, {dirname} from 'path';
 import {fileURLToPath} from 'url';
-import {CONFIG} from './config.js';
-import {log} from './utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const PROJECT_ROOT = path.resolve(__dirname, '..');
+
+const CACHE_ENABLED = false;
 
 class GlobalCache {
 	EXPIRATION_TIME = {
@@ -20,21 +20,18 @@ class GlobalCache {
 
 	constructor() {
 		this.cache = {};
-		log('[CACHE] PROJECT_ROOT:', PROJECT_ROOT);
 		this.cacheFile = path.join(PROJECT_ROOT, 'tmp', 'cache.json');
 		this.stats = {hits: 0, misses: 0, sets: 0};
-		log('[CACHE] Constructor. File path:', this.cacheFile);
 		this._loadFromFile();
 		//Periodic cleanup of expired entries every 15 minutes
 		setInterval(() => this.cleanup(), 15 * 60 * 1000);
 	}
 
 	set(org, tool, key, value, ttl = 300000) {
-		if (!CONFIG.cacheEnabled) {
+		if (!CACHE_ENABLED) {
 			return;
 		}
 
-		log(`[CACHE] SET org=${org} tool=${tool} key=${key}`);
 		if (!this.cache[org]) {this.cache[org] = {}}
 		if (!this.cache[org][tool]) {this.cache[org][tool] = {}}
 		this.cache[org][tool][key] = {
@@ -47,31 +44,26 @@ class GlobalCache {
 	}
 
 	get(org, tool, key) {
-		if (!CONFIG.cacheEnabled) {
+		if (!CACHE_ENABLED) {
 			return null;
 		}
 
-		log(`[CACHE] GET org=${org} tool=${tool} key=${key}`);
 		const item = this.cache?.[org]?.[tool]?.[key];
 		if (!item) {
 			this.stats.misses++;
-			log('[CACHE] MISS');
 			return null;
 		}
 		if (Date.now() > item.expires) {
 			delete this.cache[org][tool][key];
 			this.stats.misses++;
-			log('[CACHE] EXPIRED');
 			this._saveToFile();
 			return null;
 		}
 		this.stats.hits++;
-		log('[CACHE] HIT');
 		return item.value;
 	}
 
 	delete(org, tool, key) {
-		log(`[CACHE] DELETE org=${org} tool=${tool} key=${key}`);
 		if (this.cache?.[org]?.[tool]?.[key]) {
 			delete this.cache[org][tool][key];
 			this._saveToFile();
@@ -79,16 +71,14 @@ class GlobalCache {
 	}
 
 	clear(deleteFile = false) {
-		log('[CACHE] CLEAR');
 		this.cache = {};
 		this.stats = {hits: 0, misses: 0, sets: 0};
 		try {
 			if (fs.existsSync(this.cacheFile)) {
 				fs.unlinkSync(this.cacheFile);
-				log('[CACHE] Cache file deleted');
 			}
 		} catch (err) {
-			log('[CACHE] Error deleting cache file:', err);
+			console.error('[CACHE] Error deleting cache file:', err);
 		}
 		this._saveToFile(deleteFile);
 	}
@@ -113,7 +103,6 @@ class GlobalCache {
 	}
 
 	cleanup() {
-		log('[CACHE] CLEANUP');
 		const now = Date.now();
 		let cleanedCount = 0;
 		for (const org of Object.keys(this.cache)) {
@@ -129,14 +118,11 @@ class GlobalCache {
 		}
 		if (cleanedCount > 0) {
 			this._saveToFile();
-			log(`[CACHE] CLEANUP: ${cleanedCount} expired entries deleted`);
 		}
 		return cleanedCount;
 	}
 
 	_saveToFile(deleteFile = false) {
-		log('[CACHE] _saveToFile START');
-		log(`[CACHE] _saveToFile START. Path: ${this.cacheFile}`);
 		try {
 			fs.mkdirSync(path.dirname(this.cacheFile), {recursive: true});
 			//Only save non-expired entries
@@ -159,20 +145,17 @@ class GlobalCache {
 			if (isEmpty && deleteFile) {
 				if (fs.existsSync(this.cacheFile)) {
 					fs.unlinkSync(this.cacheFile);
-					log('[CACHE] _saveToFile: file deleted because cache is empty');
 				}
 				return;
 			}
 
 			fs.writeFileSync(this.cacheFile, JSON.stringify(cacheToSave, null, 2), 'utf8');
-			log('[CACHE] _saveToFile OK');
 		} catch (err) {
-			log('[CACHE] Error saving cache:', err);
+			console.error('[CACHE] Error saving cache:', err);
 		}
 	}
 
 	_loadFromFile() {
-		log('[CACHE] _loadFromFile START');
 		try {
 			if (fs.existsSync(this.cacheFile)) {
 				const data = fs.readFileSync(this.cacheFile, 'utf8');
@@ -191,12 +174,11 @@ class GlobalCache {
 						}
 					}
 				}
-				log('[CACHE] _loadFromFile OK');
 			} else {
-				log('[CACHE] _loadFromFile: file does not exist');
+				console.error('[CACHE] _loadFromFile: file does not exist');
 			}
 		} catch (err) {
-			log('[CACHE] Error loading cache:', err);
+			console.error('[CACHE] Error loading cache:', err);
 		}
 	}
 }

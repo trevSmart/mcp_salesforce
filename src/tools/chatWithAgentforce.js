@@ -1,4 +1,4 @@
-import {getOrgDescription} from '../../index.js';
+import {salesforceState} from '../state.js';
 import {callSalesforceAPI, log} from '../utils.js';
 import crypto from 'crypto';
 
@@ -11,7 +11,7 @@ async function startSession() {
 		const body = {
 			externalSessionKey: crypto.randomUUID(),
 			instanceConfig: {
-				endpoint: getOrgDescription().instanceUrl
+				endpoint: salesforceState.orgDescription.instanceUrl
 			},
 			tz: 'America/Los_Angeles',
 			variables: [

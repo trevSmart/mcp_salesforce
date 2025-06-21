@@ -1,8 +1,10 @@
-import {getOrgDescription} from '../../index.js';
-import {runCliCommand, log} from '../utils.js';
+import {salesforceState} from '../state.js';
+import {runCliCommand, log, notifyProgressChange} from '../utils.js';
 import {globalCache} from '../cache.js';
 
-async function describeObject({sObjectName}) {
+async function describeObject({sObjectName}, _meta) {
+	const progressToken = _meta.progressToken;
+
 	try {
 		//Validate object name
 		if (!sObjectName || typeof sObjectName !== 'string') {
@@ -10,7 +12,7 @@ async function describeObject({sObjectName}) {
 			throw new Error('SObject name must be a non-empty string');
 		}
 
-		const org = getOrgDescription().alias;
+		const org = salesforceState.orgDescription.alias;
 		const tool = 'describe';
 		const key = sObjectName;
 		const cached = globalCache.get(org, tool, key);
@@ -18,8 +20,12 @@ async function describeObject({sObjectName}) {
 			return cached;
 		}
 
+		notifyProgressChange(progressToken, 2, 0, 'Running CLI command...');
+
 		const command = `sf sobject describe --sobject ${sObjectName} -o "${org}" --json`;
 		const response = JSON.parse(await runCliCommand(command));
+
+		notifyProgressChange(progressToken, 2, 1, 'Parsing CLI command response...');
 
 		if (response.status !== 0) {
 			throw new Error(response.message);
@@ -67,6 +73,8 @@ async function describeObject({sObjectName}) {
 			};
 			//Desa la resposta al cache centralitzat
 			globalCache.set(org, tool, key, result);
+
+			notifyProgressChange(progressToken, 2, 2, 'Done');
 			return result;
 		}
 	} catch (error) {

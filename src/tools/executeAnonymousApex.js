@@ -1,4 +1,4 @@
-import {getOrgDescription} from '../../index.js';
+import {salesforceState} from '../state.js';
 import {promisify} from 'util';
 import fs from 'fs';
 import os from 'os';
@@ -35,8 +35,8 @@ async function executeAnonymousApex({apexCode}) { //, context
 		await writeFilePromise(tempFilePath, formattedCode);
 
 		//Execute SF CLI command
-		const command = `sf apex run -o "${getOrgDescription().alias}" --file "${tempFilePath}" --json`;
-		const response = await JSON.parse(await runCliCommand(command));
+		const command = `sf apex run -o "${salesforceState.orgDescription.alias}" --file "${tempFilePath}" --json`;
+		const response = await runCliCommand(command, {log: true});
 		return {
 			content: [{
 				type: 'text',

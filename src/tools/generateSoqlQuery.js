@@ -16,29 +16,37 @@ async function generateSoqlQuery({soqlQueryDescription, involvedSObjects}) {
 				const result = await describeObject({sObjectName});
 				log('DESCRIBE OBJECT RESULT:');
 				log(JSON.stringify(result, null, '\t'));
-				const match = result.content[0].text.match(/\{.*\}$/s);
-				if (match) {
-					const fullDesc = JSON.parse(match[0]);
-					//Filter fields to keep only the specified keys
-					const filteredFields = (fullDesc.fields || []).map(field => ({
-						label: field.label,
-						name: field.name,
-						type: field.type,
-						referenceTo: field.referenceTo,
-						relationshipName: field.relationshipName,
-						sortable: field.sortable
-					}));
-					return {
-						fields: filteredFields,
-						recordTypeInfos: fullDesc.recordTypeInfos
-					};
+				let sObjDesc = result;
+				if (result.content && result.content[0] && result.content[0].text) {
+					try {
+						sObjDesc = JSON.parse(result.content[0].text);
+					} catch (parseError) {
+						log(`Error parsing JSON for ${sObjectName}:`, parseError);
+						throw new Error(`Error parsing JSON for ${sObjectName}: ${parseError.message}`);
+					}
 				} else {
-					throw new Error(`Could not parse the description of the object ${sObjectName}`);
+					log(`Warning: 'content[0]' or 'text' property is missing in the result for ${sObjectName}`);
+					throw new Error(`Missing 'content[0]' or 'text' property in the result for ${sObjectName}`);
 				}
+				if (!sObjDesc.fields) {
+					throw new Error(`No s'ha trobat la propietat 'fields' a la descripció de l'objecte ${sObjectName}`);
+				}
+				const filteredFields = (sObjDesc.fields || []).map(field => ({
+					label: field.label,
+					name: field.name,
+					type: field.type,
+					referenceTo: field.referenceTo,
+					relationshipName: field.relationshipName,
+					sortable: field.sortable
+				}));
+				return {
+					fields: filteredFields,
+					recordTypeInfos: sObjDesc.recordTypeInfos
+				};
 			})
 		);
 
-		//Minificar el JSON de describeSObjectResults
+		//Minify the JSON describeSObjectResults
 		const minifiedDescribeSObjectResults = JSON.parse(JSON.stringify(describeSObjectResults));
 
 		//Build the body for the prompt template call according to the new structure

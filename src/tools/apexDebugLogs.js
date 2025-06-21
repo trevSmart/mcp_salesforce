@@ -1,4 +1,4 @@
-import {getUserDescription} from '../../index.js';
+import {salesforceState} from '../state.js';
 import executeSoqlQuery from './soqlQuery.js';
 import createRecord from './createRecord.js';
 import updateRecord from './updateRecord.js';
@@ -7,7 +7,7 @@ import {runCliCommand, log} from '../utils.js';
 async function apexDebugLogs({action, logId}) {
 
 	try {
-		const userDescription = getUserDescription();
+		const userDescription = salesforceState.userDescription;
 		let traceFlag;
 
 		if (action === 'status') {

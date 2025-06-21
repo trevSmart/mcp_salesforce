@@ -1,6 +1,6 @@
-import {callSalesforceAPI} from '../utils.js';
+import {callSalesforceAPI, log} from '../utils.js';
 import {globalCache} from '../cache.js';
-import {getOrgDescription} from '../../index.js';
+import {salesforceState} from '../state.js';
 
 async function toolingApiRequest({method, endpoint}) {
 	try {
@@ -10,7 +10,7 @@ async function toolingApiRequest({method, endpoint}) {
 
 		//Only cache GET requests (do not modify data)
 		if (method.toUpperCase() === 'GET') {
-			const org = getOrgDescription().alias;
+			const org = salesforceState.orgDescription.alias;
 			const tool = 'tooling';
 			const key = `${method}:${toolingEndpoint}`;
 			const cached = globalCache.get(org, tool, key);
@@ -45,6 +45,8 @@ async function toolingApiRequest({method, endpoint}) {
 				method,
 				toolingEndpoint
 			);
+
+			log(`Tooling API request result: ${JSON.stringify(result, null, 2)}`, 'debug');
 
 			return {
 				content: [
