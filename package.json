@@ -22,7 +22,8 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.11.4",
     "env-paths": "^3.0.0",
-    "node-fetch": "^2.6.7"
+    "node-fetch": "^2.6.7",
+    "@salesforce/apex-node": "^8.1.32"
   },
   "engines": {
     "node": ">=14.0.0"

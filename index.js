@@ -7,14 +7,13 @@ import {
 	ReadResourceRequestSchema
 } from '@modelcontextprotocol/sdk/types.js';
 
-import {initServer, runCliCommand, log} from './src/utils.js';
+import {initServer, runCliCommand, log, loadToolDescription} from './src/utils.js';
 import {salesforceState} from './src/state.js';
 
 //Tools
 import salesforceMcpUtils from './src/tools/salesforceMcpUtils.js';
 import getOrgAndUserDetails from './src/tools/getOrgAndUserDetails.js';
-import createRecord from './src/tools/createRecord.js';
-import deleteRecord from './src/tools/deleteRecord.js';
+import dmlOperation from './src/tools/dmlOperation.js';
 import deployMetadata from './src/tools/deployMetadata.js';
 import describeObject from './src/tools/describeObject.js';
 import executeAnonymousApex from './src/tools/executeAnonymousApex.js';
@@ -24,18 +23,17 @@ import getSetupAuditTrail from './src/tools/getSetupAuditTrail.js';
 import apexDebugLogs from './src/tools/apexDebugLogs.js';
 import executeSoqlQuery from './src/tools/soqlQuery.js';
 import toolingApiRequest from './src/tools/toolingApiRequest.js';
-import updateRecord from './src/tools/updateRecord.js';
 import triggerExecutionOrder from './src/tools/triggerExecutionOrder.js';
 import metadataApiRequest from './src/tools/metadataApiRequest.js';
 import chatWithAgentforce from './src/tools/chatWithAgentforce.js';
 import generateSoqlQuery from './src/tools/generateSoqlQuery.js';
 import test from './src/tools/test.js';
+import runApexTest from './src/tools/runApexTest.js';
 
 const toolImplementations = {
 	salesforceMcpUtils,
 	getOrgAndUserDetails,
-	createRecord,
-	deleteRecord,
+	dmlOperation,
 	deployMetadata,
 	describeObject,
 	executeAnonymousApex,
@@ -45,19 +43,19 @@ const toolImplementations = {
 	apexDebugLogs,
 	executeSoqlQuery,
 	toolingApiRequest,
-	updateRecord,
 	triggerExecutionOrder,
 	metadataApiRequest,
 	chatWithAgentforce,
 	generateSoqlQuery,
-	test
+	test,
+	runApexTest
 };
 
 //Definitions of tools
 const salesforceMcpUtilsTool = {
 	name: 'salesforceMcpUtils',
 	title: 'Salesforce MCP Utils',
-	description: 'This tool allows performing utility actions on the Salesforce MCP server.',
+	description: loadToolDescription('salesforceMcpUtils'),
 	inputSchema: {
 		type: 'object',
 		required: ['action'],
@@ -71,14 +69,15 @@ const salesforceMcpUtilsTool = {
 	annotations: {
 		readOnlyHint: false,
 		idempotentHint: false,
-		openWorldHint: false
+		openWorldHint: false,
+		title: 'Salesforce MCP Utils'
 	}
 };
 
 const getOrgAndUserDetailsTool = {
 	name: 'getOrgAndUserDetails',
 	title: 'Get the Salesforce organization and current user details.',
-	description: 'This tool allows retrieving the Salesforce organization details like Id, Name, domain URL, etc., as well as the current user details like Id, Name, Profile, etc.',
+	description: loadToolDescription('getOrgAndUserDetails'),
 	inputSchema: {
 		type: 'object',
 		properties: {}
@@ -86,64 +85,49 @@ const getOrgAndUserDetailsTool = {
 	annotations: {
 		readOnlyHint: true,
 		idempotentHint: true,
-		openWorldHint: false
+		openWorldHint: false,
+		title: 'Get the Salesforce organization and current user details.'
 	}
 };
 
-const createRecordTool = {
-	name: 'createRecord',
-	title: 'Create Record',
-	description: 'This tool allows creating a record in Salesforce with the given field values.',
+const dmlOperationTool = {
+	name: 'dmlOperation',
+	title: 'DML Operation',
+	description: loadToolDescription('dmlOperation'),
 	inputSchema: {
 		type: 'object',
-		required: ['sObjectName', 'fields'],
+		required: ['operation', 'sObjectName', 'fields'],
 		properties: {
-			sObjectName: {
+			operation: {
 				type: 'string',
-				description: 'The SObject type of the record to create.',
+				description: 'The DML operation to perform. Possible values: "create", "update", "delete".'
 			},
-			fields: {
-				type: 'object',
-				description: 'The field values to create the record with (e.g. {"Name": "New Name", "Description": "New Description"})'
-			}
-		}
-	},
-	annotations: {
-		readOnlyHint: false,
-		idempotentHint: false,
-		openWorldHint: true
-	}
-};
-
-const deleteRecordTool = {
-	name: 'deleteRecord',
-	title: 'Delete Record',
-	description: 'This tool allows deleting a record in Salesforce.',
-	inputSchema: {
-		type: 'object',
-		required: ['sObjectName', 'recordId'],
-		properties: {
 			sObjectName: {
 				type: 'string',
-				description: 'The SObject type of the record to delete.',
+				description: 'The SObject type of the record.'
 			},
 			recordId: {
 				type: 'string',
-				description: 'The ID of the record to delete.',
+				description: 'Only applicable for operations "update" and "delete". The ID of the record.'
+			},
+			fields: {
+				type: 'object',
+				description: 'Only applicable for operations "create" and "update". An object with the field values for the record. E.g. {"Name": "New Name", "Description": "New Description"}'
 			}
 		}
 	},
 	annotations: {
 		destructiveHint: true,
 		idempotentHint: false,
-		openWorldHint: true
+		openWorldHint: true,
+		title: 'DML Operation'
 	}
 };
 
 const deployMetadataTool = {
 	name: 'deployMetadata',
 	title: 'Deploy Metadata',
-	description: 'This tool allows deploying a local metadata file to the Salesforce org.',
+	description: loadToolDescription('deployMetadata'),
 	inputSchema: {
 		type: 'object',
 		required: ['sourceDir'],
@@ -158,14 +142,15 @@ const deployMetadataTool = {
 		readOnlyHint: false,
 		destructiveHint: true,
 		idempotentHint: false,
-		openWorldHint: true
+		openWorldHint: true,
+		title: 'Deploy Metadata'
 	}
 };
 
 const describeObjectTool = {
 	name: 'describeObject',
 	title: 'Describe Object',
-	description: 'This tool allows to get all the information of a Salesforce SObject, including its fields, relationships, and other metadata.',
+	description: loadToolDescription('describeObject'),
 	inputSchema: {
 		type: 'object',
 		required: ['sObjectName'],
@@ -178,15 +163,16 @@ const describeObjectTool = {
 	},
 	annotations: {
 		readOnlyHint: true,
-		idempotentHint: false,
-		openWorldHint: true
+		idempotentHint: true,
+		openWorldHint: true,
+		title: 'Describe Object'
 	}
 };
 
 const executeAnonymousApexTool = {
 	name: 'executeAnonymousApex',
 	title: 'Execute Anonymous Apex',
-	description: 'This tool allows executing anonymous Apex code in Salesforce.',
+	description: loadToolDescription('executeAnonymousApex'),
 	inputSchema: {
 		type: 'object',
 		required: ['apexCode'],
@@ -200,14 +186,15 @@ const executeAnonymousApexTool = {
 	annotations: {
 		readOnlyHint: false,
 		idempotentHint: true,
-		openWorldHint: true
+		openWorldHint: true,
+		title: 'Execute Anonymous Apex'
 	}
 };
 
 const getRecentlyViewedRecordsTool = {
 	name: 'getRecentlyViewedRecords',
 	title: 'Get Recently Viewed Records',
-	description: 'This tool allows retrieving recently viewed records in Salesforce.',
+	description: loadToolDescription('getRecentlyViewedRecords'),
 	inputSchema: {
 		type: 'object',
 		properties: {}
@@ -215,14 +202,15 @@ const getRecentlyViewedRecordsTool = {
 	annotations: {
 		readOnlyHint: true,
 		idempotentHint: false,
-		openWorldHint: true
+		openWorldHint: true,
+		title: 'Get Recently Viewed Records'
 	}
 };
 
 const getRecordTool = {
 	name: 'getRecord',
 	title: 'Get Record',
-	description: 'This tool allows retrieving a record in Salesforce.',
+	description: loadToolDescription('getRecord'),
 	inputSchema: {
 		type: 'object',
 		required: ['sObjectName', 'recordId'],
@@ -240,14 +228,15 @@ const getRecordTool = {
 	annotations: {
 		readOnlyHint: true,
 		idempotentHint: false,
-		openWorldHint: true
+		openWorldHint: true,
+		title: 'Get Record'
 	}
 };
 
 const getSetupAuditTrailTool = {
 	name: 'getSetupAuditTrail',
 	title: 'Get the changes in the Salesforce org metadata performed in the last days from the Salesforce Setup Audit Trail data',
-	description: 'This tool allows retrieving a list of the configuration changes performed in the Salesforce org metadata.',
+	description: loadToolDescription('getSetupAuditTrail'),
 	inputSchema: {
 		type: 'object',
 		required: ['lastDays', 'createdByName'],
@@ -269,39 +258,37 @@ const getSetupAuditTrailTool = {
 	annotations: {
 		readOnlyHint: true,
 		idempotentHint: false,
-		openWorldHint: true
+		openWorldHint: true,
+		title: 'Get the changes in the Salesforce org metadata performed in the last days from the Salesforce Setup Audit Trail data'
 	}
 };
 
 const apexDebugLogsTool = {
 	name: 'apexDebugLogs',
-	title: 'Manage Apex debug logs',
-	description: 'This tool allows activating, deactivating, checking status or retrieving the debug logs in Salesforce.',
+	title: 'Apex Debug Logs',
+	description: loadToolDescription('apexDebugLogs'),
 	inputSchema: {
 		type: 'object',
 		required: ['action'],
 		properties: {
 			action: {
 				type: 'string',
-				description: 'Whether to activate ("on"), deactivate ("off"), checking status ("status") or retrieve ("list", "get") the debug logs'
-			},
-			logId: {
-				type: 'string',
-				description: 'The Id of the log to retrieve',
+				description: 'The action to perform. Possible values: "start", "stop", "get".'
 			}
 		}
 	},
 	annotations: {
 		readOnlyHint: false,
 		idempotentHint: false,
-		openWorldHint: true
+		openWorldHint: true,
+		title: 'Apex Debug Logs'
 	}
 };
 
-const executeSoqlQueryTool = {
+const soqlQueryTool = {
 	name: 'executeSoqlQuery',
 	title: 'Execute SOQL Query',
-	description: 'This tool allows executing SOQL queries using Salesforce CLI.',
+	description: loadToolDescription('soqlQuery'),
 	inputSchema: {
 		type: 'object',
 		required: ['query'],
@@ -318,15 +305,16 @@ const executeSoqlQueryTool = {
 	},
 	annotations: {
 		readOnlyHint: true,
-		idempotentHint: false,
-		openWorldHint: true
+		idempotentHint: true,
+		openWorldHint: true,
+		title: 'Execute SOQL Query'
 	}
 };
 
 const toolingApiRequestTool = {
 	name: 'toolingApiRequest',
-	title: 'Make Tooling API Request',
-	description: 'This tool allows making a tooling API request in Salesforce.',
+	title: 'Tooling API Request',
+	description: loadToolDescription('toolingApiRequest'),
 	inputSchema: {
 		type: 'object',
 		required: ['method', 'endpoint'],
@@ -342,43 +330,39 @@ const toolingApiRequestTool = {
 		}
 	},
 	annotations: {
-		openWorldHint: true
+		readOnlyHint: false,
+		idempotentHint: true,
+		openWorldHint: true,
+		title: 'Tooling API Request'
 	}
 };
 
-const updateRecordTool = {
-	name: 'updateRecord',
-	title: 'Update Record',
-	description: 'This tool allows updating a record in Salesforce.',
+const triggerExecutionOrderTool = {
+	name: 'triggerExecutionOrder',
+	title: 'Trigger Execution Order',
+	description: loadToolDescription('triggerExecutionOrder'),
 	inputSchema: {
 		type: 'object',
-		required: ['sObjectName', 'recordId', 'fields'],
+		required: ['sObjectName'],
 		properties: {
 			sObjectName: {
 				type: 'string',
-				description: 'The name of the SObject to update.'
-			},
-			recordId: {
-				type: 'string',
-				description: 'The Id of the record to update.'
-			},
-			fields: {
-				type: 'object',
-				description: 'The field values to update the record with (e.g. {"Name": "New Name", "Description": "New Description"})'
+				description: 'The name of the SObject to retrieve the trigger execution order for.'
 			}
 		}
 	},
 	annotations: {
-		readOnlyHint: false,
+		readOnlyHint: true,
 		idempotentHint: false,
-		openWorldHint: true
+		openWorldHint: true,
+		title: 'Trigger Execution Order'
 	}
 };
 
 const metadataApiRequestTool = {
 	name: 'metadataApiRequest',
-	title: 'Retrieve Metadata',
-	description: 'This tool allows retrieving metadata from Salesforce using force:source:retrieve.',
+	title: 'Metadata API Request',
+	description: loadToolDescription('metadataApiRequest'),
 	inputSchema: {
 		type: 'object',
 		required: ['metadataType'],
@@ -395,19 +379,41 @@ const metadataApiRequestTool = {
 	},
 	annotations: {
 		readOnlyHint: true,
+		idempotentHint: true,
+		openWorldHint: true,
+		title: 'Metadata API Request'
+	}
+};
+
+const chatWithAgentforceTool = {
+	name: 'chatWithAgentforce',
+	title: 'Chat with Agentforce',
+	description: loadToolDescription('chatWithAgentforce'),
+	inputSchema: {
+		type: 'object',
+		required: ['message'],
+		properties: {
+			message: {
+				type: 'string',
+				description: 'The message to send to Agentforce.'
+			}
+		}
+	},
+	annotations: {
+		readOnlyHint: false,
 		idempotentHint: false,
-		openWorldHint: true
+		openWorldHint: true,
+		title: 'Chat with Agentforce'
 	}
 };
 
 const generateSoqlQueryTool = {
 	name: 'generateSoqlQuery',
 	title: 'Generate SOQL Query',
-	description: 'This tool allows generating a SOQL query based on a description and involved SObjects.',
+	description: loadToolDescription('generateSoqlQuery'),
 	inputSchema: {
 		type: 'object',
 		required: ['soqlQueryDescription', 'involvedSObjects'],
-
 		properties: {
 			soqlQueryDescription: {
 				type: 'string',
@@ -415,24 +421,25 @@ const generateSoqlQueryTool = {
 			},
 			involvedSObjects: {
 				type: 'array',
-				description: 'The SObjects involved in the query (e.g. ["Account", "Contact"])',
 				items: {
 					type: 'string'
-				}
+				},
+				description: 'The SObjects involved in the query (e.g. ["Account", "Contact"])'
 			}
 		}
 	},
 	annotations: {
 		readOnlyHint: true,
-		idempotentHint: false,
-		openWorldHint: true
+		idempotentHint: true,
+		openWorldHint: true,
+		title: 'Generate SOQL Query'
 	}
 };
 
 const testTool = {
 	name: 'test',
 	title: 'Test Tool',
-	description: 'This is a test tool.',
+	description: loadToolDescription('test'),
 	inputSchema: {
 		type: 'object',
 		properties: {
@@ -443,11 +450,63 @@ const testTool = {
 		}
 	},
 	annotations: {
-		readOnlyHint: true,
-		idempotentHint: true,
-		openWorldHint: false
+		readOnlyHint: false,
+		idempotentHint: false,
+		openWorldHint: false,
+		title: 'Test Tool'
 	}
 };
+
+const runApexTestTool = {
+	name: 'runApexTest',
+	title: 'Run Apex Test',
+	description: loadToolDescription('runApexTest'),
+	inputSchema: {
+		type: 'object',
+		required: ['className'],
+		properties: {
+			className: {
+				type: 'string',
+				description: 'Name of the Apex test class to run.'
+			},
+			methodName: {
+				type: 'string',
+				description: 'Name of the test method to run (optional).'
+			}
+		}
+	},
+	annotations: {
+		testHint: true,
+		destructiveHint: true,
+		readOnlyHint: false,
+		idempotentHint: true,
+		openWorldHint: true,
+		title: 'Run Apex Test'
+	}
+};
+
+const tools = [
+	salesforceMcpUtilsTool,
+	getOrgAndUserDetailsTool,
+	dmlOperationTool,
+	deployMetadataTool,
+	describeObjectTool,
+	executeAnonymousApexTool,
+	getRecentlyViewedRecordsTool,
+	getRecordTool,
+	getSetupAuditTrailTool,
+	apexDebugLogsTool,
+	soqlQueryTool,
+	toolingApiRequestTool,
+	triggerExecutionOrderTool,
+	metadataApiRequestTool,
+	chatWithAgentforceTool,
+	generateSoqlQueryTool,
+	testTool,
+	runApexTestTool
+];
+
+const resources = [];
 
 const server = new Server({name: 'salesforce-mcp', version: '1.0.0'}, {
 	capabilities: {
@@ -457,8 +516,7 @@ const server = new Server({name: 'salesforce-mcp', version: '1.0.0'}, {
 		tools: {
 			salesforceMcpUtilsTool,
 			getOrgAndUserDetailsTool,
-			createRecordTool,
-			deleteRecordTool,
+			dmlOperationTool,
 			deployMetadataTool,
 			describeObjectTool,
 			executeAnonymousApexTool,
@@ -466,14 +524,14 @@ const server = new Server({name: 'salesforce-mcp', version: '1.0.0'}, {
 			getRecordTool,
 			getSetupAuditTrailTool,
 			apexDebugLogsTool,
-			executeSoqlQueryTool,
+			soqlQueryTool,
 			toolingApiRequestTool,
-			updateRecordTool,
-			generateSoqlQueryTool,
+			triggerExecutionOrderTool,
 			metadataApiRequestTool,
-			testTool
-			//triggerExecutionOrderTool,
-			//chatWithAgentforceTool
+			chatWithAgentforceTool,
+			generateSoqlQueryTool,
+			testTool,
+			runApexTestTool
 		}
 	}
 });
@@ -501,8 +559,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 		tools: [
 			salesforceMcpUtilsTool,
 			getOrgAndUserDetailsTool,
-			createRecordTool,
-			deleteRecordTool,
+			dmlOperationTool,
 			deployMetadataTool,
 			describeObjectTool,
 			executeAnonymousApexTool,
@@ -510,14 +567,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 			getRecordTool,
 			getSetupAuditTrailTool,
 			apexDebugLogsTool,
-			executeSoqlQueryTool,
+			soqlQueryTool,
 			toolingApiRequestTool,
-			updateRecordTool,
-			generateSoqlQueryTool,
+			triggerExecutionOrderTool,
 			metadataApiRequestTool,
-			testTool
-			//triggerExecutionOrderTool,
-			//chatWithAgentforceTool
+			chatWithAgentforceTool,
+			generateSoqlQueryTool,
+			testTool,
+			runApexTestTool
 		]
 	};
 });

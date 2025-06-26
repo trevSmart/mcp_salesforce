@@ -11,17 +11,18 @@ async function getOrgAndUserDetails() {
 		return cached;
 	}
 
+	const structuredContent = {
+		org: salesforceState.orgDescription,
+		user: salesforceState.userDescription
+	};
 	const result = {
 		content: [
 			{
 				type: 'text',
-				text: 'Org details:\n\n' + JSON.stringify(salesforceState.orgDescription, null, '\t')
-			},
-			{
-				type: 'text',
-				text: 'User details:\n\n' + JSON.stringify(salesforceState.userDescription, null, '\t')
+				text: JSON.stringify(structuredContent)
 			}
-		]
+		],
+		structuredContent
 	};
 	globalCache.set(org, tool, key, result);
 	return result;

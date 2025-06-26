@@ -7,20 +7,28 @@ async function getRecord({sObjectName, recordId}) {
 		log(`Executing get record command: ${command}`);
 		const response = await JSON.parse(await runCliCommand(command));
 		//const {attributes, ...fields} = response.result;
+		const structuredContent = {
+			id: recordId,
+			sObject: sObjectName,
+			fields: response
+		};
 		return {
 			content: [{
 				type: 'text',
-				text: `✅ Record ${recordId} from object ${sObjectName} retrieved successfully: ${JSON.stringify(response, null, '\t')}`
-			}]
+				text: JSON.stringify(structuredContent)
+			}],
+			structuredContent
 		};
 	} catch (error) {
 		log(`Error getting record ${recordId} from object ${sObjectName}:`, JSON.stringify(error, null, 2));
+		const errorContent = {error: true, message: error.message};
 		return {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: `❌ Error: ${error.message}`
-			}]
+				text: JSON.stringify(errorContent)
+			}],
+			structuredContent: errorContent
 		};
 	}
 }

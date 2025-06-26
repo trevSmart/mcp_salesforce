@@ -19,22 +19,27 @@ async function updateRecord({sObjectName, recordId, fields}) {
 
 		log(`Tool response: ${response}`, 'debug');
 
+		const structuredContent = {
+			id: recordId,
+			sObject: sObjectName,
+			fields: fieldsObject
+		};
 		return {
-			content: [
-				{
-					type: 'text',
-					text: `Record ${recordId} from object ${sObjectName} updated successfully`
-				}
-			]
+			content: [{
+				type: 'text',
+				text: JSON.stringify(structuredContent)
+			}],
+			structuredContent
 		};
 	} catch (error) {
+		const errorContent = {error: true, message: error.message};
 		return {
-			content: [
-				{
-					type: 'text',
-					text: `Error updating record ${recordId} from object ${sObjectName}: ${error.message}`
-				}
-			]
+			isError: true,
+			content: [{
+				type: 'text',
+				text: JSON.stringify(errorContent)
+			}],
+			structuredContent: errorContent
 		};
 	}
 }

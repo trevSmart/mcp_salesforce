@@ -9,23 +9,38 @@ async function deleteRecord({sObjectName, recordId}) {
 
 		log(`Tool response: ${response}`, 'debug');
 		if (response.status !== 0) {
-			throw new Error(response.message);
+			const errorContent = {error: true, message: response.message};
+			return {
+				isError: true,
+				content: [{
+					type: 'text',
+					text: JSON.stringify(errorContent)
+				}],
+				structuredContent: errorContent
+			};
 		} else {
+			const structuredContent = {
+				id: recordId,
+				sObject: sObjectName
+			};
 			return {
 				content: [{
 					type: 'text',
-					text: `✅ Record deleted successfully with id ${response.result.id}`
-				}]
+					text: JSON.stringify(structuredContent)
+				}],
+				structuredContent
 			};
 		}
 	} catch (error) {
 		log(`Error deleting ${sObjectName} record ${recordId}:`, JSON.stringify(error, null, 2));
+		const errorContent = {error: true, message: error.message};
 		return {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: `❌ Error deleting ${sObjectName} record with id ${recordId}: ${error.message}`
-			}]
+				text: JSON.stringify(errorContent)
+			}],
+			structuredContent: errorContent
 		};
 	}
 }

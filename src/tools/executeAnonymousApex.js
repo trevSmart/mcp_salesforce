@@ -37,23 +37,27 @@ async function executeAnonymousApex({apexCode}) { //, context
 		//Execute SF CLI command
 		const command = `sf apex run -o "${salesforceState.orgDescription.alias}" --file "${tempFilePath}" --json`;
 		const response = await runCliCommand(command, {log: true});
+		const structuredContent = {
+			result: response.result
+		};
 		return {
 			content: [{
 				type: 'text',
-				text: JSON.stringify(response.result, null, '\t')
-			}]
+				text: JSON.stringify(structuredContent)
+			}],
+			structuredContent
 		};
 
 	} catch (error) {
 		log(error);
+		const errorContent = {error: true, message: error.message};
 		return {
 			isError: true,
-			content: [
-				{
-					type: 'text',
-					text: JSON.stringify(error, null, '\t')
-				}
-			]
+			content: [{
+				type: 'text',
+				text: JSON.stringify(errorContent)
+			}],
+			structuredContent: errorContent
 		};
 	} finally {
 		//Delete the temporary file if it exists

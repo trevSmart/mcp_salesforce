@@ -8,30 +8,38 @@ async function getRecentlyViewedRecords() {
 		const response = JSON.parse(await runCliCommand(command));
 
 		if (response.status !== 0) {
+			const errorContent = {error: true, message: response.errorMessage};
 			return {
 				isError: true,
 				content: [{
 					type: 'text',
-					text: `❌ Error: ${response.errorMessage}`
-				}]
+					text: JSON.stringify(errorContent)
+				}],
+				structuredContent: errorContent
 			};
 		}
 
+		const structuredContent = {
+			records: response.result.records
+		};
 		return {
 			content: [{
 				type: 'text',
-				text: `✅ Recently viewed records: ${JSON.stringify(response.result.records, null, '\t')}`
-			}]
+				text: JSON.stringify(structuredContent)
+			}],
+			structuredContent
 		};
 
 	} catch (error) {
 		log('Error obtaining recently viewed records:', error);
+		const errorContent = {error: true, message: error.message};
 		return {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: `❌ Error: ${error.message}`
-			}]
+				text: JSON.stringify(errorContent)
+			}],
+			structuredContent: errorContent
 		};
 	}
 }

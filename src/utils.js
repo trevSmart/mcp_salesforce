@@ -4,6 +4,9 @@ import {promisify} from 'util';
 import {salesforceState} from './state.js';
 import {globalCache} from './cache.js';
 import {CONFIG} from './config.js';
+import fs from 'fs';
+import path from 'path';
+import {fileURLToPath} from 'url';
 const execPromise = promisify(exec);
 
 const salesforceConfig = {
@@ -14,6 +17,8 @@ const salesforceConfig = {
 	password: process.env.password
 };
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export async function log(message, logLevel = 'info') {
 	const LOG_LEVEL_PRIORITY = {info: 0, debug: 1, warn: 2, error: 3};
@@ -228,4 +233,18 @@ export function notifyProgressChange(progressToken, total, progress, message) {
 			message
 		}
 	});
+}
+
+/**
+ * Loads the markdown description for a tool from src/tools/{toolName}.md
+ * @param {string} toolName - The name of the tool (e.g. 'getRecord')
+ * @returns {string} The markdown content, or a warning if not found
+ */
+export function loadToolDescription(toolName) {
+	const mdPath = path.join(__dirname, 'tools', `${toolName}.md`);
+	try {
+		return fs.readFileSync(mdPath, 'utf8');
+	} catch (err) {
+		return `No description found for tool: ${toolName}`;
+	}
 }

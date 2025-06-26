@@ -29,30 +29,49 @@ async function createRecord({sObjectName, fields}) {
 		//Execute sf CLI command
 		const command = `sf data create record --sobject ${sObjectName} --values "${valuesString}" -o "${salesforceState.orgDescription.alias}" --json`;
 		log(`Executing create record command: ${command}`);
-		const response = await runCliCommand(command);
+		const rawResponse = await runCliCommand(command);
+		const response = JSON.parse(rawResponse);
 
-		log(`Tool response: ${response}`, 'debug');
+		log(`Tool response: ${JSON.stringify(response, null, 2)}`, 'debug');
 
 		if (response.status !== 0) {
-			throw new Error(`Failed to create record: ${response.result.errors[0].message}`);
+			const errorMessage = response.result?.errors?.[0]?.message || response.message || 'An unknown error occurred.';
+			const errorContent = {error: true, message: `Failed to create record: ${errorMessage}`};
+			return {
+				isError: true,
+				content: [{
+					type: 'text',
+					text: JSON.stringify(errorContent)
+				}],
+				structuredContent: errorContent
+			};
 		} else {
-			const recordId = JSON.parse(response).result.Id;
+			const recordId = response.result.Id;
 			const recordUrl = `https://${salesforceState.orgDescription.instanceUrl}/${recordId}`;
+			const structuredContent = {
+				id: recordId,
+				url: recordUrl,
+				sObject: sObjectName,
+				fields: fieldsObject
+			};
 			return {
 				content: [{
 					type: 'text',
-					text: `✅ Record created successfully with id "${recordId}".\n🔗 [View record in Salesforce](${recordUrl})`
-				}]
+					text: JSON.stringify(structuredContent)
+				}],
+				structuredContent
 			};
 		}
 	} catch (error) {
 		log(`Error creating ${sObjectName} record:`, JSON.stringify(error, null, 2));
+		const errorContent = {error: true, message: error.message};
 		return {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: `❌ Error: ${error.message}`
-			}]
+				text: JSON.stringify(errorContent)
+			}],
+			structuredContent: errorContent
 		};
 	}
 }

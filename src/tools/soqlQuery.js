@@ -35,15 +35,13 @@ async function executeSoqlQuery({query, useToolingApi = false}) {
 		}
 
 		return {
-			content: [
-			/*{
-					type: 'text',
-					text: 'Present the results of the SOQL query in markdown format.'
-				}, */
-				{
-					type: 'text',
-					text: JSON.stringify(response.result.records, null, 2)
-				}]
+			content: [{
+				type: 'text',
+				text: `✅ SOQL query executed successfully. Returned ${records.length} records.`
+			}],
+			structuredContent: {
+				records: records
+			}
 		};
 
 	} catch (error) {
@@ -52,7 +50,7 @@ async function executeSoqlQuery({query, useToolingApi = false}) {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: `Error executing SOQL query: ${error.message}`
+				text: `❌ Error: ${error.message}`
 			}]
 		};
 	}

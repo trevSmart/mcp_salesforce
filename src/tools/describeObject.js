@@ -28,8 +28,15 @@ async function describeObject({sObjectName}, _meta) {
 		notifyProgressChange(progressToken, 2, 1, 'Parsing CLI command response...');
 
 		if (response.status !== 0) {
-			throw new Error(response.message);
-
+			const errorContent = {error: true, message: response.message};
+			return {
+				isError: true,
+				content: [{
+					type: 'text',
+					text: JSON.stringify(errorContent)
+				}],
+				structuredContent: errorContent
+			};
 		} else {
 			//Filtra només les claus desitjades
 			const keys = [
@@ -65,26 +72,33 @@ async function describeObject({sObjectName}, _meta) {
 					}
 				}
 			}
-			const result = {
+			//Desa la resposta al cache centralitzat
+			//Assegura que sempre hi ha les claus requerides per l'outputSchema
+			if (!('name' in filtered)) {filtered.name = sObjectName}
+			if (!('label' in filtered)) {filtered.label = ''}
+			if (!('fields' in filtered)) {filtered.fields = []}
+			if (!('recordTypeInfos' in filtered)) {filtered.recordTypeInfos = []}
+			globalCache.set(org, tool, key, filtered);
+
+			notifyProgressChange(progressToken, 2, 2, 'Done');
+			return {
 				content: [{
 					type: 'text',
 					text: JSON.stringify(filtered)
-				}]
+				}],
+				structuredContent: filtered
 			};
-			//Desa la resposta al cache centralitzat
-			globalCache.set(org, tool, key, result);
-
-			notifyProgressChange(progressToken, 2, 2, 'Done');
-			return result;
 		}
 	} catch (error) {
 		log(`Error requesting describe for SObject ${sObjectName}:`, JSON.stringify(error, null, 2));
+		const errorContent = {error: true, message: error.message};
 		return {
 			isError: true,
 			content: [{
-				text: `❌ Error requesting describe for SObject ${sObjectName}: ${error.message}`,
-				type: 'text'
-			}]
+				type: 'text',
+				text: JSON.stringify(errorContent)
+			}],
+			structuredContent: errorContent
 		};
 	}
 }
