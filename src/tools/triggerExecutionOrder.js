@@ -260,16 +260,11 @@ async function triggerExecutionOrder(args) {
 	});
 
 	return {
-		sObjectName,
-		operation,
-		executionOrder,
-		summary: {
-			triggers: triggers.result.records.length,
-			validationRules: validationRules.result.records.length,
-			flows: flows.result.records.length,
-			processes: processes.result.records.length,
-			workflowRules: workflowRules.result.records.length
-		}
+		content: [{
+			type: 'text',
+			text: JSON.stringify(executionOrder, null, 2)
+		}],
+		structuredContent: executionOrder
 	};
 }
 

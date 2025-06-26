@@ -1,6 +1,8 @@
 import {salesforceState} from '../state.js';
 import {TestService, TestLevel} from '@salesforce/apex-node';
 import {Connection, AuthInfo} from '@salesforce/core';
+import { classNameSchema, methodNameSchema } from './paramSchemas.js';
+import { z } from 'zod';
 
 /**
  * Executes an Apex test class (and optionally a method) using @salesforce/apex-node.
@@ -9,7 +11,22 @@ import {Connection, AuthInfo} from '@salesforce/core';
  * @param {string} [args.methodName] - Name of the test method (optional)
  * @returns {Promise<Object>} Test result
  */
-async function runApexTest({className, methodName}) {
+async function runApexTest(params) {
+	const schema = z.object({
+		className: classNameSchema,
+		methodName: methodNameSchema,
+	});
+	const parseResult = schema.safeParse(params);
+	if (!parseResult.success) {
+		return {
+			isError: true,
+			content: [{
+				type: 'text',
+				text: `❌ Error de validació: ${parseResult.error.message}`
+			}]
+		};
+	}
+
 	if (!salesforceState.userDescription?.username) {
 		throw new Error('Salesforce user is not initialized.');
 	}
@@ -21,10 +38,10 @@ async function runApexTest({className, methodName}) {
 
 	//Prepare test options in the correct format
 	let tests;
-	if (methodName) {
-		tests = [{className, testMethods: [methodName]}];
+	if (params.methodName) {
+		tests = [{className: params.className, testMethods: [params.methodName]}];
 	} else {
-		tests = [{className}];
+		tests = [{className: params.className}];
 	}
 
 	//Create the TestService instance

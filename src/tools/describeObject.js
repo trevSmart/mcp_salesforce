@@ -1,9 +1,26 @@
 import {salesforceState} from '../state.js';
 import {runCliCommand, log, notifyProgressChange} from '../utils.js';
 import {globalCache} from '../cache.js';
+import { sObjectNameSchema } from './paramSchemas.js';
+import { z } from 'zod';
 
-async function describeObject({sObjectName}, _meta) {
-	const progressToken = _meta.progressToken;
+async function describeObject(params) {
+	const schema = z.object({
+		sObjectName: sObjectNameSchema,
+	});
+	const parseResult = schema.safeParse(params);
+	if (!parseResult.success) {
+		return {
+			isError: true,
+			content: [{
+				type: 'text',
+				text: `❌ Error de validació: ${parseResult.error.message}`
+			}]
+		};
+	}
+
+	const {sObjectName} = params;
+	const progressToken = params._meta.progressToken;
 
 	try {
 		//Validate object name

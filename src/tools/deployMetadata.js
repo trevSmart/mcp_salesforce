@@ -12,7 +12,8 @@ async function deployMetadata({sourceDir}) {
 					type: 'text',
 					text: JSON.stringify(response.result, null, '\t')
 				}
-			]
+			],
+			structuredContent: response.result
 		};
 	} catch (error) {
 		log(`Error deploying metadata file ${sourceDir}: ${JSON.stringify(error, null, 2)}`);

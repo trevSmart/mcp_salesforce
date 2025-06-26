@@ -1,20 +1,38 @@
 import {salesforceState} from '../state.js';
 import {runCliCommand, log} from '../utils.js';
+import { sObjectNameSchema, fieldsSchema } from './paramSchemas.js';
+import { z } from 'zod';
 
-async function createRecord({sObjectName, fields}) {
+async function createRecord(params) {
+	// VALIDACIÓ
+	const schema = z.object({
+		sObjectName: sObjectNameSchema,
+		fields: fieldsSchema,
+	});
+	const parseResult = schema.safeParse(params);
+	if (!parseResult.success) {
+		return {
+			isError: true,
+			content: [{
+				type: 'text',
+				text: `❌ Error de validació: ${parseResult.error.message}`
+			}]
+		};
+	}
+
 	try {
 		//Ensure fields is a proper object
 		let fieldsObject;
-		if (typeof fields === 'string') {
-			fieldsObject = JSON.parse(fields);
-		} else if (typeof fields === 'object' && fields !== null) {
-			fieldsObject = fields;
+		if (typeof params.fields === 'string') {
+			fieldsObject = JSON.parse(params.fields);
+		} else if (typeof params.fields === 'object' && params.fields !== null) {
+			fieldsObject = params.fields;
 		} else {
 			throw new Error('Field values must be a valid object or JSON string');
 		}
 
 		//Validate object name
-		if (!sObjectName || typeof sObjectName !== 'string') {
+		if (!params.sObjectName || typeof params.sObjectName !== 'string') {
 			throw new Error('SObject name must be a non-empty string');
 		}
 
@@ -27,7 +45,7 @@ async function createRecord({sObjectName, fields}) {
 			}).join(' ');
 
 		//Execute sf CLI command
-		const command = `sf data create record --sobject ${sObjectName} --values "${valuesString}" -o "${salesforceState.orgDescription.alias}" --json`;
+		const command = `sf data create record --sobject ${params.sObjectName} --values "${valuesString}" -o "${salesforceState.orgDescription.alias}" --json`;
 		log(`Executing create record command: ${command}`);
 		const rawResponse = await runCliCommand(command);
 		const response = JSON.parse(rawResponse);
@@ -51,7 +69,7 @@ async function createRecord({sObjectName, fields}) {
 			const structuredContent = {
 				id: recordId,
 				url: recordUrl,
-				sObject: sObjectName,
+				sObject: params.sObjectName,
 				fields: fieldsObject
 			};
 			return {
@@ -63,7 +81,7 @@ async function createRecord({sObjectName, fields}) {
 			};
 		}
 	} catch (error) {
-		log(`Error creating ${sObjectName} record:`, JSON.stringify(error, null, 2));
+		log(`Error creating ${params.sObjectName} record:`, JSON.stringify(error, null, 2));
 		const errorContent = {error: true, message: error.message};
 		return {
 			isError: true,

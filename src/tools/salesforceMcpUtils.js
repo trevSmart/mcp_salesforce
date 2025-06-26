@@ -20,7 +20,13 @@ export default async function salesforceMcpUtils({action}) {
 						nowIsoString: now.toISOString(),
 						timezone: new Intl.DateTimeFormat().resolvedOptions().timeZone
 					}, null, 2)
-				}]
+				}],
+				structuredContent: {
+					now,
+					nowLocaleString: now.toLocaleString(),
+					nowIsoString: now.toISOString(),
+					timezone: new Intl.DateTimeFormat().resolvedOptions().timeZone
+				}
 			};
 		} else {
 			throw new Error(`Invalid action: ${action}`);
@@ -29,7 +35,8 @@ export default async function salesforceMcpUtils({action}) {
 			content: [{
 				type: 'text',
 				text: `✅ Action "${action}" executed successfully`
-			}]
+			}],
+			structuredContent: {action, status: 'success'}
 		};
 
 	} catch (error) {

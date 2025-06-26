@@ -3,14 +3,33 @@ import executeSoqlQuery from './soqlQuery.js';
 import createRecord from './createRecord.js';
 import updateRecord from './updateRecord.js';
 import {runCliCommand, log} from '../utils.js';
+import { logIdSchema, messageSchema } from './paramSchemas.js';
+import { z } from 'zod';
 
-async function apexDebugLogs({action, logId}) {
+const actionSchema = z.enum(['status','on','off','list','get']);
+
+async function apexDebugLogs(params) {
+	const schema = z.object({
+		action: actionSchema,
+		logId: logIdSchema.optional(),
+		message: messageSchema.optional(),
+	});
+	const parseResult = schema.safeParse(params);
+	if (!parseResult.success) {
+		return {
+			isError: true,
+			content: [{
+				type: 'text',
+				text: `❌ Error de validació: ${parseResult.error.message}`
+			}]
+		};
+	}
 
 	try {
 		const userDescription = salesforceState.userDescription;
 		let traceFlag;
 
-		if (action === 'status') {
+		if (params.action === 'status') {
 			log('Checking existing TraceFlag...');
 
 			traceFlag = await executeSoqlQuery({
@@ -22,10 +41,11 @@ async function apexDebugLogs({action, logId}) {
 				content: [{
 					type: 'text',
 					text: `Debug logs for user ${userDescription.username} status: ${traceFlag ? 'active' : 'inactive'}`
-				}]
+				}],
+				structuredContent: {status: traceFlag ? 'active' : 'inactive', traceFlag}
 			};
 
-		} else if (action === 'on') {
+		} else if (params.action === 'on') {
 			log('Checking existing TraceFlag...');
 
 			traceFlag = await executeSoqlQuery({
@@ -71,11 +91,12 @@ async function apexDebugLogs({action, logId}) {
 							type: 'text',
 							text: `Debug logs activated for ${userDescription.username} with ID ${traceFlag.Id}`
 						}
-					]
+					],
+					structuredContent: traceFlag
 				};
 			}
 
-		} else if (action === 'off') {
+		} else if (params.action === 'off') {
 			traceFlag = await executeSoqlQuery({
 				query: `SELECT DebugLevelId FROM TraceFlag WHERE TracedEntityId = '${userDescription.id}' AND ExpirationDate > ${new Date().toISOString()}`,
 				useToolingApi: true
@@ -88,7 +109,8 @@ async function apexDebugLogs({action, logId}) {
 							type: 'text',
 							text: 'No active debug logs found'
 						}
-					]
+					],
+					structuredContent: null
 				};
 			}
 
@@ -102,10 +124,11 @@ async function apexDebugLogs({action, logId}) {
 						type: 'text',
 						text: `Debug logs deactivated for ${userDescription.username}`
 					}
-				]
+				],
+				structuredContent: {status: 'deactivated', traceFlag}
 			};
 
-		} else if (action === 'list') {
+		} else if (params.action === 'list') {
 			const logs = await runCliCommand('sf apex:log:list --include-body');
 
 			return {
@@ -114,11 +137,12 @@ async function apexDebugLogs({action, logId}) {
 						type: 'text',
 						text: JSON.stringify(logs, null, '\t')
 					}
-				]
+				],
+				structuredContent: logs
 			};
 
-		} else if (action === 'get') {
-			const apexLog = await runCliCommand(`sf apex:log:get --log-id ${logId} --include-body`);
+		} else if (params.action === 'get') {
+			const apexLog = await runCliCommand(`sf apex:log:get --log-id ${params.logId} --include-body`);
 
 			return {
 				content: [
@@ -126,7 +150,8 @@ async function apexDebugLogs({action, logId}) {
 						type: 'text',
 						text: JSON.stringify(apexLog, null, '\t')
 					}
-				]
+				],
+				structuredContent: apexLog
 			};
 		}
 

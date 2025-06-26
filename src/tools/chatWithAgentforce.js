@@ -1,6 +1,8 @@
 import {salesforceState} from '../state.js';
 import {callSalesforceAPI, log} from '../utils.js';
 import crypto from 'crypto';
+import { messageSchema } from './paramSchemas.js';
+import { z } from 'zod';
 
 let currentSessionId = null;
 
@@ -96,19 +98,34 @@ async function sendMessage(message) {
 	}
 }
 
-async function chatWithAgentforce({message}) {
+async function chatWithAgentforce(params) {
+	const schema = z.object({
+		message: messageSchema,
+	});
+	const parseResult = schema.safeParse(params);
+	if (!parseResult.success) {
+		return {
+			isError: true,
+			content: [{
+				type: 'text',
+				text: `❌ Error de validació: ${parseResult.error.message}`
+			}]
+		};
+	}
+
 	if (!process.env.SF_MCP_AGENTFORCE_AGENT_ID) {
 		throw new Error('Missing agentforceAgentId environment variable');
 	}
 
 	try {
-		const response = await sendMessage(message);
+		const response = await sendMessage(params.message);
 		return {
 			content: [{
 				type: 'text',
 				text: response.messages?.[0].message || 'No response received from Agentforce'
 			}],
-			data: response
+			data: response,
+			structuredContent: response
 		};
 	} catch (error) {
 		log('Error sending message:', error);

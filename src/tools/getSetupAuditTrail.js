@@ -1,28 +1,46 @@
 import {salesforceState} from '../state.js';
 import {runCliCommand, log} from '../utils.js';
+import { lastDaysSchema, createdByNameSchema, metadataNameSchema } from './paramSchemas.js';
+import { z } from 'zod';
 const SOQL_LIMIT = 1000;
 
-async function getSetupAuditTrail({lastDays, createdByName, metadataName}) {
+async function getSetupAuditTrail(params) {
+	const schema = z.object({
+		lastDays: lastDaysSchema,
+		createdByName: createdByNameSchema,
+		metadataName: metadataNameSchema,
+	});
+	const parseResult = schema.safeParse(params);
+	if (!parseResult.success) {
+		return {
+			isError: true,
+			content: [{
+				type: 'text',
+				text: `❌ Error de validació: ${parseResult.error.message}`
+			}]
+		};
+	}
+
 	try {
 		let soqlQuery = 'SELECT Section, CreatedDate, CreatedBy.Name, Display FROM SetupAuditTrail';
-		let shouldFilterByMetadataName = metadataName && metadataName.trim() !== '';
+		let shouldFilterByMetadataName = params.metadataName && params.metadataName.trim() !== '';
 
 		let conditions = ['CreatedById != NULL'];
 
-		if (lastDays) {
-			conditions.push(`CreatedDate >= LAST_N_DAYS:${lastDays}`);
+		if (params.lastDays) {
+			conditions.push(`CreatedDate >= LAST_N_DAYS:${params.lastDays}`);
 		}
 
-		if (createdByName) {
-			conditions.push(`CreatedBy.Name = '${createdByName.replace(/'/g, '\\\'')}'`);
+		if (params.createdByName) {
+			conditions.push(`CreatedBy.Name = '${params.createdByName.replace(/'/g, '\\\'')}'`);
 		}
 
 		if (conditions.length > 0) {
 			soqlQuery += ' WHERE ' + conditions.join(' AND ');
 		}
 
-		if (metadataName) {
-			soqlQuery += ` AND Display LIKE '%${metadataName}%'`;
+		if (params.metadataName) {
+			soqlQuery += ` AND Display LIKE '%${params.metadataName}%'`;
 		}
 
 		soqlQuery += ` ORDER BY CreatedDate DESC LIMIT ${SOQL_LIMIT}`;
@@ -66,7 +84,7 @@ async function getSetupAuditTrail({lastDays, createdByName, metadataName}) {
 		let results = validRecords.filter(r => {
 			if (!r || typeof r !== 'object'
 			|| !r.Section || ignoredSections.includes(r.Section)
-			|| shouldFilterByMetadataName && r.Display && !r.Display.toLowerCase().includes(metadataName.toLowerCase())
+			|| shouldFilterByMetadataName && r.Display && !r.Display.toLowerCase().includes(params.metadataName.toLowerCase())
 			) {
 				log('Invalid record:', r);
 				return false;
@@ -120,7 +138,8 @@ async function getSetupAuditTrail({lastDays, createdByName, metadataName}) {
 			content: [{
 				type: 'text',
 				text: `✅ Setup audit trail history: ${JSON.stringify(formattedResult, null, '\t')}`
-			}]
+			}],
+			structuredContent: formattedResult
 		};
 
 	} catch (error) {

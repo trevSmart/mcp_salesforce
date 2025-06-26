@@ -4,6 +4,8 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import {runCliCommand, log} from '../utils.js';
+import {apexCodeSchema} from './paramSchemas.js';
+import {z} from 'zod';
 
 const writeFilePromise = promisify(fs.writeFile);
 const unlinkPromise = promisify(fs.unlink);
@@ -25,13 +27,25 @@ function formatApexCode(code) {
 	}
 }
 
-//eslint-disable-next-line no-unused-vars
-async function executeAnonymousApex({apexCode}) { //, context
+async function executeAnonymousApex(params) {
+	const schema = z.object({
+		apexCode: apexCodeSchema,
+	});
+	const parseResult = schema.safeParse(params);
+	if (!parseResult.success) {
+		return {
+			isError: true,
+			content: [{
+				type: 'text',
+				text: `❌ Error de validació: ${parseResult.error.message}`
+			}]
+		};
+	}
 	let tempFilePath;
 	try {
 		//Create temporary file
 		tempFilePath = path.join(os.tmpdir(), `apex-${Date.now()}.apex`);
-		const formattedCode = formatApexCode(apexCode);
+		const formattedCode = formatApexCode(params.apexCode);
 		await writeFilePromise(tempFilePath, formattedCode);
 
 		//Execute SF CLI command

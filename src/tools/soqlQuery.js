@@ -1,7 +1,24 @@
 import {salesforceState} from '../state.js';
 import {runCliCommand, log} from '../utils.js';
+import { soqlQuerySchema, useToolingApiSchema } from './paramSchemas.js';
+import { z } from 'zod';
 
 async function executeSoqlQuery({query, useToolingApi = false}) {
+	const schema = z.object({
+		query: soqlQuerySchema,
+		useToolingApi: useToolingApiSchema,
+	});
+	const parseResult = schema.safeParse({query, useToolingApi});
+	if (!parseResult.success) {
+		return {
+			isError: true,
+			content: [{
+				type: 'text',
+				text: `❌ Error de validació: ${parseResult.error.message}`
+			}]
+		};
+	}
+
 	try {
 		const cleanQuery = query.replace(/\s+/g, ' ').trim();
 		const toolingFlag = useToolingApi ? '-t' : '';

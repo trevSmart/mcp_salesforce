@@ -84,7 +84,8 @@ async function generateSoqlQuery({soqlQueryDescription, involvedSObjects}) {
 			content: [{
 				type: 'text',
 				text: response.generations[0].text
-			}]
+			}],
+			structuredContent: response
 		};
 
 	} catch (error) {

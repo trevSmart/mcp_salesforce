@@ -30,7 +30,8 @@ async function toolingApiRequest({method, endpoint}) {
 						type: 'text',
 						text: JSON.stringify(result, null, 2)
 					}
-				]
+				],
+				structuredContent: result
 			};
 
 			//Only store in cache if there is no error
@@ -54,7 +55,8 @@ async function toolingApiRequest({method, endpoint}) {
 						type: 'text',
 						text: JSON.stringify(result, null, 2)
 					}
-				]
+				],
+				structuredContent: result
 			};
 		}
 	} catch (error) {

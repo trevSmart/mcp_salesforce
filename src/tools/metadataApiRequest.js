@@ -17,7 +17,8 @@ async function metadataApiRequest({metadataType, targetUsername}) {
 
 		return {
 			success: true,
-			data: result
+			data: result,
+			structuredContent: result
 		};
 	} catch (error) {
 		throw new Error(`Error retrieving metadata: ${error.message}`);
