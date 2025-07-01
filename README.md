@@ -3,14 +3,15 @@
   <img src="resources/images/salesforceLogo.png" alt="Salesforce Logo" height="40"/>
 </p>
 
-<img src="resources/images/mcpLogo.png" alt="IBM Logo" height="26"/>
-IBM Salesforce MCP server
+<img src="resources/images/mcpLogo.png" alt="MCP Logo" height="26"/>
 
-This project provides a Model Context Protocol (MCP) server for Salesforce, enabling advanced automation, metadata management, and integration with Salesforce orgs via the Salesforce CLI and REST API.
+# IBM Salesforce MCP Server
+
+This project provides a Model Context Protocol (MCP) server for Salesforce, enabling advanced automation, metadata management, and integration with Salesforce orgs via the Salesforce CLI and REST API. It is designed for use with AI-enabled IDEs and tools.
 
 ## Features
 
-- Query, create, update, and delete records
+- Query, create, update, and delete Salesforce records
 - Deploy and retrieve Salesforce metadata
 - Execute anonymous Apex scripts
 - Build SOQL queries with generative AI
@@ -28,20 +29,7 @@ This project provides a Model Context Protocol (MCP) server for Salesforce, enab
   - [Claude](https://claude.ai)
   - [Windsurf](https://windsurf.com/editor)
 
-## Installation
-
-1. Clone this repository:
-   ```bash
-   git clone <repo-url>
-   cd mcp_salesforce
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Configure your environment variables in a `.env` file (see below).
-
-## Environment Variables
+## Configuration
 
 Create a `.env` file in the project root with the following variables:
 
@@ -60,19 +48,12 @@ SfAgentforceAgentId=YOUR_AGENTFORCE_ID
 Start the MCP Salesforce server:
 
 ```bash
-npm start
+node index.js
 ```
 
-Or, for CLI usage:
+Once the server is running, connect to it from your preferred AI-enabled IDE or tool.
 
-```bash
-./bin/cli.js
-```
-## License
-
-Licensed under the EUPL v1.2. See [LICENSE](LICENSE) for details.
-
-## Add to Cursor IDE
+## Connect from Cursor IDE
 
 You can install and launch the Salesforce MCP server directly from Cursor using the following deeplink:
 
@@ -81,3 +62,7 @@ cursor://anysphere.cursor-deeplink/mcp/install?name=salesforce-mcp&config=eyJjb2
 ```
 
 > **Note:** GitHub does not support clickable links for custom protocols like `cursor://`. To use the deeplink, copy the above URL and paste it into the address bar of your web browser.
+
+## License
+
+Licensed under the EUPL v1.2. See [LICENSE](LICENSE) for details.
