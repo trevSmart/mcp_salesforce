@@ -1,10 +1,10 @@
 import {salesforceState} from '../state.js';
 import {runCliCommand, log, notifyProgressChange} from '../utils.js';
 import {globalCache} from '../cache.js';
-import { sObjectNameSchema } from './paramSchemas.js';
-import { z } from 'zod';
+import {sObjectNameSchema} from './paramSchemas.js';
+import {z} from 'zod';
 
-async function describeObject(params) {
+async function describeObject(params, _meta) {
 	const schema = z.object({
 		sObjectName: sObjectNameSchema,
 	});
@@ -20,7 +20,7 @@ async function describeObject(params) {
 	}
 
 	const {sObjectName} = params;
-	const progressToken = params._meta.progressToken;
+	const progressToken = _meta.progressToken;
 
 	try {
 		//Validate object name

@@ -39,7 +39,7 @@ export async function log(message, logLevel = 'info') {
 export async function runCliCommand(command) {
 	try {
 		log(`Running SF CLI command: ${command}`);
-		const {stdout} = await execPromise(command, {maxBuffer: 100 * 1024 * 1024});
+		const {stdout} = await execPromise(command, {maxBuffer: 100 * 1024 * 1024, cwd: CONFIG.workspacePath});
 		return stdout;
 	} catch (error) {
 		if (error.stdout) {
@@ -177,13 +177,13 @@ export async function callSalesforceAPI(method, baseUrl = null, path = '', body 
 
 export const initServer = async () => {
 
-	process.env.HOME = '/Users/marcpla';
+	//process.env.HOME = '/Users/marcpla';
 	await execPromise(`export HOME=${process.env.HOME}`);
 	const orgAlias = JSON.parse(await runCliCommand('sf config get target-org --json'))?.result?.[0]?.value;
 	if (orgAlias) {
 		salesforceState.orgDescription = JSON.parse(await runCliCommand(`sf org display -o "${orgAlias}" --json`))?.result;
 		salesforceState.userDescription = JSON.parse(await runCliCommand(`sf org display user -o "${orgAlias}" --json`))?.result;
-		log(`Org and user details successfully retrieved: \n\nOrg:\n${JSON.stringify(salesforceState.orgDescription, null, '\t')}\n\nUser:\n${JSON.stringify(salesforceState.userDescription, null, '\t')}`);
+		log(`Org and user details successfully retrieved: \n\nOrg:\n${JSON.stringify(salesforceState.orgDescription, null, '\t')}\n\nUser:\n${JSON.stringify(salesforceState.userDescription, null, '\t')}`, 'debug');
 	}
 
 	const {orgDescription} = salesforceState;

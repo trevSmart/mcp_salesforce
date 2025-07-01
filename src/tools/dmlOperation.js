@@ -1,9 +1,9 @@
 import {salesforceState} from '../state.js';
 import {runCliCommand, log, notifyProgressChange} from '../utils.js';
-import { operationSchema, sObjectNameSchema, recordIdSchema, fieldsSchema } from './paramSchemas.js';
-import { z } from 'zod';
+import {operationSchema, sObjectNameSchema, recordIdSchema, fieldsSchema} from './paramSchemas.js';
+import {z} from 'zod';
 
-async function dmlOperation(params) {
+async function dmlOperation(params, _meta) {
 	const schema = z.object({
 		operation: operationSchema,
 		sObjectName: sObjectNameSchema,
@@ -22,7 +22,6 @@ async function dmlOperation(params) {
 	}
 
 	let command;
-	let successMessage;
 
 	try {
 		if (!params.sObjectName || typeof params.sObjectName !== 'string') {
@@ -33,7 +32,7 @@ async function dmlOperation(params) {
 		//Prepare command based on operation
 		switch (params.operation) {
 			case 'create': {
-				notifyProgressChange(params.progressToken, 1, 1, 'Executing DML operation (create)');
+				notifyProgressChange(_meta.progressToken, 1, 1, 'Executing DML operation (create)');
 
 				const fieldsObject = typeof params.fields === 'string' ? JSON.parse(params.fields) : params.fields;
 				if (!fieldsObject || typeof fieldsObject !== 'object') {
@@ -50,7 +49,7 @@ async function dmlOperation(params) {
 			}
 
 			case 'update': {
-				notifyProgressChange(params.progressToken, 2, 2, 'Executing DML operation (update)');
+				notifyProgressChange(_meta.progressToken, 2, 2, 'Executing DML operation (update)');
 
 				if (!params.recordId) {throw new Error('Record ID is required for update operation')}
 				const fieldsObject = typeof params.fields === 'string' ? JSON.parse(params.fields) : params.fields;
@@ -65,7 +64,7 @@ async function dmlOperation(params) {
 			}
 
 			case 'delete': {
-				notifyProgressChange(params.progressToken, 3, 3, 'Executing DML operation (delete)');
+				notifyProgressChange(_meta.progressToken, 3, 3, 'Executing DML operation (delete)');
 
 				if (!params.recordId) {throw new Error('Record ID is required for delete operation')}
 				command = `sf data delete record --sobject ${params.sObjectName} --record-id ${params.recordId} -o "${salesforceState.orgDescription.alias}" --json`;
