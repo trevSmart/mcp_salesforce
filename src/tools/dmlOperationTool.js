@@ -1,13 +1,46 @@
 import {salesforceState} from '../state.js';
-import {log, notifyProgressChange} from '../utils.js';
+import {log, notifyProgressChange, loadToolDescription} from '../utils.js';
 import {operationSchema, sObjectNameSchema, recordIdSchema, fieldsSchema} from './paramSchemas.js';
 import {z} from 'zod';
 import {createRecord} from '../salesforceServices/createRecord.js';
 import {updateRecord} from '../salesforceServices/updateRecord.js';
 import {deleteRecord} from '../salesforceServices/deleteRecord.js';
 
+export const dmlOperationToolDefinition = {
+	name: 'dmlOperation',
+	title: 'DML Operation (create, update or delete a record)',
+	description: loadToolDescription('dmlOperationTool'),
+	inputSchema: {
+		type: 'object',
+		required: ['operation', 'sObjectName', 'fields'],
+		properties: {
+			operation: {
+				type: 'string',
+				description: 'The DML operation to perform. Possible values: "create", "update", "delete".'
+			},
+			sObjectName: {
+				type: 'string',
+				description: 'The SObject type of the record.'
+			},
+			recordId: {
+				type: 'string',
+				description: 'Only applicable for operations "update" and "delete". The ID of the record.'
+			},
+			fields: {
+				type: 'object',
+				description: 'Required (For "delete" operation, pass {}). An object with the field values for the record. E.g. {"Name": "New Name", "Description": "New Description"}.'
+			}
+		}
+	},
+	annotations: {
+		destructiveHint: true,
+		idempotentHint: false,
+		openWorldHint: true,
+		title: 'DML Operation'
+	}
+};
 
-async function dmlOperation(params, _meta) {
+export async function dmlOperationTool(params, _meta) {
 	const schema = z.object({
 		operation: operationSchema,
 		sObjectName: sObjectNameSchema,
@@ -107,5 +140,3 @@ async function dmlOperation(params, _meta) {
 		};
 	}
 }
-
-export default dmlOperation;

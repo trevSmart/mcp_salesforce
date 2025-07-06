@@ -1,5 +1,5 @@
 import {salesforceState} from '../state.js';
-import {log} from '../utils.js';
+import {log, loadToolDescription} from '../utils.js';
 import {callSalesforceApi} from '../salesforceServices/callSalesforceApi.js';
 import crypto from 'crypto';
 import {messageSchema} from './paramSchemas.js';
@@ -7,6 +7,28 @@ import {z} from 'zod';
 import {getOrgAndUserDetails} from '../salesforceServices/getOrgAndUserDetails.js';
 
 let currentSessionId = null;
+
+export const chatWithAgentforceToolDefinition = {
+	name: 'chatWithAgentforce',
+	title: 'Chat with Agentforce',
+	description: loadToolDescription('chatWithAgentforce'),
+	inputSchema: {
+		type: 'object',
+		required: ['message'],
+		properties: {
+			message: {
+				type: 'string',
+				description: 'The message to send to Agentforce.'
+			}
+		}
+	},
+	annotations: {
+		readOnlyHint: false,
+		idempotentHint: false,
+		openWorldHint: true,
+		title: 'Chat with Agentforce'
+	}
+};
 
 async function startSession() {
 	try {
@@ -102,7 +124,7 @@ async function sendMessage(message) {
 	}
 }
 
-async function chatWithAgentforce(params) {
+export async function chatWithAgentforce(params) {
 	const schema = z.object({
 		message: messageSchema,
 	});
@@ -142,5 +164,3 @@ async function chatWithAgentforce(params) {
 		};
 	}
 }
-
-export default chatWithAgentforce;

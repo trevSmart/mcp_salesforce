@@ -1,9 +1,41 @@
 import {lastDaysSchema, createdByNameSchema, metadataNameSchema} from './paramSchemas.js';
 import {z} from 'zod';
 import {executeSoqlQuery} from '../salesforceServices/soqlQuery.js';
+import {loadToolDescription} from '../utils.js';
+
 const SOQL_LIMIT = 1000;
 
-async function getSetupAuditTrail(params) {
+export const getSetupAuditTrailToolDefinition = {
+	name: 'getSetupAuditTrail',
+	title: 'Get the changes in the Salesforce org metadata performed in the last days from the Salesforce Setup Audit Trail data',
+	description: loadToolDescription('getSetupAuditTrailTool'),
+	inputSchema: {
+		type: 'object',
+		required: ['lastDays', 'createdByName'],
+		properties: {
+			lastDays: {
+				type: 'number',
+				description: 'Number of days to query (between 1 and 90)'
+			},
+			createdByName: {
+				type: 'string',
+				description: 'Only the changes performed by this user will be returned (null to return changes from all users)'
+			},
+			metadataName: {
+				type: 'string',
+				description: 'Name of the file or folder to get the changes of (e.g. "FOO_AlertMessages_Controller", "FOO_AlertMessage__c", "FOO_AlertNessageList_LWC", etc.)'
+			},
+		},
+	},
+	annotations: {
+		readOnlyHint: true,
+		idempotentHint: false,
+		openWorldHint: true,
+		title: 'Get the changes in the Salesforce org metadata performed in the last days from the Salesforce Setup Audit Trail data'
+	}
+};
+
+export async function getSetupAuditTrailTool(params) {
 	const schema = z.object({
 		lastDays: lastDaysSchema,
 		createdByName: createdByNameSchema,
@@ -146,5 +178,3 @@ async function getSetupAuditTrail(params) {
 		};
 	}
 }
-
-export default getSetupAuditTrail;

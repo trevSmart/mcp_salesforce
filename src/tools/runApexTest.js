@@ -3,6 +3,35 @@ import {TestService, TestLevel} from '@salesforce/apex-node';
 import {Connection, AuthInfo} from '@salesforce/core';
 import {classNameSchema, methodNameSchema} from './paramSchemas.js';
 import {z} from 'zod';
+import {loadToolDescription} from '../utils.js';
+
+export const runApexTestToolDefinition = {
+	name: 'runApexTest',
+	title: 'Run Apex Test',
+	description: loadToolDescription('runApexTest'),
+	inputSchema: {
+		type: 'object',
+		required: ['className'],
+		properties: {
+			className: {
+				type: 'string',
+				description: 'Name of the Apex test class to run.'
+			},
+			methodName: {
+				type: 'string',
+				description: 'Name of the test method to run (optional).'
+			}
+		}
+	},
+	annotations: {
+		testHint: true,
+		destructiveHint: true,
+		readOnlyHint: false,
+		idempotentHint: true,
+		openWorldHint: true,
+		title: 'Run Apex Test'
+	}
+};
 
 /**
  * Executes an Apex test class (and optionally a method) using @salesforce/apex-node.
@@ -11,7 +40,7 @@ import {z} from 'zod';
  * @param {string} [args.methodName] - Name of the test method (optional)
  * @returns {Promise<Object>} Test result
  */
-async function runApexTest(params) {
+export async function runApexTestTool(params) {
 	const schema = z.object({
 		className: classNameSchema,
 		methodName: methodNameSchema,
@@ -78,5 +107,3 @@ async function runApexTest(params) {
 		};
 	}
 }
-
-export default runApexTest;

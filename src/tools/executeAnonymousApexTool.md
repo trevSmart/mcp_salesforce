@@ -7,7 +7,7 @@ Allows you to execute anonymous Apex code in Salesforce.
 - Always show the code to be executed before running it.
 - If the code modifies data, wait for explicit user confirmation before executing.
 - Always do a System.debug() of the value returned by the function.
-- Show a summary of the execution results.
+- Show a summary of the result of the anonymous apex script execution.
 
 ---
 ## Usage

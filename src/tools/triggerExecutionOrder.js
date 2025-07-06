@@ -1,4 +1,27 @@
 import {executeSoqlQuery} from '../salesforceServices/soqlQuery.js';
+import {loadToolDescription} from '../utils/toolDescription.js';
+
+export const triggerExecutionOrderToolDefinition = {
+	name: 'triggerExecutionOrder',
+	title: 'Trigger Execution Order',
+	description: loadToolDescription('triggerExecutionOrder'),
+	inputSchema: {
+		type: 'object',
+		required: ['sObjectName'],
+		properties: {
+			sObjectName: {
+				type: 'string',
+				description: 'The name of the SObject to retrieve the trigger execution order for.'
+			}
+		}
+	},
+	annotations: {
+		readOnlyHint: true,
+		idempotentHint: false,
+		openWorldHint: true,
+		title: 'Trigger Execution Order'
+	}
+};
 
 /**
  * Returns the execution order of automation components for an SObject and operation
@@ -7,7 +30,7 @@ import {executeSoqlQuery} from '../salesforceServices/soqlQuery.js';
  * @param {string} arguments.operation DML operation (insert, update or delete)
  * @returns {Promise<Object>} Execution result
  */
-async function triggerExecutionOrder(args) {
+export async function triggerExecutionOrder(args) {
 	const sObjectName = args.sObjectName;
 	const operation = args.operation.toLowerCase();
 
@@ -214,5 +237,3 @@ async function triggerExecutionOrder(args) {
 		structuredContent: executionOrder
 	};
 }
-
-export default triggerExecutionOrder;

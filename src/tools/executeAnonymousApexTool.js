@@ -1,7 +1,29 @@
-import {log} from '../utils.js';
+import {log, loadToolDescription} from '../utils.js';
 import {apexCodeSchema} from './paramSchemas.js';
 import {z} from 'zod';
 import {executeAnonymousApex} from '../salesforceServices/executeAnonymousApex.js';
+
+export const executeAnonymousApexToolDefinition = {
+	name: 'executeAnonymousApex',
+	title: 'Execute Anonymous Apex',
+	description: loadToolDescription('executeAnonymousApexTool'),
+	inputSchema: {
+		type: 'object',
+		required: ['apexCode'],
+		properties: {
+			apexCode: {
+				type: 'string',
+				description: 'The Apex code to execute'
+			}
+		}
+	},
+	annotations: {
+		readOnlyHint: false,
+		idempotentHint: true,
+		openWorldHint: true,
+		title: 'Execute Anonymous Apex'
+	}
+};
 
 function formatApexCode(code) {
 	//If the code comes from a JSON response, it will already be in the correct format
@@ -20,7 +42,7 @@ function formatApexCode(code) {
 	}
 }
 
-async function executeAnonymousApexTool(params) {
+export async function executeAnonymousApexTool(params) {
 	const schema = z.object({
 		apexCode: apexCodeSchema,
 	});
@@ -59,5 +81,3 @@ async function executeAnonymousApexTool(params) {
 		};
 	}
 }
-
-export default executeAnonymousApexTool;

@@ -1,9 +1,34 @@
-import {log} from '../utils.js';
+import {log, loadToolDescription} from '../utils.js';
 import {callSalesforceApi} from '../salesforceServices/callSalesforceApi.js';
 import {globalCache} from '../cache.js';
-import {salesforceState} from '../state.js';
 
-async function toolingApiRequest({method, endpoint}) {
+export const toolingApiRequestToolDefinition = {
+	name: 'toolingApiRequest',
+	title: 'Tooling API Request',
+	description: loadToolDescription('toolingApiRequest'),
+	inputSchema: {
+		type: 'object',
+		required: ['method', 'endpoint'],
+		properties: {
+			method: {
+				type: 'string',
+				description: 'The HTTP method to use (GET, POST, PUT, DELETE)'
+			},
+			endpoint: {
+				type: 'string',
+				description: 'The endpoint to request (e.g. "/tooling/query/?q=SELECT+Name+FROM+ApexClass+LIMIT+10")'
+			}
+		}
+	},
+	annotations: {
+		readOnlyHint: false,
+		idempotentHint: true,
+		openWorldHint: true,
+		title: 'Tooling API Request'
+	}
+};
+
+export async function toolingApiRequestTool({method, endpoint}) {
 	try {
 		const toolingEndpoint = endpoint.startsWith('/tooling')
 			? endpoint
@@ -70,5 +95,3 @@ async function toolingApiRequest({method, endpoint}) {
 		};
 	}
 }
-
-export default toolingApiRequest;

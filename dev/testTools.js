@@ -25,12 +25,12 @@ async function testTool(name, args, displayName) {
 		console.log = originalLog;
 		process.stdout.write = originalStdoutWrite;
 
-		if (result && result.isError) {
+		if (!result.isError && result.content[0].type === 'text' && result.content[0].text) {
+			originalStdoutWrite.call(process.stdout, `${GREEN}OK${RESET}\n`);
+		} else {
 			originalStdoutWrite.call(process.stdout, `${RED}KO${RESET}\n`);
 			//Mostra la sortida de la tool en cas de KO
 			originalStdoutWrite.call(process.stdout, JSON.stringify(result, null, 2) + '\n');
-		} else {
-			originalStdoutWrite.call(process.stdout, `${GREEN}OK${RESET}\n`);
 		}
 		return result;
 	} catch (e) {

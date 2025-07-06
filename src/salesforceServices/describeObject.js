@@ -6,7 +6,7 @@ import {log} from '../utils.js';
  * @param {string} sObjectName - Nom de l'objecte Salesforce
  * @returns {Promise<Object>} - Resultat cru de la descripció
  */
-export async function describeObjectService(sObjectName) {
+export async function describeObject(sObjectName) {
 	if (!sObjectName || typeof sObjectName !== 'string') {
 		throw new Error('sObjectName és obligatori i ha de ser una string');
 	}

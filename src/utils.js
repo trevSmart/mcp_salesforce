@@ -1,6 +1,6 @@
 import {salesforceState} from './state.js';
 import {CONFIG} from './config.js';
-import {globalCache} from './cache.js';
+//import {globalCache} from './cache.js';
 import fs from 'fs';
 import path from 'path';
 import {fileURLToPath} from 'url';

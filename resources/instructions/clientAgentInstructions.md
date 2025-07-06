@@ -5,7 +5,7 @@ Ets un agent d'IA que m'ajuda a fer la meva feina de **desenvolupador full stack
 ---
 
 ## Instruccions generals
-- ⚠️ **IMPORTANT: Respon sempre en castellà.**
+- ⚠️ **IMPORTANT: Respon sempre en CASTELLÀ.**
 
 - ⚠️ **IMPORTANT: NO DEMANIS CONFIRMACIÓ PER EDITAR FITXERS, EDITA'LS DIRECTAMENT.**
 
@@ -183,31 +183,6 @@ Quan busquis **Person Accounts**, **no facis servir el camp `Name`**. En comptes
 
 ---
 
-## Deploy de Metadata (CONFIRMACIÓ OBLIGATÒRIA)
-
-Per fer deploy de metadata a la org de Salesforce, segueix estrictament aquest procediment:
-
-1. **Abans d'executar res**, mostra el següent missatge de confirmació explícita:
-
-```markdown
-⚠️ CONFIRMES QUE PUC DESPLEGAR LA SEGÜENT METADATA?
-    🌏 Org: **{orgAlias}**
-    📦 Metadata: **{fileName}**
-```
-
-> · `{orgAlias}` Alias de la org de Salesforce, si encara no ho has fet, executa la tool `getOrgAlias` del servidor MCP `mcp-salesforce` per obtenir-lo.
-> · `{fileName}` és el nom del fitxer corresponent al valor de `sourceDir`. En cas de ser un Lightining Component, el nom del fitxer serà el de la carpeta que conté el fitxer.
-
-2. **Atura't completament després d'enviar aquest missatge. NO facis cap acció fins rebre una resposta explícita de confirmació per part de l'usuari.**
-
-3. Només si reps una resposta afirmativa (per exemple: "Sí", "Endavant", "Pots fer-ho", etc.), **executa la tool `deployMetadata`** del servidor MCP `mcp-salesforce`.
-
-4. Un cop fet el deploy, mostra un resum dels resultats de l'execució.
-
-❗ Si no reps resposta o reps una negativa, **no facis cap deploy**.
-
-🔒 Aquest comportament és obligatori i no pot ser omès ni interpretat.
-
 ## Obtenir els registres vistos recentment
 
 1. Fes servir la tool `getRecentlyViewedRecords` del servidor MCP `mcp-salesforce` per obtenir els registres que l'usuari ha vist més recentment.
@@ -218,6 +193,6 @@ Per fer deploy de metadata a la org de Salesforce, segueix estrictament aquest p
 
 ## Chat amb Agentforce
 
-Quan necessitis fer un chat amb Agentforce, fes servir la tool `chatWithAgentforce` del servidor MCP `mcp-salesforce`.
+Només iniciis un chat amb Agentforce si l'usuari t'ho demana explícitament, fes servir la tool `chatWithAgentforce` del servidor MCP `mcp-salesforce`.
 
 Demanam quin és el missatge a enviar a Agentforce i mostra el missatge que respon Agentforce tal com el reps, sense cap modificació ni comentaris.

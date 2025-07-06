@@ -1,11 +1,158 @@
-import {salesforceState} from '../state.js';
-import {log, notifyProgressChange} from '../utils.js';
+import {log, notifyProgressChange, loadToolDescription} from '../utils.js';
 import {globalCache} from '../cache.js';
 import {sObjectNameSchema} from './paramSchemas.js';
 import {z} from 'zod';
-import {describeObjectService} from '../salesforceServices/describeObject.js';
+import {describeObject} from '../salesforceServices/describeObject.js';
 
-async function describeObjectTool(params, _meta) {
+export const describeObjectToolDefinition = {
+	name: 'describeObject',
+	title: 'Describe Object',
+	description: loadToolDescription('describeObjectTool'),
+	inputSchema: {
+		type: 'object',
+		required: ['sObjectName'],
+		properties: {
+			sObjectName: {
+				type: 'string',
+				description: 'The name of the SObject to describe'
+			}
+		}
+	},
+	outputSchema: {
+		type: 'object',
+		properties: {
+			name: {
+				type: 'string',
+				description: 'API name of the object'
+			},
+			label: {
+				type: 'string',
+				description: 'Label of the object'
+			},
+			fields: {
+				type: 'array',
+				description: 'List of fields of the object',
+				items: {
+					type: 'object',
+					properties: {
+						name: {
+							type: 'string'
+						},
+						label: {
+							type: 'string'
+						},
+						type: {
+							type: 'string'
+						},
+						relationshipName: {
+							type: [
+								'string',
+								'null'
+							]
+						}
+					},
+					required: [
+						'name',
+						'label',
+						'type'
+					]
+				}
+			},
+			recordTypeInfos: {
+				type: 'array',
+				description: 'List of available record types',
+				items: {
+					type: 'object',
+					properties: {
+						name: {
+							type: 'string'
+						},
+						active: {
+							type: 'boolean'
+						},
+						available: {
+							type: 'boolean'
+						},
+						defaultRecordTypeMapping: {
+							type: 'boolean'
+						},
+						developerName: {
+							type: 'string'
+						},
+						master: {
+							type: 'boolean'
+						},
+						recordTypeId: {
+							type: 'string'
+						}
+					},
+					required: [
+						'name',
+						'available',
+						'defaultRecordTypeMapping',
+						'developerName',
+						'master',
+						'recordTypeId'
+					]
+				}
+			},
+			childRelationships: {
+				type: 'array',
+				description: 'List of child relationships',
+				items: {
+					type: 'object',
+					properties: {
+						childSObject: {
+							type: 'string'
+						},
+						field: {
+							type: 'string'
+						},
+						relationshipName: {
+							type: 'string'
+						}
+					},
+					required: [
+						'childSObject',
+						'field'
+					]
+				}
+			},
+			createable: {
+				type: 'boolean'
+			},
+			custom: {
+				type: 'boolean'
+			},
+			deletable: {
+				type: 'boolean'
+			},
+			keyPrefix: {
+				type: 'string'
+			},
+			labelPlural: {
+				type: 'string'
+			},
+			searchable: {
+				type: 'boolean'
+			}
+		},
+		required: [
+			'name',
+			'label',
+			'fields',
+			'recordTypeInfos'
+		]
+	},
+	annotations: {
+		readOnlyHint: true,
+		idempotentHint: true,
+		openWorldHint: true,
+		title: 'Describe Object'
+	}
+};
+
+export async function describeObjectTool(params) {
 	const schema = z.object({
 		sObjectName: sObjectNameSchema,
 	});
@@ -21,7 +168,6 @@ async function describeObjectTool(params, _meta) {
 	}
 
 	const {sObjectName} = params;
-	const progressToken = _meta.progressToken;
 
 	try {
 		//Validate object name
@@ -35,12 +181,8 @@ async function describeObjectTool(params, _meta) {
 			return cached;
 		}
 
-		notifyProgressChange(progressToken, 2, 0, 'Running CLI command...');
-
 		//Utilitza el nou servei
-		const response = await describeObjectService(sObjectName);
-
-		notifyProgressChange(progressToken, 2, 1, 'Parsing CLI command response...');
+		const response = await describeObject(sObjectName);
 
 		if (response.status !== 0) {
 			const errorContent = {error: true, message: response.message};
@@ -80,7 +222,7 @@ async function describeObjectTool(params, _meta) {
 						filtered[k] = response.result[k].map(rel => ({
 							childSObject: rel.childSObject,
 							field: rel.field,
-							relationshipName: rel.relationshipName
+							relationshipName: rel.relationshipNamem || ''
 						}));
 					} else {
 						filtered[k] = response.result[k];
@@ -95,7 +237,6 @@ async function describeObjectTool(params, _meta) {
 			if (!('recordTypeInfos' in filtered)) {filtered.recordTypeInfos = []}
 			globalCache.set('describeObject', sObjectName, filtered);
 
-			notifyProgressChange(progressToken, 2, 2, 'Done');
 			return {
 				content: [{
 					type: 'text',
@@ -117,5 +258,3 @@ async function describeObjectTool(params, _meta) {
 		};
 	}
 }
-
-export default describeObjectTool;

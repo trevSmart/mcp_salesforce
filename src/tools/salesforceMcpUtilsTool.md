@@ -1,4 +1,4 @@
-# Salesforce MCP Utils
+# Salesforce MCP Utils Tool
 
 Allows you to execute utility actions on the Salesforce MCP server.
 

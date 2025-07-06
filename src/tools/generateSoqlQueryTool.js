@@ -1,9 +1,37 @@
-import {log} from '../utils.js';
+import {log, loadToolDescription} from '../utils.js';
 import {callSalesforceApi} from '../salesforceServices/callSalesforceApi.js';
-import describeObject from './describeObjectTool.js';
+import {describeObject} from '../salesforceServices/describeObject.js';
 
-async function generateSoqlQuery({soqlQueryDescription, involvedSObjects}) {
+export const generateSoqlQueryToolDefinition = {
+	name: 'generateSoqlQuery',
+	title: 'Generate SOQL Query',
+	description: loadToolDescription('generateSoqlQuery'),
+	inputSchema: {
+		type: 'object',
+		required: ['soqlQueryDescription', 'involvedSObjects'],
+		properties: {
+			soqlQueryDescription: {
+				type: 'string',
+				description: 'The description of the SOQL query to generate'
+			},
+			involvedSObjects: {
+				type: 'array',
+				items: {
+					type: 'string'
+				},
+				description: 'The SObjects involved in the query (e.g. ["Account", "Contact"])'
+			}
+		}
+	},
+	annotations: {
+		readOnlyHint: true,
+		idempotentHint: true,
+		openWorldHint: true,
+		title: 'Generate SOQL Query'
+	}
+};
 
+export async function generateSoqlQueryTool({soqlQueryDescription, involvedSObjects}) {
 	try {
 		if (typeof involvedSObjects === 'string') {
 			involvedSObjects = involvedSObjects.split(',').map(s => s.trim());
@@ -100,5 +128,3 @@ async function generateSoqlQuery({soqlQueryDescription, involvedSObjects}) {
 		};
 	}
 }
-
-export default generateSoqlQuery;

@@ -1,6 +1,23 @@
 import {executeSoqlQuery} from '../salesforceServices/soqlQuery.js';
+import {loadToolDescription} from '../utils.js';
 
-async function getRecentlyViewedRecordsTool() {
+export const getRecentlyViewedRecordsToolDefinition = {
+	name: 'getRecentlyViewedRecords',
+	title: 'Get Recently Viewed Records',
+	description: loadToolDescription('getRecentlyViewedRecordsTool'),
+	inputSchema: {
+		type: 'object',
+		properties: {}
+	},
+	annotations: {
+		readOnlyHint: true,
+		idempotentHint: false,
+		openWorldHint: true,
+		title: 'Get Recently Viewed Records'
+	}
+};
+
+export async function getRecentlyViewedRecordsTool() {
 	try {
 		const query = 'SELECT Id, Name, Type, LastViewedDate FROM RecentlyViewed ORDER BY LastViewedDate DESC LIMIT 100';
 		const response = await executeSoqlQuery(query);
@@ -27,5 +44,3 @@ async function getRecentlyViewedRecordsTool() {
 		};
 	}
 }
-
-export default getRecentlyViewedRecordsTool;

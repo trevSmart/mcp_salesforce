@@ -1,8 +1,35 @@
 import {z} from 'zod';
 import {sObjectNameSchema, recordIdSchema} from './paramSchemas.js';
 import {getRecordById} from '../salesforceServices/getRecord.js';
+import {loadToolDescription} from '../utils.js';
 
-export default async function getRecordTool(params) {
+export const getRecordToolDefinition = {
+	name: 'getRecord',
+	title: 'Get Record',
+	description: loadToolDescription('getRecordTool'),
+	inputSchema: {
+		type: 'object',
+		required: ['sObjectName', 'recordId'],
+		properties: {
+			sObjectName: {
+				type: 'string',
+				description: 'The name of the SObject type of the record to retrieve.',
+			},
+			recordId: {
+				type: 'string',
+				description: 'The Id of the record to retrieve.',
+			}
+		}
+	},
+	annotations: {
+		readOnlyHint: true,
+		idempotentHint: false,
+		openWorldHint: true,
+		title: 'Get Record'
+	}
+};
+
+export async function getRecordTool(params) {
 	try {
 		const schema = z.object({
 			sObjectName: sObjectNameSchema,

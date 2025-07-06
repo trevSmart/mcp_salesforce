@@ -2,14 +2,36 @@ import {salesforceState} from '../state.js';
 import {executeSoqlQuery} from '../salesforceServices/soqlQuery.js';
 import {createRecord} from '../salesforceServices/createRecord.js';
 import {updateRecord} from '../salesforceServices/updateRecord.js';
-import {log} from '../utils.js';
+import {log, loadToolDescription} from '../utils.js';
 import {runCliCommand} from '../salesforceServices/runCliCommand.js';
 import {logIdSchema, messageSchema} from './paramSchemas.js';
 import {z} from 'zod';
 
 const actionSchema = z.enum(['status', 'on', 'off', 'list', 'get']);
 
-export default async function apexDebugLogs(params) {
+export const apexDebugLogsToolDefinition = {
+	name: 'apexDebugLogs',
+	title: 'Apex Debug Logs',
+	description: loadToolDescription('apexDebugLogs'),
+	inputSchema: {
+		type: 'object',
+		required: ['action'],
+		properties: {
+			action: {
+				type: 'string',
+				description: 'The action to perform. Possible values: "start", "stop", "get".'
+			}
+		}
+	},
+	annotations: {
+		readOnlyHint: false,
+		idempotentHint: false,
+		openWorldHint: true,
+		title: 'Apex Debug Logs'
+	}
+};
+
+export async function apexDebugLogsTool(params) {
 	const schema = z.object({
 		action: actionSchema,
 		logId: logIdSchema.optional(),
