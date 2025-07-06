@@ -23,5 +23,5 @@ export const salesforceState = {
 		if (orgDescription) {
 			orgDescription.accessToken = newAccessToken;
 		}
-	},
+	}
 };

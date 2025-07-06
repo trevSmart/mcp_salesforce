@@ -1,4 +1,3 @@
-import {salesforceState} from '../state.js';
 import {runCliCommand} from './runCliCommand.js';
 import {log} from '../utils.js';
 import fs from 'fs/promises';
@@ -14,7 +13,6 @@ export async function executeAnonymousApex(apexCode) {
 	if (!apexCode || typeof apexCode !== 'string') {
 		throw new Error('apexCode és obligatori i ha de ser una string');
 	}
-	const orgAlias = salesforceState.orgDescription.alias;
 	const tmpDir = path.join(process.cwd(), 'tmp');
 	let tmpFile;
 	try {
@@ -23,7 +21,7 @@ export async function executeAnonymousApex(apexCode) {
 		tmpFile = path.join(tmpDir, `anonymousApex_${randomUUID()}.apex`);
 		//Escriu el codi Apex al fitxer temporal
 		await fs.writeFile(tmpFile, apexCode, 'utf8');
-		const command = `sf apex run --target-org "${orgAlias}" --file "${tmpFile}" --json`;
+		const command = `sf apex run --file "${tmpFile}" --json`;
 		log(`Executing anonymous Apex: ${command}`);
 		const response = await JSON.parse(await runCliCommand(command));
 		if (response.status !== 0) {

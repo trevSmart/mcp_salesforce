@@ -37,9 +37,9 @@ export const initServer = async () => {
 	await execPromise(`export HOME=${process.env.HOME}`);
 	const orgAlias = JSON.parse(await runCliCommand('sf config get target-org --json'))?.result?.[0]?.value;
 	if (orgAlias) {
-		const orgDescription = await getOrgAndUserDetails();
-		salesforceState.orgDescription = orgDescription;
+		await getOrgAndUserDetails();
 
+		/*
 		//SObject definitions refresh every 2 days
 		const lastRefresh = globalCache.get(orgDescription.alias, 'maintenance', 'sobjectRefreshLastRunDate');
 		const now = Date.now();
@@ -70,6 +70,7 @@ export const initServer = async () => {
 		} else {
 			log('No need to update SF CLI, last update was less than a week ago.');
 		}
+		*/
 	}
 };
 

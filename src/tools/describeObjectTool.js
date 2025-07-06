@@ -30,10 +30,7 @@ async function describeObjectTool(params, _meta) {
 			throw new Error('SObject name must be a non-empty string');
 		}
 
-		const org = salesforceState.orgDescription.alias;
-		const tool = 'describe';
-		const key = sObjectName;
-		const cached = globalCache.get(org, tool, key);
+		const cached = globalCache.get('describeObject', sObjectName);
 		if (cached) {
 			return cached;
 		}
@@ -96,7 +93,7 @@ async function describeObjectTool(params, _meta) {
 			if (!('label' in filtered)) {filtered.label = ''}
 			if (!('fields' in filtered)) {filtered.fields = []}
 			if (!('recordTypeInfos' in filtered)) {filtered.recordTypeInfos = []}
-			globalCache.set(org, tool, key, filtered);
+			globalCache.set('describeObject', sObjectName, filtered);
 
 			notifyProgressChange(progressToken, 2, 2, 'Done');
 			return {

@@ -501,58 +501,19 @@ const server = new Server({name: 'salesforce-mcp', version: SERVER_VERSION}, {
 
 salesforceState.server = server;
 
-/*
-server.setRequestHandler(ListResourcesRequestSchema, async () => ({resources: [{
-	uri: 'file:///orgDetails.json',
-	name: 'Org details',
-	mimeType: 'text/plain',
-	description: 'Org details'
-}]}));
-
-server.setRequestHandler(ReadResourceRequestSchema, async request => {
-	const uri = request.params.uri;
-	if (uri === 'file:///orgDetails.json') {
-		return {contents: [{uri, mimeType: 'text/plain', text: JSON.stringify(salesforceState.orgDescription)}]};
-	}
-	throw new Error('Resource not found');
-});
-*/
-
 server.setRequestHandler(ListToolsRequestSchema, async () => ({tools: toolDefinitions}));
 
-async function callToolRequestSchemaHandler(request) {
+export async function callToolRequestSchemaHandler(request) {
 	const {name, arguments: args, _meta = {}} = request.params;
 
 	const progressToken = _meta.progressToken;
 
 	try {
 		log(`Executing tool: "${name}" with args: ${JSON.stringify(args, null, 3)}`);
-		let result;
-		/*
-		if (!salesforceState.orgDescription) {
-			log('Default org unknown');
-			return {
-				isError: true,
-				content: [{
-					type: 'text',
-					text: 'Default org unknown'
-				}]
-			};
-		}
- */
-		const toolFunction = toolImplementations[name];
-		if (toolFunction) {
-			result = await toolFunction(args, _meta);
-		} else {
-			throw new Error(`Unknown tool: ${name}`);
-		}
+		return await toolImplementations[name](args, _meta);
 
-		//If the tool already returns an object with the correct format, we return it directly
-		if (result && result.content) {
-			return result;
-		}
 	} catch (error) {
-		log(`Error executing ${name}:`, error);
+		log(`Error executing ${name}:`, 'error');
 		if (progressToken) {
 			server.notification('notifications/progress', {
 				progressToken,
@@ -573,31 +534,20 @@ async function callToolRequestSchemaHandler(request) {
 
 server.setRequestHandler(CallToolRequestSchema, callToolRequestSchemaHandler);
 
-/*
-export async function testToolHandler(request) {
-	orgDescription = {
-		accessToken: '00DKN0000000yy5!AQYAQC7Y2CcH.RQPdXVJHtnuyr0GoclFfQNi48y6OP_P6Cqog4p87Umqx3uw.fLnVoniwst4T1UxOtkMiGCKdn0wPREzuhDu',
-		instanceUrl: 'https://caixabankcc--devservice.sandbox.my.salesforce.com',
-		username: 'u0190347@cc-caixabank.com.devservice',
-		alias: 'DEVSERVICE'
-	};
-
-	return await callToolRequestSchemaHandler(request);
-}
-*/
-
 const transport = new StdioServerTransport();
 
-try {
-	log(`IBM Salesforce MCP server (v${SERVER_VERSION})`, 'debug');
-	log('Initializing server...', 'debug');
-	await initServer();
-	await server.connect(transport);
-	log('Server initialized and running', 'debug');
-} catch (error) {
-	log(`Error starting IBM MCP Salesforce server: ${error.message}`, 'error');
-	process.exit(1);
+async function main() {
+	try {
+		log(`IBM Salesforce MCP server (v${SERVER_VERSION})`, 'debug');
+		log('Initializing server...', 'debug');
+		await initServer();
+		await server.connect(transport);
+		log('Server initialized and running', 'debug');
+
+	} catch (error) {
+		log(`Error starting IBM MCP Salesforce server: ${error.message}`, 'error');
+		process.exit(1);
+	}
 }
 
-//Exportació per a scripts de test
-export {callToolRequestSchemaHandler};
+await main();

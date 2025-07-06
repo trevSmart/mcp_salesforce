@@ -1,6 +1,7 @@
 import {salesforceState} from '../state.js';
 import {runCliCommand} from './runCliCommand.js';
 import {log} from '../utils.js';
+import {getOrgAndUserDetails} from './getOrgAndUserDetails.js';
 
 /**
  * Makes direct API calls to Salesforce using the CLI and curl
@@ -13,6 +14,7 @@ import {log} from '../utils.js';
 export async function callSalesforceApi(method, baseUrl = null, apiPath = '', body = null) {
 	if (!baseUrl) {
 		//For relative paths, construct the full URL using org instance URL
+		await getOrgAndUserDetails();
 		const orgDesc = salesforceState.orgDescription;
 		if (!orgDesc || !orgDesc.instanceUrl) {
 			throw new Error('Org description not initialized. Please wait for server initialization.');

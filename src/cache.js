@@ -2,6 +2,8 @@ import fs from 'fs';
 import path, {dirname} from 'path';
 import {fileURLToPath} from 'url';
 import {log} from './utils.js';
+import {getOrgAndUserDetails} from './salesforceServices/getOrgAndUserDetails.js';
+import {salesforceState} from './state.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -12,8 +14,7 @@ const CACHE_ENABLED = false;
 class GlobalCache {
 	EXPIRATION_TIME = {
 		TOOLING_API_GET: 300000, //5 minutes
-		ORG_USER_DETAILS: 300000, //5 minutes
-		REFRESH_SOBJECT_DEFINITIONS: 1200000, //20 minutes
+		REFRESH_SOBJECT_DEFINITIONS: 172800000, //2 days
 		DESCRIBE_SOBJECT_RESULT: 300000, //5 minutes
 		TOOLING_API_REQUEST: 300000, //5 minutes
 		UPDATE_SF_CLI: 604800000 //1 week
@@ -28,7 +29,9 @@ class GlobalCache {
 		setInterval(() => this.cleanup(), 15 * 60 * 1000);
 	}
 
-	set(org, tool, key, value, ttl = 300000) {
+	async set(tool, key, value, ttl = 300000) {
+		const orgAndUserDetails = await getOrgAndUserDetails();
+		const org = orgAndUserDetails?.alias;
 		if (!CACHE_ENABLED || !org) {
 			return;
 		}
@@ -44,7 +47,8 @@ class GlobalCache {
 		this._saveToFile();
 	}
 
-	get(org, tool, key) {
+	get(tool, key) {
+		const org = salesforceState?.orgDescription?.alias;
 		if (!CACHE_ENABLED || !org) {
 			return null;
 		}

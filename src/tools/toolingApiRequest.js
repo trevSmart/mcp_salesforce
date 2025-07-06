@@ -11,11 +11,7 @@ async function toolingApiRequest({method, endpoint}) {
 
 		//Only cache GET requests (do not modify data)
 		if (method.toUpperCase() === 'GET') {
-			const org = salesforceState.orgDescription.alias;
-			const tool = 'tooling';
-			const key = `${method}:${toolingEndpoint}`;
-			const cached = globalCache.get(org, tool, key);
-
+			const cached = globalCache.get('toolingApiRequest', toolingEndpoint);
 			if (cached) {
 				return cached;
 			}
@@ -40,7 +36,7 @@ async function toolingApiRequest({method, endpoint}) {
 			if (!result || result.isError || result.error) {
 				return response;
 			}
-			globalCache.set(org, tool, key, response);
+			globalCache.set('toolingApiRequest', toolingEndpoint, response);
 			return response;
 		} else {
 			//For POST/PUT/DELETE do not cache

@@ -4,12 +4,15 @@ import {callSalesforceApi} from '../salesforceServices/callSalesforceApi.js';
 import crypto from 'crypto';
 import {messageSchema} from './paramSchemas.js';
 import {z} from 'zod';
+import {getOrgAndUserDetails} from '../salesforceServices/getOrgAndUserDetails.js';
 
 let currentSessionId = null;
 
 async function startSession() {
 	try {
 		log('Starting Agentforce session...');
+
+		await getOrgAndUserDetails();
 
 		const body = {
 			externalSessionKey: crypto.randomUUID(),
