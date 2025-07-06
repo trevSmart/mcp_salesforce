@@ -1,10 +1,11 @@
 import {salesforceState} from '../state.js';
-import {runCliCommand, log, notifyProgressChange} from '../utils.js';
+import {log, notifyProgressChange} from '../utils.js';
 import {globalCache} from '../cache.js';
 import {sObjectNameSchema} from './paramSchemas.js';
 import {z} from 'zod';
+import {describeObjectService} from '../salesforceServices/describeObject.js';
 
-async function describeObject(params, _meta) {
+async function describeObjectTool(params, _meta) {
 	const schema = z.object({
 		sObjectName: sObjectNameSchema,
 	});
@@ -39,8 +40,8 @@ async function describeObject(params, _meta) {
 
 		notifyProgressChange(progressToken, 2, 0, 'Running CLI command...');
 
-		const command = `sf sobject describe --sobject ${sObjectName} -o "${org}" --json`;
-		const response = JSON.parse(await runCliCommand(command));
+		//Utilitza el nou servei
+		const response = await describeObjectService(sObjectName, org);
 
 		notifyProgressChange(progressToken, 2, 1, 'Parsing CLI command response...');
 
@@ -120,4 +121,4 @@ async function describeObject(params, _meta) {
 	}
 }
 
-export default describeObject;
+export default describeObjectTool;

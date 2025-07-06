@@ -1,6 +1,5 @@
 import {salesforceState} from '../state.js';
 import {globalCache} from '../cache.js';
-import {log, runCliCommand} from '../utils.js';
 
 async function getOrgAndUserDetails() {
 	const org = salesforceState.orgDescription.alias;

@@ -1,5 +1,6 @@
-import {callSalesforceAPI, log} from '../utils.js';
-import describeObject from './describeObject.js';
+import {log} from '../utils.js';
+import {callSalesforceApi} from '../salesforceServices/callSalesforceApi.js';
+import describeObject from './describeObjectTool.js';
 
 async function generateSoqlQuery({soqlQueryDescription, involvedSObjects}) {
 
@@ -73,7 +74,7 @@ async function generateSoqlQuery({soqlQueryDescription, involvedSObjects}) {
 		};
 
 		//Hacer la llamada POST al endpoint de acciones personalizadas
-		const response = await callSalesforceAPI(
+		const response = await callSalesforceApi(
 			'POST',
 			null,
 			'/einstein/prompt-templates/generateSoqlQueryToolPrompt/generations',

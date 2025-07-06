@@ -1,0 +1,52 @@
+{
+    "squarl.bookmarks": [
+        {
+            "name": "Model Context Protocol",
+            "path": "https://modelcontextprotocol.io/introduction",
+            "description": "",
+            "type": "link"
+        }
+    ],
+    "workbench.editor.highlightModifiedTabs": true,
+    "chat.mcp.discovery.enabled": false,
+    "search.exclude": {
+        "**/dist/*": true,
+        "**/node_modules/**": true
+    },
+    "outline.showFunctions": true,
+    "outline.showFiles": true,
+    "outline.showFields": false,
+    "outline.showConstants": false,
+    "outline.showVariables": false,
+    "outline.showMethods": true,
+    "outline.showModules": true,
+    "eslint.useFlatConfig": false,
+    "actionButtons": {
+        "commands": [
+            {
+                "name": "$(test-view-icon) Inspect",
+                "useVsCodeApi": true,
+                "command": "workbench.action.tasks.inspect",
+                "color": "#a0a0b0"
+            },
+            {
+                "name": "$(testing-debug-icon) Test",
+                "useVsCodeApi": true,
+                "command": "workbench.action.tasks.test",
+                "color": "#ccaa66"
+            },
+            {
+                "name": "$(send) Publish",
+                "useVsCodeApi": true,
+                "command": "workbench.action.tasks.build",
+                "color": "#cc8888"
+            },
+        ],
+        "defaultColor": "#ffffe0",
+        "reloadButton": null,
+        "loadNpmCommands": false
+    },
+    "explorer.fileNesting.patterns": {
+        "*.js": "${capture}.md"
+    },
+}

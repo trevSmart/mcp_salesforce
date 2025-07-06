@@ -15,7 +15,6 @@ pids
 
 # IDE
 .idea/
-.vscode/
 *.swp
 *.swo
 
@@ -24,3 +23,5 @@ pids
 Thumbs.db
 
 dist/
+
+.cursor/rules/

@@ -1,4 +1,4 @@
-import {runCliCommand} from '../utils.js';
+import {runCliCommand} from '../salesforceServices/runCliCommand.js';
 
 async function metadataApiRequest({metadataType, targetUsername}) {
 	try {

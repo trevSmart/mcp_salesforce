@@ -1,8 +1,9 @@
 import {salesforceState} from '../state.js';
-import {callSalesforceAPI, log} from '../utils.js';
+import {log} from '../utils.js';
+import {callSalesforceApi} from '../salesforceServices/callSalesforceApi.js';
 import crypto from 'crypto';
-import { messageSchema } from './paramSchemas.js';
-import { z } from 'zod';
+import {messageSchema} from './paramSchemas.js';
+import {z} from 'zod';
 
 let currentSessionId = null;
 
@@ -32,7 +33,7 @@ async function startSession() {
 			bypassUser: true
 		};
 
-		const response = await callSalesforceAPI(
+		const response = await callSalesforceApi(
 			'POST',
 			'https://api.salesforce.com/einstein/ai-agent/v1',
 			`/agents/${process.env.SF_MCP_AGENTFORCE_AGENT_ID}/sessions`,
@@ -66,7 +67,7 @@ async function sendMessage(message) {
 	}
 
 	try {
-		const response = await callSalesforceAPI(
+		const response = await callSalesforceApi(
 			'POST',
 			'https://api.salesforce.com/einstein/ai-agent/v1',
 			`/sessions/${currentSessionId}/messages`,

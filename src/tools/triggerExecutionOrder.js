@@ -1,5 +1,4 @@
-import {salesforceState} from '../state.js';
-import {runCliCommand} from '../utils.js';
+import {executeSoqlQuery} from '../salesforceServices/soqlQuery.js';
 
 /**
  * Returns the execution order of automation components for an SObject and operation
@@ -17,22 +16,14 @@ async function triggerExecutionOrder(args) {
 	}
 
 	//1. Get triggers
-	const operationFilter = operation === 'insert' ? 'before insert, after insert' : operation === 'update' ? 'before update, after update' : 'before delete, after delete';
-	const triggersQuery = `SELECT Name, NamespacePrefix FROM ApexTrigger WHERE TableEnumOrId = '${sObjectName}' AND (Status = 'Active') AND (NamespacePrefix = '' OR NamespacePrefix = NULL) ORDER BY Name`;
-	log(`Executing query: ${triggersQuery}`);
-	const triggers = await runCliCommand(`sf data query -t -q "${triggersQuery}" -o "${salesforceState.orgDescription.alias}" --json`);
+	const triggersQuery = `SELECT Name, NamespacePrefix, Body FROM ApexTrigger WHERE TableEnumOrId = '${sObjectName}' AND (Status = 'Active') AND (NamespacePrefix = '' OR NamespacePrefix = NULL) ORDER BY Name`;
+	const triggersRes = await executeSoqlQuery(triggersQuery);
+	const triggers = triggersRes.records;
 
 	//2. Get Process Builders
-	const processQuery = `SELECT Id, DeveloperName, LastModifiedDate, ProcessType, Status, TriggerType,
-							Description, VersionNumber, NamespacePrefix
-							FROM Flow
-							WHERE ProcessType = 'Workflow'
-							AND Status = 'Active'
-							AND (TableEnumOrId = '${sObjectName}' OR TableEnumOrId = null)
-							ORDER BY LastModifiedDate DESC`;
-	log(`Executing query: ${processQuery}`);
-	const processes = await runCliCommand(`sf data query -t -q "${processQuery}" -o "${salesforceState.orgDescription.alias}" --json`);
-	log('Processes: ', processes);
+	const processQuery = `SELECT Id, DeveloperName, LastModifiedDate, ProcessType, Status, TriggerType, Description, VersionNumber, NamespacePrefix FROM Flow WHERE ProcessType = 'Workflow' AND Status = 'Active' AND (TableEnumOrId = '${sObjectName}' OR TableEnumOrId = null) ORDER BY LastModifiedDate DESC`;
+	const processesRes = await executeSoqlQuery(processQuery);
+	const processes = processesRes.records;
 
 	//3. Get Flows
 	const recordTriggerType = {
@@ -42,36 +33,23 @@ async function triggerExecutionOrder(args) {
 		delete: '(\'Delete\')'
 	}[operation];
 
-	const flowQuery = `SELECT Id, ApiName, Label, TriggerType, TriggerOrder, TriggerObjectOrEventLabel, TriggerObjectOrEventId, RecordTriggerType, Description
-							FROM FlowDefinitionView
-							WHERE IsActive = TRUE AND ProcessType = 'AutoLaunchedFlow' AND NamespacePrefix = NULL AND
-							AND TriggerObjectOrEventId.QualifiedApiName = '${sObjectName}'
-							AND TriggerType IN ('RecordBeforeSave', 'RecordAfterSave', 'RecordBeforeDelete')
-							AND RecordTriggerType IN ${recordTriggerType}
-							AND IsTemplate = FALSE`;
-	log(`Executing query: ${flowQuery}`);
-	const flows = await runCliCommand(`sf data query -t -q "${flowQuery}" -o "${salesforceState.orgDescription.alias}" --json`);
+	const flowQuery = `SELECT Id, ApiName, Label, TriggerType, TriggerOrder, TriggerObjectOrEventLabel, TriggerObjectOrEventId, RecordTriggerType, Description, VersionNumber, LastModifiedBy.Name, LastModifiedDate FROM FlowDefinitionView WHERE IsActive = TRUE AND ProcessType = 'AutoLaunchedFlow' AND NamespacePrefix = NULL AND TriggerObjectOrEventId.QualifiedApiName = '${sObjectName}' AND TriggerType IN ('RecordBeforeSave', 'RecordAfterSave', 'RecordBeforeDelete') AND RecordTriggerType IN ${recordTriggerType} AND IsTemplate = FALSE`;
+	const flowsRes = await executeSoqlQuery(flowQuery);
+	const flows = flowsRes.records;
 
 	//4. Get Validation Rules
-	const validationRulesQuery = `SELECT Id, Active, ErrorDisplayField, ErrorMessage, Description,
-									EntityDefinition.QualifiedApiName, ValidationName
-							 FROM ValidationRule
-							 WHERE Active = true
-							 AND EntityDefinition.QualifiedApiName = '${sObjectName}'`;
-	log(`Executing query: ${validationRulesQuery}`);
-	const validationRules = await runCliCommand(`sf data query -t -q "${validationRulesQuery}" -o "${salesforceState.orgDescription.alias}" --json`);
+	const validationRulesQuery = `SELECT Id, Active, ErrorDisplayField, ErrorMessage, Description, EntityDefinition.QualifiedApiName, ValidationName FROM ValidationRule WHERE Active = true AND EntityDefinition.QualifiedApiName = '${sObjectName}'`;
+	const validationRulesRes = await executeSoqlQuery(validationRulesQuery);
+	const validationRules = validationRulesRes.records;
 
 	//5. Get Workflow Rules
-	const workflowRulesQuery = `SELECT Id, Name, TableEnumOrId, Active, Description, TriggerType
-								FROM WorkflowRule
-								WHERE Active = true
-								AND TableEnumOrId = '${sObjectName}'`;
-	log(`Executing query: ${workflowRulesQuery}`);
-	const workflowRules = await runCliCommand(`sf data query -t -q "${workflowRulesQuery}" -o "${salesforceState.orgDescription.alias}" --json`);
+	const workflowRulesQuery = `SELECT Id, Name, TableEnumOrId, Active, Description, TriggerType FROM WorkflowRule WHERE Active = true AND TableEnumOrId = '${sObjectName}'`;
+	const workflowRulesRes = await executeSoqlQuery(workflowRulesQuery);
+	const workflowRules = workflowRulesRes.records;
 
 	//Analyze the trigger code to detect dependencies
-	const triggerAnalysis = triggers.result.records.map(trigger => {
-		const body = trigger.Body;
+	const triggerAnalysis = triggers.map(trigger => {
+		const body = trigger.Body || '';
 		const dependencies = {
 			flows: [],
 			processes: [],
@@ -103,7 +81,7 @@ async function triggerExecutionOrder(args) {
 	});
 
 	//2. Before Triggers
-	const beforeTriggers = triggers.result.records.filter(t => t.Body.includes('before'));
+	const beforeTriggers = triggers.filter(t => t.Body && t.Body.includes('before'));
 	if (beforeTriggers.length > 0) {
 		executionOrder.push({
 			step: 2,
@@ -119,11 +97,11 @@ async function triggerExecutionOrder(args) {
 	}
 
 	//3. Custom Validation Rules
-	if (validationRules.result.records.length > 0) {
+	if (validationRules.length > 0) {
 		executionOrder.push({
 			step: 3,
 			name: 'Custom Validation Rules',
-			components: validationRules.result.records.map(vr => ({
+			components: validationRules.map(vr => ({
 				name: vr.ValidationName,
 				description: vr.Description,
 				errorMessage: vr.ErrorMessage,
@@ -133,8 +111,7 @@ async function triggerExecutionOrder(args) {
 	}
 
 	//4. Before Save Flow
-	const beforeSaveFlows = flows.result.records.filter(f =>
-		f.TriggerType === 'RecordBeforeSave');
+	const beforeSaveFlows = flows.filter(f => f.TriggerType === 'RecordBeforeSave');
 	if (beforeSaveFlows.length > 0) {
 		executionOrder.push({
 			step: 4,
@@ -171,8 +148,7 @@ async function triggerExecutionOrder(args) {
 	});
 
 	//8. After Save Flow
-	const afterSaveFlows = flows.result.records.filter(f =>
-		f.TriggerType === 'RecordAfterSave');
+	const afterSaveFlows = flows.filter(f => f.TriggerType === 'RecordAfterSave');
 	if (afterSaveFlows.length > 0) {
 		executionOrder.push({
 			step: 8,
@@ -188,7 +164,7 @@ async function triggerExecutionOrder(args) {
 	}
 
 	//9. After Triggers
-	const afterTriggers = triggers.result.records.filter(t => t.Body.includes('after'));
+	const afterTriggers = triggers.filter(t => t.Body && t.Body.includes('after'));
 	if (afterTriggers.length > 0) {
 		executionOrder.push({
 			step: 9,
@@ -203,66 +179,37 @@ async function triggerExecutionOrder(args) {
 		});
 	}
 
-	//10. Process Builder
-	if (processes.result.records.length > 0) {
+	//10. Processes (Process Builder)
+	if (processes.length > 0) {
 		executionOrder.push({
 			step: 10,
-			name: 'Process Builder',
-			components: processes.result.records.map(p => ({
+			name: 'Process Builder Processes',
+			components: processes.map(p => ({
 				name: p.DeveloperName,
 				description: p.Description,
 				version: p.VersionNumber,
-				triggerType: p.TriggerType,
-				namespace: p.NamespacePrefix
+				lastModifiedDate: p.LastModifiedDate
 			}))
 		});
 	}
 
 	//11. Workflow Rules
-	if (workflowRules.result.records.length > 0) {
+	if (workflowRules.length > 0) {
 		executionOrder.push({
 			step: 11,
 			name: 'Workflow Rules',
-			components: workflowRules.result.records.map(w => ({
-				name: w.Name,
-				description: w.Description,
-				triggerType: w.TriggerType
+			components: workflowRules.map(wr => ({
+				name: wr.Name,
+				description: wr.Description,
+				triggerType: wr.TriggerType
 			}))
 		});
 	}
 
-	//12. Roll-Up Summary Fields
-	executionOrder.push({
-		step: 12,
-		name: 'Roll-Up Summary Fields',
-		description: 'Roll-Up Summary Fields update'
-	});
-
-	//13. Sharing Rules
-	executionOrder.push({
-		step: 13,
-		name: 'Sharing Rule Evaluation',
-		description: 'Sharing rules evaluation'
-	});
-
-	//14. Commit
-	executionOrder.push({
-		step: 14,
-		name: 'Commit',
-		description: 'Transaction commit'
-	});
-
-	//15. Post-Commit Logic
-	executionOrder.push({
-		step: 15,
-		name: 'Post-Commit Logic',
-		description: 'Post-commit logic (emails, outbound messages, etc.)'
-	});
-
 	return {
 		content: [{
 			type: 'text',
-			text: JSON.stringify(executionOrder, null, 2)
+			text: `Execution order for ${sObjectName} (${operation}):\n${JSON.stringify(executionOrder, null, 2)}`
 		}],
 		structuredContent: executionOrder
 	};

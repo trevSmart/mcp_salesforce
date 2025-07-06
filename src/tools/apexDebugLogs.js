@@ -1,14 +1,15 @@
 import {salesforceState} from '../state.js';
-import executeSoqlQuery from './soqlQuery.js';
-import createRecord from './createRecord.js';
-import updateRecord from './updateRecord.js';
-import {runCliCommand, log} from '../utils.js';
-import { logIdSchema, messageSchema } from './paramSchemas.js';
-import { z } from 'zod';
+import {executeSoqlQuery} from '../salesforceServices/soqlQuery.js';
+import {createRecord} from '../salesforceServices/createRecord.js';
+import {updateRecord} from '../salesforceServices/updateRecord.js';
+import {log} from '../utils.js';
+import {runCliCommand} from '../salesforceServices/runCliCommand.js';
+import {logIdSchema, messageSchema} from './paramSchemas.js';
+import {z} from 'zod';
 
-const actionSchema = z.enum(['status','on','off','list','get']);
+const actionSchema = z.enum(['status', 'on', 'off', 'list', 'get']);
 
-async function apexDebugLogs(params) {
+export default async function apexDebugLogs(params) {
 	const schema = z.object({
 		action: actionSchema,
 		logId: logIdSchema.optional(),
@@ -168,5 +169,3 @@ async function apexDebugLogs(params) {
 		};
 	}
 }
-
-export default apexDebugLogs;

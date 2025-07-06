@@ -1,7 +1,6 @@
-import {salesforceState} from '../state.js';
-import {runCliCommand, log} from '../utils.js';
-import { lastDaysSchema, createdByNameSchema, metadataNameSchema } from './paramSchemas.js';
-import { z } from 'zod';
+import {lastDaysSchema, createdByNameSchema, metadataNameSchema} from './paramSchemas.js';
+import {z} from 'zod';
+import {executeSoqlQuery} from '../salesforceServices/soqlQuery.js';
 const SOQL_LIMIT = 1000;
 
 async function getSetupAuditTrail(params) {
@@ -48,16 +47,14 @@ async function getSetupAuditTrail(params) {
 		//Clean the query by replacing line breaks and tabs with spaces
 		const cleanQuery = soqlQuery.replace(/[\n\t\r]+/g, ' ').trim();
 
-		const command = `sf data query --query "${cleanQuery.replace(/"/g, '\\"')}" -o "${salesforceState.orgDescription.alias}" --json`;
-		log(`Executing query command: ${command}`);
-		const response = await JSON.parse(await runCliCommand(command));
+		const response = await executeSoqlQuery(cleanQuery);
 
-		if (!response || !response.result || !Array.isArray(response.result.records)) {
+		if (!response || !Array.isArray(response.records)) {
 			throw new Error('No response or invalid response from Salesforce CLI');
 		}
 
 		//Validate and transform each record
-		const validRecords = response.result.records.map(record => {
+		const validRecords = response.records.map(record => {
 			if (record && typeof record === 'object'
 				&& record.Section
 				&& record.CreatedDate
@@ -80,13 +77,12 @@ async function getSetupAuditTrail(params) {
 			'Manage Users', 'Customize Activities', 'Connected App Session Policy',
 			'Translation Workbench', 'CBK Configs', 'Security Controls'
 		];
-		const sizeBeforeFilters = response.result.totalSize;
+		const sizeBeforeFilters = response.records.length;
 		let results = validRecords.filter(r => {
 			if (!r || typeof r !== 'object'
 			|| !r.Section || ignoredSections.includes(r.Section)
 			|| shouldFilterByMetadataName && r.Display && !r.Display.toLowerCase().includes(params.metadataName.toLowerCase())
 			) {
-				log('Invalid record:', r);
 				return false;
 			}
 			return true;
@@ -94,8 +90,7 @@ async function getSetupAuditTrail(params) {
 
 		const transformedResults = results.reduce((acc, record) => {
 			if (!record || typeof record !== 'object') {
-				log('Invalid record during transformation:', record);
-				return null;
+				return acc;
 			}
 
 			const userName = record.CreatedBy && record.CreatedBy.Name ? record.CreatedBy.Name : 'Unknown User';
@@ -105,8 +100,7 @@ async function getSetupAuditTrail(params) {
 
 			const d = new Date(record.CreatedDate);
 			if (isNaN(d.getTime())) {
-				log('Invalid date:', record.CreatedDate);
-				return null;
+				return acc;
 			}
 
 			const day = d.getDate().toString().padStart(2, '0');
@@ -143,7 +137,6 @@ async function getSetupAuditTrail(params) {
 		};
 
 	} catch (error) {
-		log('Error in getSetupAuditTrail:', error);
 		return {
 			isError: true,
 			content: [{

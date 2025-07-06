@@ -1,0 +1,65 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "npm",
+			"script": "build",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": [],
+			"label": "npm: build",
+			"detail": "sh dev/build.sh",
+			"presentation": {
+				"showReuseMessage": false,
+				"close": false,
+				"panel": "new",
+				"focus": true
+			}
+		},
+		{
+			"type": "npm",
+			"script": "startMcpInspector",
+			"group": {
+				"kind": "inspect",
+				"isDefault": true
+			},
+			"problemMatcher": [],
+			"label": "npm: startMcpInspector",
+			"detail": "sh dev/startMcpInspector.sh",
+			"presentation": {
+				"showReuseMessage": false,
+				"reveal": "silent",
+				"close": true,
+				"panel": "shared",
+				"focus": false
+			},
+			"runOptions": {
+				"instancePolicy": "terminateOldest"
+			}
+		},
+		{
+			"type": "npm",
+			"script": "test",
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			},
+			"problemMatcher": [],
+			"label": "npm: test",
+			"detail": "node scripts/test_tools.js",
+			"presentation": {
+				"showReuseMessage": false,
+				"panel": "shared"
+			}
+		},
+		{
+			"type": "npm",
+			"script": "lint",
+			"problemMatcher": [],
+			"label": "npm: lint",
+			"detail": "eslint . --ext .js,.mjs,.cjs,.jsx,.ts,.tsx"
+		}
+	]
+}

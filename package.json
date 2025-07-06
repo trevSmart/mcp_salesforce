@@ -1,14 +1,14 @@
 {
-  "name": "test_research2",
-  "version": "0.1.0",
-  "description": "test_research2",
+  "name": "test_research3",
+  "version": "0.1.76",
+  "description": "test_research3",
   "main": "index.js",
   "type": "module",
   "bin": {
     "test_research": "bin/cli.js"
   },
   "scripts": {
-    "start": "node index.js",
+    "build": "sh dev/build.sh",
     "test": "node scripts/test_tools.js",
     "lint": "eslint . --ext .js,.mjs,.cjs,.jsx,.ts,.tsx",
     "startMcpInspector": "sh dev/startMcpInspector.sh"
@@ -21,19 +21,14 @@
   "license": "EUPL-1.2",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.11.4",
-    "env-paths": "^3.0.0",
-    "node-fetch": "^2.6.7",
     "@salesforce/apex-node": "^8.1.32"
   },
   "engines": {
     "node": ">=14.0.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.27.4",
     "@babel/eslint-parser": "^7.27.5",
-    "@eslint/js": "^9.28.0",
     "eslint": "^8.57.1",
-    "imagemagick-cli": "^0.5.0",
-    "javascript-obfuscator": "^4.1.1"
+    "terser": "^5.43.1"
   }
 }

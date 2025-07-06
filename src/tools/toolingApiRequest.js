@@ -1,4 +1,5 @@
-import {callSalesforceAPI, log} from '../utils.js';
+import {log} from '../utils.js';
+import {callSalesforceApi} from '../salesforceServices/callSalesforceApi.js';
 import {globalCache} from '../cache.js';
 import {salesforceState} from '../state.js';
 
@@ -19,8 +20,9 @@ async function toolingApiRequest({method, endpoint}) {
 				return cached;
 			}
 
-			const result = await callSalesforceAPI(
+			const result = await callSalesforceApi(
 				method,
+				null,
 				toolingEndpoint
 			);
 
@@ -42,8 +44,9 @@ async function toolingApiRequest({method, endpoint}) {
 			return response;
 		} else {
 			//For POST/PUT/DELETE do not cache
-			const result = await callSalesforceAPI(
+			const result = await callSalesforceApi(
 				method,
+				null,
 				toolingEndpoint
 			);
 

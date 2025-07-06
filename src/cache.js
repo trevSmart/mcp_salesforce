@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path, {dirname} from 'path';
 import {fileURLToPath} from 'url';
+import {log} from './utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -78,7 +79,7 @@ class GlobalCache {
 				fs.unlinkSync(this.cacheFile);
 			}
 		} catch (err) {
-			console.error('[CACHE] Error deleting cache file:', err);
+			log('[CACHE] Error deleting cache file: ' + err, 'error');
 		}
 		this._saveToFile(deleteFile);
 	}
@@ -151,7 +152,7 @@ class GlobalCache {
 
 			fs.writeFileSync(this.cacheFile, JSON.stringify(cacheToSave, null, 2), 'utf8');
 		} catch (err) {
-			console.error('[CACHE] Error saving cache:', err);
+			log('[CACHE] Error saving cache: ' + err, 'error');
 		}
 	}
 
@@ -175,10 +176,10 @@ class GlobalCache {
 					}
 				}
 			} else {
-				console.error('[CACHE] _loadFromFile: file does not exist');
+				log('[CACHE] _loadFromFile: file does not exist', 'info');
 			}
 		} catch (err) {
-			console.error('[CACHE] Error loading cache:', err);
+			log('[CACHE] Error loading cache: ' + err, 'error');
 		}
 	}
 }

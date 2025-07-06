@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import {z} from 'zod';
 
 export const sObjectNameSchema = z.string().min(1, 'SObject name must be a non-empty string');
 export const recordIdSchema = z.string().min(1, 'Record ID must be a non-empty string');

@@ -1,68 +1,45 @@
-<p>
-  <img src="resources/images/ibmLogo.png" alt="IBM Logo" height="40"/>
-  <img src="resources/images/salesforceLogo.png" alt="Salesforce Logo" height="40"/>
-</p>
+# Projecte en fase de proves
 
-<img src="resources/images/mcpLogo.png" alt="MCP Logo" height="26"/>
+Aquest projecte està en desenvolupament i no està preparat per a ús públic.
 
-# IBM Salesforce MCP Server
+## Característiques
 
-This project provides a Model Context Protocol (MCP) server for Salesforce, enabling advanced automation, metadata management, and integration with Salesforce orgs via the Salesforce CLI and REST API. It is designed for use with AI-enabled IDEs and tools.
+- Consulta, creació, actualització i eliminació de registres
+- Deploy i recuperació de metadades
+- Execució de scripts anònims
+- Generació de consultes automàtiques
+- Gestió de logs de depuració
+- Revisió de canvis de configuració
+- Integració amb agents externs
 
-## Features
+## Requisits
 
-- Query, create, update, and delete Salesforce records
-- Deploy and retrieve Salesforce metadata
-- Execute anonymous Apex scripts
-- Build SOQL queries with generative AI
-- Manage Apex debug logs
-- Review your org's setup audit trail
-- Integrate with Agentforce agents
+- Node.js v14 o superior
+- CLI de Salesforce connectat a una org (només per a proves internes)
+- IDE o eina compatible amb MCP (només per a proves internes)
 
-## Requirements
+## Configuració
 
-- [Node.js](https://nodejs.org/) v14 or higher
-- [Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli) connected to a Salesforce org
-- An AI-enabled IDE or tool that supports MCP servers, such as:
-  - [Cursor](https://www.cursor.com)
-  - [Visual Studio Code](https://code.visualstudio.com)
-  - [Claude](https://claude.ai)
-  - [Windsurf](https://windsurf.com/editor)
+Crea un fitxer `.env` a l'arrel del projecte amb les variables necessàries per a la connexió (consulta l'equip de desenvolupament per als detalls).
 
-## Configuration
+## Ús
 
-Create a `.env` file in the project root with the following variables:
-
-```
-SfApiVersion=63.0
-SfLoginUrl=https://test.salesforce.com
-SfClientId=YOUR_CLIENT_ID
-SfClientSecret=YOUR_CLIENT_SECRET
-SfUsername=YOUR_SF_USERNAME
-SfPassword=YOUR_SF_PASSWORD
-SfAgentforceAgentId=YOUR_AGENTFORCE_ID
-```
-
-## Usage
-
-Start the MCP Salesforce server:
+Inicia el servidor amb:
 
 ```bash
 node index.js
 ```
 
-Once the server is running, connect to it from your preferred AI-enabled IDE or tool.
+Un cop el servidor estigui en execució, connecta-t'hi des de l'IDE o eina corresponent.
 
-## Connect from Cursor IDE
+## Connecta des de Cursor IDE
 
-You can install and launch the Salesforce MCP server directly from Cursor using the following deeplink:
+Pots instal·lar i llançar el servidor directament des de Cursor utilitzant el deeplink proporcionat per l'equip de desenvolupament.
 
-```
-cursor://anysphere.cursor-deeplink/mcp/install?name=salesforce-mcp&config=eyJjb21tYW5kIjoibm9kZSIsImFyZ3MiOlsiL1VzZXJzL21hcmNwbGEvRG9jdW1lbnRzL0ZlaW5hL1Byb2plY3Rlcy9tY3AvbWNwX3NhbGVzZm9yY2UvaW5kZXguanMiXSwiZW52Ijp7ImFwaVZlcnNpb24iOiI2My4wIiwibG9naW5VcmwiOiJodHRwczovL3Rlc3Quc2FsZXNmb3JjZS5jb20iLCJhZ2VudGZvcmNlQWdlbnRJZCI6IllPVVJfQUdFTlRGT1JDRV9JRCJ9fQ==
-```
+> **Nota:** Aquest projecte està en fase de proves. No el facis servir en entorns de producció ni el distribueixis.
 
-> **Note:** GitHub does not support clickable links for custom protocols like `cursor://`. To use the deeplink, copy the above URL and paste it into the address bar of your web browser.
+## Llicència
 
-## License
+Consulta el fitxer LICENSE per als detalls de la llicència.
 
-Licensed under the EUPL v1.2. See [LICENSE](LICENSE) for details.
+cursor://anysphere.cursor-deeplink/mcp/install?name=salesforce-mcp&config=eyJjb21tYW5kIjoibm9kZSIsImFyZ3MiOlsiL1VzZXJzL21hcmNwbGEvRG9jdW1lbnRzL0ZlaW5hL1Byb2plY3Rlcy9tY3AvbWNwX3NhbGVzZm9yY2UvaW5kZXguanMiXSwiZW52Ijp7IlNmQWdlbnRmb3JjZUFnZW50SWQiOiJZT1VSX0FHRU5URk9SQ0VfSUQifX0=

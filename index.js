@@ -1,3 +1,6 @@
+import {createRequire} from 'module';
+const require = createRequire(import.meta.url);
+const pkg = require('./package.json');
 import {Server} from '@modelcontextprotocol/sdk/server/index.js';
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -7,52 +10,51 @@ import {
 	ReadResourceRequestSchema
 } from '@modelcontextprotocol/sdk/types.js';
 
-import {initServer, runCliCommand, log, loadToolDescription} from './src/utils.js';
+import {initServer, log, loadToolDescription} from './src/utils.js';
 import {salesforceState} from './src/state.js';
+import {runCliCommand} from './src/salesforceServices/runCliCommand.js';
 
 //Tools
 import salesforceMcpUtils from './src/tools/salesforceMcpUtils.js';
-import getOrgAndUserDetails from './src/tools/getOrgAndUserDetails.js';
-import dmlOperation from './src/tools/dmlOperation.js';
-import deployMetadata from './src/tools/deployMetadata.js';
-import describeObject from './src/tools/describeObject.js';
-import executeAnonymousApex from './src/tools/executeAnonymousApex.js';
-import getRecentlyViewedRecords from './src/tools/getRecentlyViewedRecords.js';
-import getRecord from './src/tools/getRecord.js';
-import getSetupAuditTrail from './src/tools/getSetupAuditTrail.js';
+import getOrgAndUserDetailsTool from './src/tools/getOrgAndUserDetailsTool.js';
+import dmlOperation from './src/tools/dmlOperationTool.js';
+import deployMetadataTool from './src/tools/deployMetadataTool.js';
+import describeObjectTool from './src/tools/describeObjectTool.js';
+import executeAnonymousApexTool from './src/tools/executeAnonymousApexTool.js';
+import getRecentlyViewedRecordsTool from './src/tools/getRecentlyViewedRecordsTool.js';
+import getRecordTool from './src/tools/getRecordTool.js';
+import getSetupAuditTrailTool from './src/tools/getSetupAuditTrailTool.js';
 import apexDebugLogs from './src/tools/apexDebugLogs.js';
-import executeSoqlQuery from './src/tools/soqlQuery.js';
+import executeSoqlQueryTool from './src/tools/soqlQueryTool.js';
 import toolingApiRequest from './src/tools/toolingApiRequest.js';
 import triggerExecutionOrder from './src/tools/triggerExecutionOrder.js';
 import metadataApiRequest from './src/tools/metadataApiRequest.js';
 import chatWithAgentforce from './src/tools/chatWithAgentforce.js';
-import generateSoqlQuery from './src/tools/generateSoqlQuery.js';
-import test from './src/tools/test.js';
+import generateSoqlQuery from './src/tools/generateSoqlQueryTool.js';
 import runApexTest from './src/tools/runApexTest.js';
 
 const toolImplementations = {
-	salesforceMcpUtils,
-	getOrgAndUserDetails,
-	dmlOperation,
-	deployMetadata,
-	describeObject,
-	executeAnonymousApex,
-	getRecentlyViewedRecords,
-	getRecord,
-	getSetupAuditTrail,
-	apexDebugLogs,
-	executeSoqlQuery,
-	toolingApiRequest,
-	triggerExecutionOrder,
-	metadataApiRequest,
-	chatWithAgentforce,
-	generateSoqlQuery,
-	test,
-	runApexTest
+	salesforceMcpUtils: salesforceMcpUtils,
+	getOrgAndUserDetails: getOrgAndUserDetailsTool,
+	dmlOperation: dmlOperation,
+	deployMetadata: deployMetadataTool,
+	describeObject: describeObjectTool,
+	executeAnonymousApex: executeAnonymousApexTool,
+	getRecentlyViewedRecords: getRecentlyViewedRecordsTool,
+	getRecord: getRecordTool,
+	getSetupAuditTrail: getSetupAuditTrailTool,
+	apexDebugLogs: apexDebugLogs,
+	executeSoqlQuery: executeSoqlQueryTool,
+	toolingApiRequest: toolingApiRequest,
+	triggerExecutionOrder: triggerExecutionOrder,
+	metadataApiRequest: metadataApiRequest,
+	chatWithAgentforce: chatWithAgentforce,
+	generateSoqlQuery: generateSoqlQuery,
+	runApexTest: runApexTest
 };
 
 //Definitions of tools
-const salesforceMcpUtilsTool = {
+const salesforceMcpUtilsToolDefinition = {
 	name: 'salesforceMcpUtils',
 	title: 'Salesforce MCP Utils',
 	description: loadToolDescription('salesforceMcpUtils'),
@@ -74,7 +76,7 @@ const salesforceMcpUtilsTool = {
 	}
 };
 
-const getOrgAndUserDetailsTool = {
+const getOrgAndUserDetailsToolDefinition = {
 	name: 'getOrgAndUserDetails',
 	title: 'Get the Salesforce organization and current user details.',
 	description: loadToolDescription('getOrgAndUserDetails'),
@@ -90,9 +92,9 @@ const getOrgAndUserDetailsTool = {
 	}
 };
 
-const dmlOperationTool = {
+const dmlOperationToolDefinition = {
 	name: 'dmlOperation',
-	title: 'DML Operation',
+	title: 'DML Operation (create, update or delete a record)',
 	description: loadToolDescription('dmlOperation'),
 	inputSchema: {
 		type: 'object',
@@ -112,7 +114,7 @@ const dmlOperationTool = {
 			},
 			fields: {
 				type: 'object',
-				description: 'Only applicable for operations "create" and "update". An object with the field values for the record. E.g. {"Name": "New Name", "Description": "New Description"}'
+				description: 'Required (For "delete" operation, pass {}). An object with the field values for the record. E.g. {"Name": "New Name", "Description": "New Description"}.'
 			}
 		}
 	},
@@ -124,7 +126,7 @@ const dmlOperationTool = {
 	}
 };
 
-const deployMetadataTool = {
+const deployMetadataToolDefinition = {
 	name: 'deployMetadata',
 	title: 'Deploy Metadata',
 	description: loadToolDescription('deployMetadata'),
@@ -147,7 +149,7 @@ const deployMetadataTool = {
 	}
 };
 
-const describeObjectTool = {
+const describeObjectToolDefinition = {
 	name: 'describeObject',
 	title: 'Describe Object',
 	description: loadToolDescription('describeObject'),
@@ -169,7 +171,7 @@ const describeObjectTool = {
 	}
 };
 
-const executeAnonymousApexTool = {
+const executeAnonymousApexToolDefinition = {
 	name: 'executeAnonymousApex',
 	title: 'Execute Anonymous Apex',
 	description: loadToolDescription('executeAnonymousApex'),
@@ -191,7 +193,7 @@ const executeAnonymousApexTool = {
 	}
 };
 
-const getRecentlyViewedRecordsTool = {
+const getRecentlyViewedRecordsToolDefinition = {
 	name: 'getRecentlyViewedRecords',
 	title: 'Get Recently Viewed Records',
 	description: loadToolDescription('getRecentlyViewedRecords'),
@@ -207,7 +209,7 @@ const getRecentlyViewedRecordsTool = {
 	}
 };
 
-const getRecordTool = {
+const getRecordToolDefinition = {
 	name: 'getRecord',
 	title: 'Get Record',
 	description: loadToolDescription('getRecord'),
@@ -233,7 +235,7 @@ const getRecordTool = {
 	}
 };
 
-const getSetupAuditTrailTool = {
+const getSetupAuditTrailToolDefinition = {
 	name: 'getSetupAuditTrail',
 	title: 'Get the changes in the Salesforce org metadata performed in the last days from the Salesforce Setup Audit Trail data',
 	description: loadToolDescription('getSetupAuditTrail'),
@@ -263,7 +265,7 @@ const getSetupAuditTrailTool = {
 	}
 };
 
-const apexDebugLogsTool = {
+const apexDebugLogsToolDefinition = {
 	name: 'apexDebugLogs',
 	title: 'Apex Debug Logs',
 	description: loadToolDescription('apexDebugLogs'),
@@ -285,7 +287,7 @@ const apexDebugLogsTool = {
 	}
 };
 
-const soqlQueryTool = {
+const soqlQueryToolDefinition = {
 	name: 'executeSoqlQuery',
 	title: 'Execute SOQL Query',
 	description: loadToolDescription('soqlQuery'),
@@ -311,7 +313,7 @@ const soqlQueryTool = {
 	}
 };
 
-const toolingApiRequestTool = {
+const toolingApiRequestToolDefinition = {
 	name: 'toolingApiRequest',
 	title: 'Tooling API Request',
 	description: loadToolDescription('toolingApiRequest'),
@@ -337,7 +339,7 @@ const toolingApiRequestTool = {
 	}
 };
 
-const triggerExecutionOrderTool = {
+const triggerExecutionOrderToolDefinition = {
 	name: 'triggerExecutionOrder',
 	title: 'Trigger Execution Order',
 	description: loadToolDescription('triggerExecutionOrder'),
@@ -359,7 +361,7 @@ const triggerExecutionOrderTool = {
 	}
 };
 
-const metadataApiRequestTool = {
+const metadataApiRequestToolDefinition = {
 	name: 'metadataApiRequest',
 	title: 'Metadata API Request',
 	description: loadToolDescription('metadataApiRequest'),
@@ -385,7 +387,7 @@ const metadataApiRequestTool = {
 	}
 };
 
-const chatWithAgentforceTool = {
+const chatWithAgentforceToolDefinition = {
 	name: 'chatWithAgentforce',
 	title: 'Chat with Agentforce',
 	description: loadToolDescription('chatWithAgentforce'),
@@ -407,7 +409,7 @@ const chatWithAgentforceTool = {
 	}
 };
 
-const generateSoqlQueryTool = {
+const generateSoqlQueryToolDefinition = {
 	name: 'generateSoqlQuery',
 	title: 'Generate SOQL Query',
 	description: loadToolDescription('generateSoqlQuery'),
@@ -436,28 +438,7 @@ const generateSoqlQueryTool = {
 	}
 };
 
-const testTool = {
-	name: 'test',
-	title: 'Test Tool',
-	description: loadToolDescription('test'),
-	inputSchema: {
-		type: 'object',
-		properties: {
-			param1: {
-				type: 'string',
-				description: 'Generic input parameter.'
-			}
-		}
-	},
-	annotations: {
-		readOnlyHint: false,
-		idempotentHint: false,
-		openWorldHint: false,
-		title: 'Test Tool'
-	}
-};
-
-const runApexTestTool = {
+const runApexTestToolDefinition = {
 	name: 'runApexTest',
 	title: 'Run Apex Test',
 	description: loadToolDescription('runApexTest'),
@@ -485,54 +466,35 @@ const runApexTestTool = {
 	}
 };
 
-const tools = [
-	salesforceMcpUtilsTool,
-	getOrgAndUserDetailsTool,
-	dmlOperationTool,
-	deployMetadataTool,
-	describeObjectTool,
-	executeAnonymousApexTool,
-	getRecentlyViewedRecordsTool,
-	getRecordTool,
-	getSetupAuditTrailTool,
-	apexDebugLogsTool,
-	soqlQueryTool,
-	toolingApiRequestTool,
-	triggerExecutionOrderTool,
-	metadataApiRequestTool,
-	chatWithAgentforceTool,
-	generateSoqlQueryTool,
-	testTool,
-	runApexTestTool
+const toolsDefinitions = [
+	salesforceMcpUtilsToolDefinition,
+	getOrgAndUserDetailsToolDefinition,
+	dmlOperationToolDefinition,
+	deployMetadataToolDefinition,
+	describeObjectToolDefinition,
+	executeAnonymousApexToolDefinition,
+	getRecentlyViewedRecordsToolDefinition,
+	getRecordToolDefinition,
+	getSetupAuditTrailToolDefinition,
+	apexDebugLogsToolDefinition,
+	soqlQueryToolDefinition,
+	toolingApiRequestToolDefinition,
+	triggerExecutionOrderToolDefinition,
+	metadataApiRequestToolDefinition,
+	chatWithAgentforceToolDefinition,
+	generateSoqlQueryToolDefinition,
+	runApexTestToolDefinition
 ];
 
-const resources = [];
+//Definir la versió del servidor en una constant
+const SERVER_VERSION = pkg.version;
 
-const server = new Server({name: 'salesforce-mcp', version: '1.0.0'}, {
+const server = new Server({name: 'salesforce-mcp', version: SERVER_VERSION}, {
 	capabilities: {
 		logging: {},
 		resources: {},
 		prompts: {},
-		tools: {
-			salesforceMcpUtilsTool,
-			getOrgAndUserDetailsTool,
-			dmlOperationTool,
-			deployMetadataTool,
-			describeObjectTool,
-			executeAnonymousApexTool,
-			getRecentlyViewedRecordsTool,
-			getRecordTool,
-			getSetupAuditTrailTool,
-			apexDebugLogsTool,
-			soqlQueryTool,
-			toolingApiRequestTool,
-			triggerExecutionOrderTool,
-			metadataApiRequestTool,
-			chatWithAgentforceTool,
-			generateSoqlQueryTool,
-			testTool,
-			runApexTestTool
-		}
+		tools: Object.fromEntries(toolsDefinitions.map(def => [def.name, def]))
 	}
 });
 
@@ -553,31 +515,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async request => {
 	throw new Error('Resource not found');
 });
 
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-	log('ListToolsRequestSchema', 'debug');
-	return {
-		tools: [
-			salesforceMcpUtilsTool,
-			getOrgAndUserDetailsTool,
-			dmlOperationTool,
-			deployMetadataTool,
-			describeObjectTool,
-			executeAnonymousApexTool,
-			getRecentlyViewedRecordsTool,
-			getRecordTool,
-			getSetupAuditTrailTool,
-			apexDebugLogsTool,
-			soqlQueryTool,
-			toolingApiRequestTool,
-			triggerExecutionOrderTool,
-			metadataApiRequestTool,
-			chatWithAgentforceTool,
-			generateSoqlQueryTool,
-			testTool,
-			runApexTestTool
-		]
-	};
-});
+server.setRequestHandler(ListToolsRequestSchema, async () => ({tools: toolsDefinitions}));
 
 async function callToolRequestSchemaHandler(request) {
 	const {name, arguments: args, _meta = {}} = request.params;
@@ -664,7 +602,7 @@ export async function testToolHandler(request) {
 const transport = new StdioServerTransport();
 
 try {
-	log('Connecting to IBM MCP Salesforce server...', 'debug');
+	log(`Starting IBM MCP Salesforce server (version ${SERVER_VERSION})...`, 'debug');
 	await server.connect(transport);
 	setTimeout(async () => {
 		await initServer();
@@ -677,3 +615,6 @@ try {
 	log('Error starting IBM MCP Salesforce server:', error);
 	process.exit(1);
 }
+
+//Exportació per a scripts de test
+export {callToolRequestSchemaHandler};

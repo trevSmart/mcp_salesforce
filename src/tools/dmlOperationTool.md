@@ -5,9 +5,17 @@ Allows you to perform DML operations (create, update, delete) on a Salesforce re
 ---
 ## Agent Instructions
 - Use the exact fields according to the object and its definition.
-- For update and delete, remember to provide the recordId.
-- For create and update, provide the field values in the fields object.
+  - **For create:**
+    - provide the field values in the fields object.
+  - **For update:**
+    - provide the recordId
+    - provide the field values in the fields object.
+  - **For delete:**
+    - provide the recordId
+    - ⚠️ **pass and empty object (`{}`) in the fields object**.
+- If the operation is successful, return the result of the operation (success or error).
 - Always return the result of the operation (success or error).
+- If the operation is not successful, return the error message.
 
 ---
 ## Usage

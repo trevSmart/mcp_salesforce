@@ -1,8 +1,8 @@
 import {salesforceState} from '../state.js';
 import {TestService, TestLevel} from '@salesforce/apex-node';
 import {Connection, AuthInfo} from '@salesforce/core';
-import { classNameSchema, methodNameSchema } from './paramSchemas.js';
-import { z } from 'zod';
+import {classNameSchema, methodNameSchema} from './paramSchemas.js';
+import {z} from 'zod';
 
 /**
  * Executes an Apex test class (and optionally a method) using @salesforce/apex-node.
@@ -31,41 +31,56 @@ async function runApexTest(params) {
 		throw new Error('Salesforce user is not initialized.');
 	}
 
-	//Create AuthInfo using the current username
-	const authInfo = await AuthInfo.create({username: salesforceState.userDescription.username});
-	//Create a Salesforce connection using AuthInfo
-	const connection = await Connection.create({authInfo});
+	try {
+		const authInfo = await AuthInfo.create({username: salesforceState.userDescription.username});
+		const connection = await Connection.create({authInfo});
+		let tests;
+		try {
+			if (params.methodName) {
+				tests = [{className: params.className, testMethods: [params.methodName]}];
+			} else {
+				tests = [{className: params.className}];
+			}
+		} catch (error) {
+			return {
+				isError: true,
+				content: [{
+					type: 'text',
+					text: `❌ Error de preparació de tests: ${error.message}`
+				}]
+			};
+		}
+		const testService = new TestService(connection);
+		const result = await testService.runTestAsynchronous({
+			testLevel: TestLevel.RunSpecifiedTests,
+			tests,
+		}, false /*without code coverage */);
 
-	//Prepare test options in the correct format
-	let tests;
-	if (params.methodName) {
-		tests = [{className: params.className, testMethods: [params.methodName]}];
-	} else {
-		tests = [{className: params.className}];
-	}
-
-	//Create the TestService instance
-	const testService = new TestService(connection);
-
-	//Run the test asynchronously (recommended for most cases)
-	const result = await testService.runTestAsynchronous({
-		testLevel: TestLevel.RunSpecifiedTests,
-		tests,
-	}, true /*codeCoverage */);
-
-	//Incloure el jobId a la resposta
-	return {
-		jobId: result?.summary?.testRunId || result?.testRunId,
-		content: [
-			{
+		return {
+			jobId: result?.summary?.testRunId || result?.testRunId,
+			content: [{
 				type: 'text',
 				text: JSON.stringify(result, null, 2)
+			}],
+			structuredContent: {
+				result: result
 			}
-		],
-		structuredContent: {
-			result: result
+		};
+	} catch (error) {
+		let errorMsg;
+		if (error?.data?.message) {
+			errorMsg = `❌ Error executant runApexTest: ${error.data.message}`;
+		} else {
+			errorMsg = `❌ Error executant runApexTest: ${error.message}`;
 		}
-	};
+		return {
+			isError: true,
+			content: [{
+				type: 'text',
+				text: errorMsg
+			}]
+		};
+	}
 }
 
 export default runApexTest;
