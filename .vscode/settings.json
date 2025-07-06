@@ -27,7 +27,7 @@
                 "name": "$(test-view-icon) Inspect",
                 "useVsCodeApi": true,
                 "command": "workbench.action.tasks.inspect",
-                "color": "#a0a0b0"
+                "color": "#c0c0d0"
             },
             {
                 "name": "$(testing-debug-icon) Test",
