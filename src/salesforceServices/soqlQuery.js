@@ -1,4 +1,3 @@
-import {salesforceState} from '../state.js';
 import {runCliCommand} from './runCliCommand.js';
 import {log} from '../utils.js';
 
@@ -12,7 +11,7 @@ export async function executeSoqlQuery(query) {
 		throw new Error('La consulta SOQL (query) és obligatòria i ha de ser una string');
 	}
 	try {
-		const command = `sf data query --query "${query}" -o "${salesforceState.orgDescription.alias}" --json`;
+		const command = `sf data query --query "${query}" --json`;
 		log(`Executing SOQL query command: ${command}`);
 		const response = await JSON.parse(await runCliCommand(command));
 		if (response.status !== 0) {

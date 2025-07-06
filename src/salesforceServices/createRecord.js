@@ -1,4 +1,3 @@
-import {salesforceState} from '../state.js';
 import {runCliCommand} from './runCliCommand.js';
 import {log} from '../utils.js';
 
@@ -16,7 +15,7 @@ export async function createRecord(sObjectName, fields) {
 		const valuesString = Object.entries(fields)
 			.map(([key, value]) => `${key}='${String(value).replace(/'/g, '\\\'')}'`)
 			.join(' ');
-		const command = `sf data create record --sobject ${sObjectName} --values "${valuesString}" -o "${salesforceState.orgDescription.alias}" --json`;
+		const command = `sf data create record --sobject ${sObjectName} --values "${valuesString}" --json`;
 		log(`Executing create record command: ${command}`);
 		const response = await JSON.parse(await runCliCommand(command));
 		if (response.status !== 0) {

@@ -23,5 +23,4 @@ pids
 Thumbs.db
 
 dist/
-dev/
 .cursor/rules/

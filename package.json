@@ -1,6 +1,6 @@
 {
   "name": "test_research3",
-  "version": "0.1.76",
+  "version": "0.1.78",
   "description": "test_research3",
   "main": "index.js",
   "type": "module",
@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "sh dev/build.sh",
-    "test": "node scripts/test_tools.js",
+    "test": "node dev/testTools.js",
     "lint": "eslint . --ext .js,.mjs,.cjs,.jsx,.ts,.tsx",
     "startMcpInspector": "sh dev/startMcpInspector.sh"
   },

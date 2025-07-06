@@ -7,6 +7,7 @@ import {fileURLToPath} from 'url';
 import {exec as execCallback} from 'child_process';
 import {promisify} from 'util';
 import {runCliCommand} from './salesforceServices/runCliCommand.js';
+import {getOrgAndUserDetails} from './salesforceServices/getOrgAndUserDetails.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,8 +21,11 @@ export async function log(message, logLevel = 'info') {
 		return;
 	}
 
-	if (typeof message === 'object') {
-		message = JSON.stringify(message, null, '\t');
+	//if (typeof message === 'object') {
+	//message = JSON.stringify(message, null, 2);
+	//}
+	if (CONFIG.logPrefix) {
+		message = `${CONFIG.logPrefix} ${message}`;
 	}
 	if (message.length > 1000) {
 		message = message.slice(0, 1000) + '...';
@@ -33,14 +37,9 @@ export const initServer = async () => {
 	await execPromise(`export HOME=${process.env.HOME}`);
 	const orgAlias = JSON.parse(await runCliCommand('sf config get target-org --json'))?.result?.[0]?.value;
 	if (orgAlias) {
-		salesforceState.orgDescription = JSON.parse(await runCliCommand(`sf org display -o "${orgAlias}" --json`))?.result;
-		salesforceState.userDescription = JSON.parse(await runCliCommand(`sf org display user -o "${orgAlias}" --json`))?.result;
-		log(`Org and user details successfully retrieved: \n\nOrg:\n${JSON.stringify(salesforceState.orgDescription, null, '\t')}\n\nUser:\n${JSON.stringify(salesforceState.userDescription, null, '\t')}`, 'info');
-	}
+		const orgDescription = await getOrgAndUserDetails();
+		salesforceState.orgDescription = orgDescription;
 
-	const {orgDescription} = salesforceState;
-
-	if (orgDescription?.alias) {
 		//SObject definitions refresh every 2 days
 		const lastRefresh = globalCache.get(orgDescription.alias, 'maintenance', 'sobjectRefreshLastRunDate');
 		const now = Date.now();

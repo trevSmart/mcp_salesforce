@@ -6,13 +6,12 @@ import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
 	ListToolsRequestSchema,
 	CallToolRequestSchema,
-	ListResourcesRequestSchema,
-	ReadResourceRequestSchema
+	//ListResourcesRequestSchema,
+	//ReadResourceRequestSchema
 } from '@modelcontextprotocol/sdk/types.js';
 
 import {initServer, log, loadToolDescription} from './src/utils.js';
 import {salesforceState} from './src/state.js';
-import {runCliCommand} from './src/salesforceServices/runCliCommand.js';
 
 //Tools
 import salesforceMcpUtils from './src/tools/salesforceMcpUtils.js';
@@ -43,17 +42,18 @@ const toolImplementations = {
 	getRecentlyViewedRecords: getRecentlyViewedRecordsTool,
 	getRecord: getRecordTool,
 	getSetupAuditTrail: getSetupAuditTrailTool,
-	apexDebugLogs: apexDebugLogs,
+	//apexDebugLogs: apexDebugLogs,
 	executeSoqlQuery: executeSoqlQueryTool,
-	toolingApiRequest: toolingApiRequest,
-	triggerExecutionOrder: triggerExecutionOrder,
-	metadataApiRequest: metadataApiRequest,
-	chatWithAgentforce: chatWithAgentforce,
-	generateSoqlQuery: generateSoqlQuery,
+	//toolingApiRequest: toolingApiRequest,
+	//triggerExecutionOrder: triggerExecutionOrder,
+	//metadataApiRequest: metadataApiRequest,
+	//chatWithAgentforce: chatWithAgentforce,
+	//generateSoqlQuery: generateSoqlQuery,
 	runApexTest: runApexTest
 };
 
 //Definitions of tools
+//#region
 const salesforceMcpUtilsToolDefinition = {
 	name: 'salesforceMcpUtils',
 	title: 'Salesforce MCP Utils',
@@ -465,8 +465,9 @@ const runApexTestToolDefinition = {
 		title: 'Run Apex Test'
 	}
 };
+//#endregion
 
-const toolsDefinitions = [
+const toolDefinitions = [
 	salesforceMcpUtilsToolDefinition,
 	getOrgAndUserDetailsToolDefinition,
 	dmlOperationToolDefinition,
@@ -491,15 +492,16 @@ const SERVER_VERSION = pkg.version;
 
 const server = new Server({name: 'salesforce-mcp', version: SERVER_VERSION}, {
 	capabilities: {
-		logging: {},
-		resources: {},
-		prompts: {},
-		tools: Object.fromEntries(toolsDefinitions.map(def => [def.name, def]))
+		//logging: {},
+		//resources: {},
+		//prompts: {},
+		tools: Object.fromEntries(toolDefinitions.map(def => [def.name, def]))
 	}
 });
 
 salesforceState.server = server;
 
+/*
 server.setRequestHandler(ListResourcesRequestSchema, async () => ({resources: [{
 	uri: 'file:///orgDetails.json',
 	name: 'Org details',
@@ -514,8 +516,9 @@ server.setRequestHandler(ReadResourceRequestSchema, async request => {
 	}
 	throw new Error('Resource not found');
 });
+*/
 
-server.setRequestHandler(ListToolsRequestSchema, async () => ({tools: toolsDefinitions}));
+server.setRequestHandler(ListToolsRequestSchema, async () => ({tools: toolDefinitions}));
 
 async function callToolRequestSchemaHandler(request) {
 	const {name, arguments: args, _meta = {}} = request.params;
@@ -523,36 +526,20 @@ async function callToolRequestSchemaHandler(request) {
 	const progressToken = _meta.progressToken;
 
 	try {
-		log(`Executing tool: "${name}" with args: ${JSON.stringify(args, null, ' ')}`);
+		log(`Executing tool: "${name}" with args: ${JSON.stringify(args, null, 3)}`);
 		let result;
-
+		/*
 		if (!salesforceState.orgDescription) {
-			await initServer();
-
-			if (!salesforceState.orgDescription) {
-				const orgs = JSON.parse(await runCliCommand('sf org list auth --json'))?.result.map(o => o.alias);
-				return {
-					isError: true,
-					content: [{
-						type: 'text',
-						text: [
-							'❌ *No default org set*. Message:',
-							'```markdown',
-							'Please set a default org using the command:',
-							'',
-							'```bash',
-							'sf config set target-org "<orgAlias>"',
-							'```',
-							'',
-							'*Available orgs:*',
-							orgs.map(o => `- ${o.trim()}`).join('\n'),
-							'```'
-						].join('\n')
-					}]
-				};
-			}
+			log('Default org unknown');
+			return {
+				isError: true,
+				content: [{
+					type: 'text',
+					text: 'Default org unknown'
+				}]
+			};
 		}
-
+ */
 		const toolFunction = toolImplementations[name];
 		if (toolFunction) {
 			result = await toolFunction(args, _meta);
@@ -602,17 +589,13 @@ export async function testToolHandler(request) {
 const transport = new StdioServerTransport();
 
 try {
-	log(`Starting IBM MCP Salesforce server (version ${SERVER_VERSION})...`, 'debug');
+	log(`IBM Salesforce MCP server (v${SERVER_VERSION})`, 'debug');
+	log('Initializing server...', 'debug');
+	await initServer();
 	await server.connect(transport);
-	setTimeout(async () => {
-		await initServer();
-		const soqlUserQuery = `SELECT Name FROM User WHERE Id = '${salesforceState.userDescription.id}'`;
-		const soqlUserResult = await runCliCommand(`sf data query --query "${soqlUserQuery.replace(/"/g, '\\"')}" -o "${salesforceState.orgDescription.alias}" --json`);
-		salesforceState.userDescription.name = JSON.parse(soqlUserResult)?.result?.records?.[0]?.Name;
-	}, 100);
-
+	log('Server initialized and running', 'debug');
 } catch (error) {
-	log('Error starting IBM MCP Salesforce server:', error);
+	log(`Error starting IBM MCP Salesforce server: ${error.message}`, 'error');
 	process.exit(1);
 }
 

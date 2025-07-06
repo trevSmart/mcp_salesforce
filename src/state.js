@@ -1,5 +1,4 @@
 let orgDescription;
-let userDescription;
 let server;
 
 export const salesforceState = {
@@ -8,13 +7,6 @@ export const salesforceState = {
 	},
 	set orgDescription(newOrgDescription) {
 		orgDescription = newOrgDescription;
-	},
-
-	get userDescription() {
-		return userDescription;
-	},
-	set userDescription(newUserDescription) {
-		userDescription = newUserDescription;
 	},
 
 	get server() {

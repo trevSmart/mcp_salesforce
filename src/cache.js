@@ -29,7 +29,7 @@ class GlobalCache {
 	}
 
 	set(org, tool, key, value, ttl = 300000) {
-		if (!CACHE_ENABLED) {
+		if (!CACHE_ENABLED || !org) {
 			return;
 		}
 
@@ -45,7 +45,7 @@ class GlobalCache {
 	}
 
 	get(org, tool, key) {
-		if (!CACHE_ENABLED) {
+		if (!CACHE_ENABLED || !org) {
 			return null;
 		}
 

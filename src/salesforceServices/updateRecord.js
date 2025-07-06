@@ -1,4 +1,3 @@
-import {salesforceState} from '../state.js';
 import {runCliCommand} from './runCliCommand.js';
 import {log} from '../utils.js';
 
@@ -17,7 +16,7 @@ export async function updateRecord(sObjectName, recordId, fields) {
 		const valuesString = Object.entries(fields)
 			.map(([key, value]) => `${key}='${String(value).replace(/'/g, '\\\'')}'`)
 			.join(' ');
-		const command = `sf data update record --sobject ${sObjectName} --record-id ${recordId} --values "${valuesString}" -o "${salesforceState.orgDescription.alias}" --json`;
+		const command = `sf data update record --sobject ${sObjectName} --record-id ${recordId} --values "${valuesString}" --json`;
 		log(`Executing update record command: ${command}`);
 		const response = await JSON.parse(await runCliCommand(command));
 		if (response.status !== 0) {

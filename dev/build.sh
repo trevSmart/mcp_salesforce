@@ -64,8 +64,6 @@ find dist -name '*.js' -exec npx terser {} \
 \;
 
 # Executa l'script de post-processat
-echo
-echo "\033[95mExecutant el script de post-processat...\033[0m"
 node dev/updateReadmeCursorDeeplink.js > /dev/null 2>&1
 
 # Sincronitza la versió a index.js (new Server(..., { version: ... }) )
@@ -74,7 +72,7 @@ sed -i '' "s/\(new Server({name: 'salesforce-mcp', version: '\)[^']*'/\1$new_ver
 # Publica el paquet a npm
 echo
 echo "\033[95mPublicant el paquet a NPM...\033[0m"
-# (cd dist && npm publish --access public)
+(cd dist && npm publish --access public > /dev/null 2>&1)
 
 # Si tot ha anat bé, elimina les còpies de seguretat
 echo

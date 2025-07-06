@@ -41,7 +41,7 @@ async function describeObjectTool(params, _meta) {
 		notifyProgressChange(progressToken, 2, 0, 'Running CLI command...');
 
 		//Utilitza el nou servei
-		const response = await describeObjectService(sObjectName, org);
+		const response = await describeObjectService(sObjectName);
 
 		notifyProgressChange(progressToken, 2, 1, 'Parsing CLI command response...');
 

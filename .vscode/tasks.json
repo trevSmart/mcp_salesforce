@@ -51,7 +51,9 @@
 			"detail": "node scripts/test_tools.js",
 			"presentation": {
 				"showReuseMessage": false,
-				"panel": "shared"
+				"close": false,
+				"panel": "new",
+				"focus": true
 			}
 		},
 		{

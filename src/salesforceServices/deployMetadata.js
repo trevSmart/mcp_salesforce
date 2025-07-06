@@ -1,4 +1,3 @@
-import {salesforceState} from '../state.js';
 import {log} from '../utils.js';
 import {runCliCommand} from './runCliCommand.js';
 
@@ -10,7 +9,7 @@ import {runCliCommand} from './runCliCommand.js';
  */
 export async function deployMetadata({sourceDir}) {
 	try {
-		const command = `sf project deploy start --source-dir ${sourceDir} --ignore-conflicts -o "${salesforceState.orgDescription.alias}" --json`;
+		const command = `sf project deploy start --source-dir ${sourceDir} --ignore-conflicts --json`;
 		log(`Executing deploy command: ${command}`);
 		const response = JSON.parse(await runCliCommand(command));
 		return response.result;

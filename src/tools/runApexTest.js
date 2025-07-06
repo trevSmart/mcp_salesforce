@@ -27,12 +27,8 @@ async function runApexTest(params) {
 		};
 	}
 
-	if (!salesforceState.userDescription?.username) {
-		throw new Error('Salesforce user is not initialized.');
-	}
-
 	try {
-		const authInfo = await AuthInfo.create({username: salesforceState.userDescription.username});
+		const authInfo = await AuthInfo.create({username: salesforceState.orgDescription.userName});
 		const connection = await Connection.create({authInfo});
 		let tests;
 		try {

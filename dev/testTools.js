@@ -27,6 +27,8 @@ async function testTool(name, args, displayName) {
 
 		if (result && result.isError) {
 			originalStdoutWrite.call(process.stdout, `${RED}KO${RESET}\n`);
+			//Mostra la sortida de la tool en cas de KO
+			originalStdoutWrite.call(process.stdout, JSON.stringify(result, null, 2) + '\n');
 		} else {
 			originalStdoutWrite.call(process.stdout, `${GREEN}OK${RESET}\n`);
 		}
@@ -36,6 +38,8 @@ async function testTool(name, args, displayName) {
 		console.log = originalLog;
 		process.stdout.write = originalStdoutWrite;
 		originalStdoutWrite.call(process.stdout, `${RED}KO${RESET}\n`);
+		//Mostra la sortida de l'error
+		originalStdoutWrite.call(process.stdout, (e && e.stack ? e.stack : JSON.stringify(e, null, 2)) + '\n');
 		return null;
 	}
 }
