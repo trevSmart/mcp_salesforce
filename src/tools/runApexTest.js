@@ -72,11 +72,23 @@ export async function runApexTestTool(params) {
 			throw new Error('Cal especificar classNames o methodNames.');
 		}
 
-		result = {testMethodResults: result.result};
+		if (!Array.isArray(result)) {
+			throw new Error('El resultado de runApexTest no es un array. Valor recibido: ' + JSON.stringify(result));
+		}
+
+		result = result.map(r => ({
+			className: r.ApexClass?.Name,
+			methodName: r.MethodName,
+			status: r.Outcome,
+			runtime: r.RunTime,
+			message: r.Message,
+			stackTrace: r.StackTrace
+		}));
+		result = {result};
 		return {
 			content: [{
 				type: 'text',
-				text: JSON.stringify(result)
+				text: 'Render in table: ' + JSON.stringify(result)
 			}],
 			structuredContent: result
 		};
