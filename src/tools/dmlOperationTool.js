@@ -1,4 +1,4 @@
-import {salesforceState} from '../state.js';
+import state from '../state.js';
 import {log, notifyProgressChange, loadToolDescription} from '../utils.js';
 import {operationSchema, sObjectNameSchema, recordIdSchema, fieldsSchema} from './paramSchemas.js';
 import {z} from 'zod';
@@ -72,7 +72,7 @@ export async function dmlOperationTool(params, _meta) {
 				}
 				const result = await createRecord(params.sObjectName, fieldsObject);
 				const newRecordId = result.id || result.Id;
-				const recordUrl = `https://${salesforceState.orgDescription.instanceUrl}/${newRecordId}`;
+				const recordUrl = `https://${state.orgDescription.instanceUrl}/${newRecordId}`;
 				const structuredContent = {
 					operation: params.operation,
 					sObject: params.sObjectName,

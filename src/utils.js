@@ -1,4 +1,4 @@
-import {salesforceState} from './state.js';
+import state from './state.js';
 import {CONFIG} from './config.js';
 //import {globalCache} from './cache.js';
 import fs from 'fs';
@@ -8,7 +8,9 @@ import {exec as execCallback} from 'child_process';
 import {promisify} from 'util';
 import {runCliCommand} from './salesforceServices/runCliCommand.js';
 import {getOrgAndUserDetails} from './salesforceServices/getOrgAndUserDetails.js';
+import os from 'os';
 
+const isWindows = os.platform() === 'win32';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -34,7 +36,11 @@ export function log(message, logLevel = 'info') {
 }
 
 export const initServer = async () => {
-	await execPromise(`export HOME=${process.env.HOME}`);
+	if (isWindows) {
+		await execPromise(`set HOME=${process.env.HOME}`);
+	} else {
+		await execPromise(`export HOME=${process.env.HOME}`);
+	}
 	const orgAlias = JSON.parse(await runCliCommand('sf config get target-org --json'))?.result?.[0]?.value;
 	if (orgAlias) {
 		await getOrgAndUserDetails();
@@ -59,7 +65,7 @@ export const initServer = async () => {
 };
 
 export function notifyProgressChange(progressToken, total, progress, message) {
-	const server = salesforceState.server;
+	const server = state.server;
 	server && server.notification({
 		method: 'notifications/progress',
 		params: {

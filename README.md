@@ -22,16 +22,7 @@ Aquest projecte està en desenvolupament i no està preparat per a ús públic.
 
 Crea un fitxer `.env` a l'arrel del projecte amb les variables necessàries per a la connexió (consulta l'equip de desenvolupament per als detalls).
 
-## Ús
-
-Inicia el servidor amb:
-
-```bash
-node index.js
-```
-
-Un cop el servidor estigui en execució, connecta-t'hi des de l'IDE o eina corresponent.
-
+# Ús
 ## Connecta des de Cursor IDE
 
 Pots instal·lar i llançar el servidor directament des de Cursor utilitzant el deeplink proporcionat per l'equip de desenvolupament.

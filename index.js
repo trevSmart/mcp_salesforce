@@ -11,7 +11,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 
 import {initServer, log} from './src/utils.js';
-import {salesforceState} from './src/state.js';
+import state from './src/state.js';
 
 //Tools
 import {salesforceMcpUtilsTool, salesforceMcpUtilsToolDefinition} from './src/tools/salesforceMcpUtilsTool.js';
@@ -78,14 +78,14 @@ const SERVER_VERSION = pkg.version;
 
 const server = new Server({name: 'salesforce-mcp', version: SERVER_VERSION}, {
 	capabilities: {
-		//logging: {},
+		logging: {},
 		//resources: {},
 		//prompts: {},
 		tools: Object.fromEntries(toolDefinitions.map(def => [def.name, def]))
 	}
 });
 
-salesforceState.server = server;
+state.server = server;
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({tools: toolDefinitions}));
 

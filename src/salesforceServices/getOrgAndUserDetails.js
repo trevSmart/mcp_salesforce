@@ -1,6 +1,6 @@
 import {runCliCommand} from './runCliCommand.js';
 import {log} from '../utils.js';
-import {salesforceState} from '../state.js';
+import state from '../state.js';
 import {executeSoqlQuery} from './executeSoqlQuery.js';
 
 export async function getOrgAndUserDetails() {
@@ -14,7 +14,7 @@ export async function getOrgAndUserDetails() {
 		};
 		log(`Org and user details successfully retrieved: \n${JSON.stringify(orgDescription, null, '\t')}`);
 
-		salesforceState.orgDescription = orgDescription;
+		state.orgDescription = orgDescription;
 		return orgDescription;
 
 	} catch (error) {

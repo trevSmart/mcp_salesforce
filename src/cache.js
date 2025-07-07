@@ -3,7 +3,7 @@ import path, {dirname} from 'path';
 import {fileURLToPath} from 'url';
 import {log} from './utils.js';
 import {getOrgAndUserDetails} from './salesforceServices/getOrgAndUserDetails.js';
-import {salesforceState} from './state.js';
+import state from './state.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -48,7 +48,7 @@ class GlobalCache {
 	}
 
 	get(tool, key) {
-		const org = salesforceState?.orgDescription?.alias;
+		const org = state?.orgDescription?.alias;
 		if (!CACHE_ENABLED || !org) {
 			return null;
 		}

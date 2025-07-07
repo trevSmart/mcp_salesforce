@@ -1,4 +1,4 @@
-import {salesforceState} from '../state.js';
+import state from '../state.js';
 import {runCliCommand} from './runCliCommand.js';
 import {log} from '../utils.js';
 import {getOrgAndUserDetails} from './getOrgAndUserDetails.js';
@@ -15,7 +15,7 @@ export async function callSalesforceApi(method, baseUrl = null, apiPath = '', bo
 	if (!baseUrl) {
 		//For relative paths, construct the full URL using org instance URL
 		await getOrgAndUserDetails();
-		const orgDesc = salesforceState.orgDescription;
+		const orgDesc = state.orgDescription;
 		if (!orgDesc || !orgDesc.instanceUrl) {
 			throw new Error('Org description not initialized. Please wait for server initialization.');
 		}
@@ -28,7 +28,7 @@ export async function callSalesforceApi(method, baseUrl = null, apiPath = '', bo
 		log(`Making Salesforce API call: ${method} ${endpoint}`);
 
 		//Use curl through CLI for API calls
-		let command = `curl -X ${method} -H "Authorization: Bearer ${salesforceState.currentAccessToken}" -H "Content-Type: application/json"`;
+		let command = `curl -X ${method} -H "Authorization: Bearer ${state.currentAccessToken}" -H "Content-Type: application/json"`;
 
 		if (body && (method === 'POST' || method === 'PATCH' || method === 'PUT')) {
 			command += ` -d '${JSON.stringify(body)}'`;

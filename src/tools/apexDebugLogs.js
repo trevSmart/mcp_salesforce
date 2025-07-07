@@ -1,4 +1,4 @@
-import {salesforceState} from '../state.js';
+import state from '../state.js';
 import {executeSoqlQuery} from '../salesforceServices/soqlQuery.js';
 import {createRecord} from '../salesforceServices/createRecord.js';
 import {updateRecord} from '../salesforceServices/updateRecord.js';
@@ -49,7 +49,7 @@ export async function apexDebugLogsTool(params) {
 	}
 
 	try {
-		const userDescription = salesforceState.userDescription;
+		const userDescription = state.orgDescription.user;
 		let traceFlag;
 
 		if (params.action === 'status') {

@@ -1,7 +1,7 @@
 let orgDescription;
 let server;
 
-export const salesforceState = {
+const state = {
 	get orgDescription() {
 		return orgDescription;
 	},
@@ -25,3 +25,5 @@ export const salesforceState = {
 		}
 	}
 };
+
+export default state;
