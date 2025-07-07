@@ -18,6 +18,7 @@ export async function executeSoqlQuery(query) {
 			throw new Error(response.message || 'Error executant la consulta SOQL');
 		}
 		return response.result;
+
 	} catch (error) {
 		log('Error executing SOQL query:', JSON.stringify(error, null, 2));
 		throw error;

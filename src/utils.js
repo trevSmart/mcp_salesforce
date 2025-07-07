@@ -14,7 +14,7 @@ const __dirname = path.dirname(__filename);
 
 const execPromise = promisify(execCallback);
 
-export async function log(message, logLevel = 'info') {
+export function log(message, logLevel = 'info') {
 	const LOG_LEVEL_PRIORITY = {info: 0, debug: 1, warn: 2, error: 3};
 
 	if (LOG_LEVEL_PRIORITY[logLevel] < LOG_LEVEL_PRIORITY[CONFIG.currentLogLevel]) {
@@ -40,22 +40,6 @@ export const initServer = async () => {
 		await getOrgAndUserDetails();
 
 		/*
-		//SObject definitions refresh every 2 days
-		const lastRefresh = globalCache.get(orgDescription.alias, 'maintenance', 'sobjectRefreshLastRunDate');
-		const now = Date.now();
-		if (
-			lastRefresh && now - lastRefresh > globalCache.EXPIRATION_TIME.REFRESH_SOBJECT_DEFINITIONS ||
-			!lastRefresh && Math.random() < 0.1
-		) {
-			log('Launching sf sobject definitions refresh...');
-			setTimeout(() => runCliCommand('sf sobject definitions refresh'), 172800000); //2 days
-			globalCache.set(orgDescription.alias, 'maintenance', 'sobjectRefreshLastRunDate', now);
-		} else if (!lastRefresh) {
-			log('No last SObject definitions refresh date and not selected by probability.');
-		} else {
-			log('No need to refresh SObject definitions, last refresh was less than 2 days ago.');
-		}
-
 		//SF CLI update every week
 		const lastSfCliUpdate = globalCache.get(orgDescription.alias, 'maintenance', 'sfCliUpdateLastRunDate');
 		if (

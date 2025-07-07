@@ -13,14 +13,14 @@ Allows you to run an Apex test class (and optionally a specific method) in Sales
 ### Example 1: Run a test class
 ```json
 {
-  "className": "MyTestClass"
+  "classNames": ["MyTestClasses"]
 }
 ```
 
 ### Example 2: Run a specific method
 ```json
 {
-  "className": "MyTestClass",
-  "methodName": "testInsertAccount"
+  "classNames": ["MyTestClasses"],
+  "methodNames": ["testInsertAccount"]
 }
 ```

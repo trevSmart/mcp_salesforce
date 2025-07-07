@@ -4,7 +4,7 @@ Allows you to execute utility actions on the Salesforce MCP server.
 
 ---
 ## Agent Instructions
-- Use only the allowed action values: "clearCache", "refreshSObjectDefinitions", "getCurrentDatetime".
+- Use only the allowed action values: "clearCache", "getCurrentDatetime".
 - Always return the result of the action.
 
 ---
@@ -16,15 +16,7 @@ Allows you to execute utility actions on the Salesforce MCP server.
   "action": "clearCache"
 }
 ```
-
-### Example 2: Refresh SObject definitions
-```json
-{
-  "action": "refreshSObjectDefinitions"
-}
-```
-
-### Example 3: Get the current date and time
+### Example 2: Get the current date and time
 ```json
 {
   "action": "getCurrentDatetime"

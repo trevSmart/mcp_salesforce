@@ -12,14 +12,18 @@ const execPromise = promisify(execCallback);
  */
 export async function runCliCommand(command) {
 	try {
-		log(`Running SF CLI command: ${command}`);
+		log(`Running SF CLI command: ${command}`, 'debug');
 		const {stdout} = await execPromise(command, {maxBuffer: 100 * 1024 * 1024, cwd: CONFIG.workspacePath});
+		log(`SF CLI command output: ${stdout}`, 'debug');
+
 		return stdout;
+
 	} catch (error) {
 		if (error.stdout) {
 			return error.stdout;
 		}
-		log(`Error running SF CLI command: ${JSON.stringify(error, null, 2)}`);
+		log('Error running SF CLI command:', 'error');
+		log(error, 'error');
 		throw error;
 	}
 }

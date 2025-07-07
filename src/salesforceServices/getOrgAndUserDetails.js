@@ -1,7 +1,7 @@
 import {runCliCommand} from './runCliCommand.js';
 import {log} from '../utils.js';
 import {salesforceState} from '../state.js';
-import {executeSoqlQuery} from './soqlQuery.js';
+import {executeSoqlQuery} from './executeSoqlQuery.js';
 
 export async function getOrgAndUserDetails() {
 	try {

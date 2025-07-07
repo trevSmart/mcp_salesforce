@@ -1,4 +1,4 @@
-import {executeSoqlQuery} from '../salesforceServices/soqlQuery.js';
+import {executeSoqlQuery} from '../salesforceServices/executeSoqlQuery.js';
 import {loadToolDescription} from '../utils.js';
 
 export const getRecentlyViewedRecordsToolDefinition = {

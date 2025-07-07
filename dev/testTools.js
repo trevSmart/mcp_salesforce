@@ -61,6 +61,7 @@ async function main() {
 		await testTool('dmlOperation', {operation: 'update', sObjectName: 'Account', recordId: createdAccountId, fields: {Name: 'Test Account MCP Script Updated'}}, 'dmlOperation (update)');
 
 		await testTool('dmlOperation', {operation: 'delete', sObjectName: 'Account', recordId: createdAccountId}, 'dmlOperation (delete)');
+
 	} else {
 		console.log(` ${RED}KO${RESET} Missing account id`);
 	}
@@ -74,6 +75,8 @@ async function main() {
 	await testTool('getRecentlyViewedRecords', {});
 
 	await testTool('getSetupAuditTrail', {lastDays: 7, createdByName: ''});
+
+	await testTool('runApexTest', {classNames: [], methodNames: ['CSBD_Opportunity_Test.obtenerReferenciaCorreoTest']});
 
 	console.log('');
 }

@@ -1,9 +1,8 @@
-import {salesforceState} from '../state.js';
-import {TestService, TestLevel} from '@salesforce/apex-node';
-import {Connection, AuthInfo} from '@salesforce/core';
-import {classNameSchema, methodNameSchema} from './paramSchemas.js';
+//import {TestService, TestLevel} from '@salesforce/apex-node';
+import {runApexTest} from '../salesforceServices/runApexTest.js';
+import {classNamesSchema, methodNamesSchema} from './paramSchemas.js';
 import {z} from 'zod';
-import {loadToolDescription} from '../utils.js';
+import {log, loadToolDescription} from '../utils.js';
 
 export const runApexTestToolDefinition = {
 	name: 'runApexTest',
@@ -11,15 +10,17 @@ export const runApexTestToolDefinition = {
 	description: loadToolDescription('runApexTest'),
 	inputSchema: {
 		type: 'object',
-		required: ['className'],
+		required: [],
 		properties: {
-			className: {
-				type: 'string',
-				description: 'Name of the Apex test class to run.'
+			classNames: {
+				type: 'array',
+				items: {type: 'string'},
+				description: 'Names of the Apex test classes to run.'
 			},
-			methodName: {
-				type: 'string',
-				description: 'Name of the test method to run (optional).'
+			methodNames: {
+				type: 'array',
+				items: {type: 'string'},
+				description: 'Names of the test methods to run (optional).'
 			}
 		}
 	},
@@ -34,75 +35,61 @@ export const runApexTestToolDefinition = {
 };
 
 /**
- * Executes an Apex test class (and optionally a method) using @salesforce/apex-node.
+ * Executes Apex test classes (and optionally methods) using @salesforce/apex-node.
  * @param {Object} args - Tool arguments
- * @param {string} args.className - Name of the Apex test class
- * @param {string} [args.methodName] - Name of the test method (optional)
+ * @param {string[]} args.classNames - Names of the Apex test classes
+ * @param {string[]} [args.methodNames] - Names of the test methods (optional)
  * @returns {Promise<Object>} Test result
  */
 export async function runApexTestTool(params) {
-	const schema = z.object({
-		className: classNameSchema,
-		methodName: methodNameSchema,
-	});
-	const parseResult = schema.safeParse(params);
-	if (!parseResult.success) {
-		return {
-			isError: true,
-			content: [{
-				type: 'text',
-				text: `❌ Error de validació: ${parseResult.error.message}`
-			}]
-		};
-	}
-
 	try {
-		const authInfo = await AuthInfo.create({username: salesforceState.orgDescription.userName});
-		const connection = await Connection.create({authInfo});
-		let tests;
-		try {
-			if (params.methodName) {
-				tests = [{className: params.className, testMethods: [params.methodName]}];
-			} else {
-				tests = [{className: params.className}];
-			}
-		} catch (error) {
+
+		const schema = z.object({
+			classNames: classNamesSchema.optional(),
+			methodNames: methodNamesSchema.optional()
+		});
+		const parseResult = schema.safeParse(params);
+		if (!parseResult.success) {
 			return {
 				isError: true,
 				content: [{
 					type: 'text',
-					text: `❌ Error de preparació de tests: ${error.message}`
+					text: `❌ Error de validació: ${parseResult.error.message}`
 				}]
 			};
 		}
-		const testService = new TestService(connection);
-		const result = await testService.runTestAsynchronous({
-			testLevel: TestLevel.RunSpecifiedTests,
-			tests,
-		}, false /*without code coverage */);
 
+		let result;
+		if (params.methodNames && params.methodNames.length) {
+			//Cas B: només mètodes concrets, ignora classNames
+			result = await runApexTest([], params.methodNames);
+
+		} else if (params.classNames && params.classNames.length) {
+			//Cas A: només classes senceres, ignora methodNames
+			result = await runApexTest(params.classNames, []);
+
+		} else {
+			throw new Error('Cal especificar classNames o methodNames.');
+		}
+
+		result = {result};
 		return {
-			jobId: result?.summary?.testRunId || result?.testRunId,
 			content: [{
 				type: 'text',
 				text: JSON.stringify(result, null, 2)
 			}],
-			structuredContent: {
-				result: result
-			}
+			structuredContent: result
 		};
+
 	} catch (error) {
-		let errorMsg;
-		if (error?.data?.message) {
-			errorMsg = `❌ Error executant runApexTest: ${error.data.message}`;
-		} else {
-			errorMsg = `❌ Error executant runApexTest: ${error.message}`;
-		}
+		log('Error executant runApexTest:', 'error');
+		log(error, 'error');
+
 		return {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: errorMsg
+				text: error.message
 			}]
 		};
 	}
