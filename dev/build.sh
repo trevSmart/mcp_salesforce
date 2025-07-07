@@ -21,7 +21,7 @@ minor=$(echo $current_version | cut -d. -f2)
 patch=$(echo $current_version | cut -d. -f3)
 # Incrementa el patch en 1
 new_patch=$((patch + 1))
-new_version="$major.$minor.$new_patch"
+new_version="$major.$minor.$(printf '%02d' $new_patch)"
 
 echo "\033[95mATENCIÓ: S'actualitzarà la versió del paquet a $new_version i es publicarà a NPM. Vols continuar? (S/n)\033[0m"
 read -r resposta

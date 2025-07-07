@@ -76,7 +76,7 @@ async function main() {
 
 	await testTool('getSetupAuditTrail', {lastDays: 7, createdByName: ''});
 
-	await testTool('runApexTest', {classNames: [], methodNames: ['CSBD_Opportunity_Test.obtenerReferenciaCorreoTest']});
+	await testTool('runApexTest', {classNames: [], methodNames: ['CSBD_Utils_Test.listaCampo']});
 
 	console.log('');
 }
