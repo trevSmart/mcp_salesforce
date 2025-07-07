@@ -43,7 +43,7 @@ export async function runApexTest(classNames = [], methodNames = [], codeCoverag
 			if (!testRunResult || testRunResult.Status !== 'Processing' && testRunResult.Status !== 'Queued') {
 				break;
 			}
-			await new Promise(resolve => setTimeout(resolve, 10000)); //Espera 10 segons
+			await new Promise(resolve => setTimeout(resolve, 8000)); //Espera 8 segons
 		}
 
 		const testResults = await executeSoqlQuery(`SELECT ApexClass.Name, MethodName, Outcome, RunTime, Message, StackTrace FROM ApexTestResult WHERE ApexTestRunResultId = '${testRunResult.Id}'`);
