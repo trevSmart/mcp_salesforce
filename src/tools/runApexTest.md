@@ -1,11 +1,11 @@
 # Run Apex Test
 
-Allows you to run an Apex test class (and optionally a specific method) in Salesforce.
+Allows you to run all the tests in a Apex test class or specific test methods.
 
 ---
 ## Agent Instructions
-- Always provide the class name, and the method if you want to run only a specific test.
-- Show the test result (success, error, coverage, etc.).
+- Always provide the class names if you want to run all the tests in the classes, or the method names if you want to run only specific tests.
+- ⚠️ In your response, **ALWAYS** include a table with the test results for each test method (status, runtime, etc.). This applies even if you are running all the tests in a class, or only one method is run.
 
 ---
 ## Usage
@@ -13,14 +13,13 @@ Allows you to run an Apex test class (and optionally a specific method) in Sales
 ### Example 1: Run a test class
 ```json
 {
-  "classNames": ["MyTestClasses"]
+  "classNames": ["testClassName"]
 }
 ```
 
 ### Example 2: Run a specific method
 ```json
 {
-  "classNames": ["MyTestClasses"],
-  "methodNames": ["testInsertAccount"]
+  "methodNames": ["testClassName.testMethodName"]
 }
 ```

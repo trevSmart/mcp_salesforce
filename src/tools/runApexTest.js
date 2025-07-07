@@ -6,7 +6,7 @@ import {log, loadToolDescription} from '../utils.js';
 
 export const runApexTestToolDefinition = {
 	name: 'runApexTest',
-	title: 'Run Apex Test',
+	title: 'Run Apex Tests',
 	description: loadToolDescription('runApexTest'),
 	inputSchema: {
 		type: 'object',
@@ -15,12 +15,12 @@ export const runApexTestToolDefinition = {
 			classNames: {
 				type: 'array',
 				items: {type: 'string'},
-				description: 'Names of the Apex test classes to run.'
+				description: 'Names of the Apex test classes to run (all tests in the classes will be run).'
 			},
 			methodNames: {
 				type: 'array',
 				items: {type: 'string'},
-				description: 'Names of the test methods to run (optional).'
+				description: 'Test methods to run with the format "testClassName.testMethodName" (only the specified methods will be run).'
 			}
 		}
 	},
@@ -30,7 +30,7 @@ export const runApexTestToolDefinition = {
 		readOnlyHint: false,
 		idempotentHint: true,
 		openWorldHint: true,
-		title: 'Run Apex Test'
+		title: 'Run Apex Tests'
 	}
 };
 
@@ -72,11 +72,11 @@ export async function runApexTestTool(params) {
 			throw new Error('Cal especificar classNames o methodNames.');
 		}
 
-		result = {result};
+		result = {testMethodResults: result.result};
 		return {
 			content: [{
 				type: 'text',
-				text: JSON.stringify(result, null, 2)
+				text: JSON.stringify(result)
 			}],
 			structuredContent: result
 		};
