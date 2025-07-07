@@ -36,10 +36,30 @@ Un cop el servidor estigui en execució, connecta-t'hi des de l'IDE o eina corre
 
 Pots instal·lar i llançar el servidor directament des de Cursor utilitzant el deeplink proporcionat per l'equip de desenvolupament.
 
+cursor://anysphere.cursor-deeplink/mcp/install?name=salesforce-mcp&config=eyJjb21tYW5kIjoibm9kZSIsImFyZ3MiOlsiL1VzZXJzL21hcmNwbGEvRG9jdW1lbnRzL0ZlaW5hL1Byb2plY3Rlcy9tY3AvbWNwX3NhbGVzZm9yY2UvaW5kZXguanMiXSwiZW52Ijp7IlNmQWdlbnRmb3JjZUFnZW50SWQiOiJZT1VSX0FHRU5URk9SQ0VfSUQifX0=
+
+## Connecta des de VSCode
+
+Afegir a la configuració de l'MCP:
+
+```json
+{
+	"mcpServers": {
+		"ibm-salesforce-mcp": {
+			"command": "npx",
+			"args": [
+				"test_research4"
+			],
+			"env": {
+				"SF_MCP_AGENTFORCE_AGENT_ID": "0XxKN0000008OKp"
+			}
+		}
+	}
+}
+```
+
 > **Nota:** Aquest projecte està en fase de proves. No el facis servir en entorns de producció ni el distribueixis.
 
 ## Llicència
 
 Consulta el fitxer LICENSE per als detalls de la llicència.
-
-cursor://anysphere.cursor-deeplink/mcp/install?name=salesforce-mcp&config=eyJjb21tYW5kIjoibm9kZSIsImFyZ3MiOlsiL1VzZXJzL21hcmNwbGEvRG9jdW1lbnRzL0ZlaW5hL1Byb2plY3Rlcy9tY3AvbWNwX3NhbGVzZm9yY2UvaW5kZXguanMiXSwiZW52Ijp7IlNmQWdlbnRmb3JjZUFnZW50SWQiOiJZT1VSX0FHRU5URk9SQ0VfSUQifX0=
