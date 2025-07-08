@@ -65,6 +65,9 @@ export const initServer = async () => {
 };
 
 export function notifyProgressChange(progressToken, total, progress, message) {
+	if (!progressToken) {
+		return;
+	}
 	const server = state.server;
 	server && server.notification({
 		method: 'notifications/progress',

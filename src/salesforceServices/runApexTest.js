@@ -1,14 +1,13 @@
 import {runCliCommand} from './runCliCommand.js';
-import {executeSoqlQuery} from './executeSoqlQuery.js';
 import {log} from '../utils.js';
 
 /**
- * Executa una classe o mètode de test d'Apex a Salesforce
+ * Encola una classe o mètode de test d'Apex a Salesforce
  * @param {string[]} classNames - Nom de la classe de test Apex
  * @param {string[]} methodNames - Nom del mètode de test (opcional)
  * @param {boolean} [codeCoverage=false] - Si true, afegeix --code-coverage
  * @param {boolean} [synchronous=false] - Si true, afegeix --synchronous
- * @returns {Promise<Object>} - Resultat de l'execució del test
+ * @returns {Promise<string>} - testRunId de l'execució del test
  */
 export async function runApexTest(classNames = [], methodNames = [], codeCoverage = false, synchronous = false) {
 	try {
@@ -36,18 +35,7 @@ export async function runApexTest(classNames = [], methodNames = [], codeCoverag
 			throw new Error(responseObj.message || 'Error executant el test d\'Apex');
 		}
 
-		let testRunResult;
-		while (true) {
-			const testRunResults = await executeSoqlQuery(`SELECT Id, Status, StartTime, TestTime, TestSetupTime, ClassesEnqueued, ClassesCompleted, MethodsEnqueued, MethodsCompleted, MethodsFailed FROM ApexTestRunResult WHERE AsyncApexJobId = '${responseObj.result.testRunId}'`);
-			testRunResult = testRunResults.records[0];
-			if (!testRunResult || testRunResult.Status !== 'Processing' && testRunResult.Status !== 'Queued') {
-				break;
-			}
-			await new Promise(resolve => setTimeout(resolve, 8000)); //Espera 8 segons
-		}
-
-		const testResults = await executeSoqlQuery(`SELECT ApexClass.Name, MethodName, Outcome, RunTime, Message, StackTrace FROM ApexTestResult WHERE ApexTestRunResultId = '${testRunResult.Id}'`);
-		return testResults.records;
+		return responseObj.result.testRunId;
 
 	} catch (error) {
 		log('Error running Apex tests:', 'error');

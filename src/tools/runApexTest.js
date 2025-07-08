@@ -1,8 +1,9 @@
 //import {TestService, TestLevel} from '@salesforce/apex-node';
 import {runApexTest} from '../salesforceServices/runApexTest.js';
+import {executeSoqlQuery} from '../salesforceServices/executeSoqlQuery.js';
 import {classNamesSchema, methodNamesSchema} from './paramSchemas.js';
 import {z} from 'zod';
-import {log, loadToolDescription} from '../utils.js';
+import {log, loadToolDescription, notifyProgressChange} from '../utils.js';
 
 export const runApexTestToolDefinition = {
 	name: 'runApexTest',
@@ -41,7 +42,7 @@ export const runApexTestToolDefinition = {
  * @param {string[]} [args.methodNames] - Names of the test methods (optional)
  * @returns {Promise<Object>} Test result
  */
-export async function runApexTestTool(params) {
+export async function runApexTestTool(params, _meta) {
 	try {
 
 		const schema = z.object({
@@ -59,24 +60,46 @@ export async function runApexTestTool(params) {
 			};
 		}
 
-		let result;
+		let testRunId;
 		if (params.methodNames && params.methodNames.length) {
 			//Cas B: només mètodes concrets, ignora classNames
-			result = await runApexTest([], params.methodNames);
+			testRunId = await runApexTest([], params.methodNames);
 
 		} else if (params.classNames && params.classNames.length) {
 			//Cas A: només classes senceres, ignora methodNames
-			result = await runApexTest(params.classNames, []);
+			testRunId = await runApexTest(params.classNames, []);
 
 		} else {
 			throw new Error('Cal especificar classNames o methodNames.');
 		}
 
-		if (!Array.isArray(result)) {
-			throw new Error('El resultado de runApexTest no es un array. Valor recibido: ' + JSON.stringify(result));
+		if (!testRunId) {
+			throw new Error('No s\'ha obtingut testRunId del salesforceService');
 		}
 
-		result = result.map(r => ({
+		const progressToken = params.classNames.length > 1 ? _meta.progressToken : null;
+		//Polling per esperar que el test acabi
+		let testRunResult;
+		while (true) {
+			const testRunResults = await executeSoqlQuery(`SELECT Id, Status, StartTime, TestTime, TestSetupTime, ClassesEnqueued, ClassesCompleted, MethodsEnqueued, MethodsCompleted, MethodsFailed FROM ApexTestRunResult WHERE AsyncApexJobId = '${testRunId}'`);
+			testRunResult = testRunResults.records[0];
+			if (!testRunResult || testRunResult.Status !== 'Processing' && testRunResult.Status !== 'Queued') {
+				notifyProgressChange(progressToken, testRunResult.MethodsEnqueued, testRunResult.MethodsEnqueued, 'Test finalitzat');
+				break;
+			}
+			const progress = testRunResult.MethodsCompleted + testRunResult.MethodsFailed;
+			notifyProgressChange(progressToken, testRunResult.MethodsEnqueued, progress, 'Executant el test...');
+			await new Promise(resolve => setTimeout(resolve, 8000)); //Espera 8 segons
+		}
+
+		//Obtenir els resultats finals dels tests
+		const testResults = await executeSoqlQuery(`SELECT ApexClass.Name, MethodName, Outcome, RunTime, Message, StackTrace FROM ApexTestResult WHERE ApexTestRunResultId = '${testRunResult.Id}'`);
+
+		if (!Array.isArray(testResults.records)) {
+			throw new Error('El resultado de executeSoqlQuery no contiene un array de records. Valor recibido: ' + JSON.stringify(testResults));
+		}
+
+		let result = testResults.records.map(r => ({
 			className: r.ApexClass?.Name,
 			methodName: r.MethodName,
 			status: r.Outcome,
