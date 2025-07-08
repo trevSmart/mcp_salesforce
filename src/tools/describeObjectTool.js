@@ -1,4 +1,4 @@
-import {log, notifyProgressChange, loadToolDescription} from '../utils.js';
+import {log, loadToolDescription} from '../utils.js';
 import {globalCache} from '../cache.js';
 import {sObjectNameSchema} from './paramSchemas.js';
 import {z} from 'zod';

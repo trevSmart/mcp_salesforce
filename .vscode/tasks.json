@@ -32,8 +32,8 @@
 				"showReuseMessage": false,
 				"reveal": "silent",
 				"close": true,
-				"panel": "shared",
-				"focus": false
+				"panel": "new",
+				"focus": true
 			},
 			"runOptions": {
 				"instancePolicy": "terminateOldest"

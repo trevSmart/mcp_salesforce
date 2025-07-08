@@ -22,11 +22,13 @@
     "outline.showModules": true,
     "eslint.useFlatConfig": false,
     "actionButtons": {
+
         "commands": [
             {
                 "name": "$(test-view-icon) Inspect",
                 "useVsCodeApi": true,
-                "command": "workbench.action.tasks.inspect",
+                "command": "workbench.action.tasks.runTask",
+                "args": ["npm: startMcpInspector"],
                 "color": "#a0a0d0"
             },
             {

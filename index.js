@@ -6,10 +6,11 @@ import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
 	ListToolsRequestSchema,
 	CallToolRequestSchema,
+	ElicitResultSchema
 	//ListResourcesRequestSchema,
 	//ReadResourceRequestSchema
 } from '@modelcontextprotocol/sdk/types.js';
-
+import {CONFIG} from './src/config.js';
 import {initServer, log} from './src/utils.js';
 import state from './src/state.js';
 
@@ -81,7 +82,8 @@ const server = new Server({name: 'salesforce-mcp', version: SERVER_VERSION}, {
 		logging: {},
 		//resources: {},
 		//prompts: {},
-		tools: Object.fromEntries(toolDefinitions.map(def => [def.name, def]))
+		tools: Object.fromEntries(toolDefinitions.map(def => [def.name, def])),
+		elicitation: {}
 	}
 });
 
@@ -125,6 +127,7 @@ const transport = new StdioServerTransport();
 async function main() {
 	try {
 		log(`IBM Salesforce MCP server (v${SERVER_VERSION})`, 'debug');
+		log(`Working directory: "${CONFIG.workspacePath}"`, 'debug');
 		log('Initializing server...', 'debug');
 		await initServer();
 		await server.connect(transport);

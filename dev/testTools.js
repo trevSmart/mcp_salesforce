@@ -15,7 +15,7 @@ async function testTool(name, args, displayName) {
 
 	//Mostra només la línia de test
 	const shownName = displayName || name;
-	originalStdoutWrite.call(process.stdout, `Testing tool ${shownName}... `);
+	originalStdoutWrite.call(process.stdout, `    ${shownName}... `);
 
 	try {
 		const request = {params: {name, arguments: args}};
@@ -25,7 +25,9 @@ async function testTool(name, args, displayName) {
 		console.log = originalLog;
 		process.stdout.write = originalStdoutWrite;
 
-		if (!result.isError && result.content[0].type === 'text' && result.content[0].text) {
+		if (!result.isError
+		&& result.content[0].type === 'text' && result.content[0].text
+		&& result.structuredContent) {
 			originalStdoutWrite.call(process.stdout, `${GREEN}OK${RESET}\n`);
 		} else {
 			originalStdoutWrite.call(process.stdout, `${RED}KO${RESET}\n`);
@@ -76,7 +78,7 @@ async function main() {
 
 	await testTool('getSetupAuditTrail', {lastDays: 7, createdByName: ''});
 
-	await testTool('runApexTest', {classNames: [], methodNames: ['CSBD_Utils_Test.listaCampo']});
+	await testTool('runApexTest', {classNames: [], methodNames: ['CSBD_Utils_Test.hexToDec']});
 
 	console.log('');
 }
