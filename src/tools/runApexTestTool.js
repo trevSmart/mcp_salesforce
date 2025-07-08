@@ -8,7 +8,7 @@ import {log, loadToolDescription, notifyProgressChange} from '../utils.js';
 export const runApexTestToolDefinition = {
 	name: 'runApexTest',
 	title: 'Run Apex Tests',
-	description: loadToolDescription('runApexTest'),
+	description: loadToolDescription('runApexTestTool'),
 	inputSchema: {
 		type: 'object',
 		required: [],

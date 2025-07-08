@@ -87,8 +87,14 @@ export function notifyProgressChange(progressToken, total, progress, message) {
  */
 export function loadToolDescription(toolName) {
 	const mdPath = path.join(__dirname, 'tools', `${toolName}.md`);
+	const b64Path = mdPath + '.b64';
 	try {
-		return fs.readFileSync(mdPath, 'utf8');
+		if (fs.existsSync(b64Path)) {
+			const b64 = fs.readFileSync(b64Path, 'utf8');
+			return Buffer.from(b64, 'base64').toString('utf8');
+		} else {
+			return fs.readFileSync(mdPath, 'utf8');
+		}
 	} catch (err) {
 		return `No description found for tool: ${toolName}`;
 	}

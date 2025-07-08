@@ -1,23 +1,27 @@
 #!/bin/bash
 set -e
 
+# Obté el nom del paquet des de package.json
+package_name=$(node -p "require('./package.json').name")
+# Obté la versió publicada a NPM (si existeix)
+published_version=$(npm view "$package_name" version 2>/dev/null || true)
+
+echo "\033[38;2;255;140;0mScript de publicació a NPM de $package_name\033[0m"
+echo "\033[38;2;255;140;0mMarc Pla, 2025\033[0m"
+echo
+
 # Executa el script de testTools.js i comprova si hi ha algun KO
-echo "\033[95mProvant les tools...\033[0m"
+echo "\033[95mComprovació bàsica de funcionament de les tools...\033[0m"
 echo
 TEST_OUTPUT=$(mktemp)
 node dev/testTools.js | tee "$TEST_OUTPUT"
 if grep -q 'KO' "$TEST_OUTPUT"; then
-
   echo "\033[95mS'han detectat errors (KO) als tests. Aturant la build.\033[0m"
   rm -f "$TEST_OUTPUT"
   exit 1
 fi
 rm -f "$TEST_OUTPUT"
 
-# Obté el nom del paquet des de package.json
-package_name=$(node -p "require('./package.json').name")
-# Obté la versió publicada a NPM (si existeix)
-published_version=$(npm view "$package_name" version 2>/dev/null || true)
 if [ -n "$published_version" ]; then
   # Actualitza només el camp version de package.json
   tmpfile=$(mktemp)
@@ -65,13 +69,13 @@ npm version $new_version --no-git-tag-version > /dev/null 2>&1
 
 # Copia els fitxers excepte els exclosos
 echo
-echo "\033[95mGenerant la carpeta \\dist amb el codi JS ofuscat...\033[0m"
+echo "\033[95mClonant codi font a la carpeta \\dist...\033[0m"
 rm -rf dist
 mkdir dist
 rsync -a --exclude='node_modules' --exclude='logs' --exclude='*.log' --exclude='.idea' --exclude='.vscode' --exclude='.DS_Store' --exclude='Thumbs.db' --exclude='*.swp' --exclude='*.swo' --exclude='package-lock.json' --exclude='dist' --exclude='tmp' --exclude='.eslintrc.json' --exclude='.gitignore' --exclude='.npmignore' --exclude='.*' --exclude='*.bak' --exclude='*.tmp' --exclude='*.temp' --exclude='rules' --exclude='dev' --exclude='@/deva' ./ ./dist/
 
 echo
-echo "\033[95mOfuscant el codi JS amb javascript-obfuscator...\033[0m"
+echo "\033[95mOfuscant els fitxers JavaScript...\033[0m"
 find dist -name '*.js' | while read -r file; do
   echo "   $file..."
   ./node_modules/.bin/javascript-obfuscator "$file" \
@@ -91,7 +95,19 @@ find dist -name '*.js' | while read -r file; do
     }
 done
 
-
+echo
+echo "\033[95mCodificant els fitxers Markdown...\033[0m"
+# Codifica els fitxers .md de dist/src/tools/ a base64 i elimina els .md
+if [ -d "dist/src/tools" ]; then
+  find dist/src/tools -name '*.md' | while read -r file; do
+    if [ -f "$file" ]; then
+      b64file="$file.b64"
+      base64 -i "$file" -o "$b64file"
+      rm -f "$file"
+      echo "   $file"
+    fi
+  done
+fi
 # find dist -name '*.js' -exec npx terser {} \
 #   --compress passes=3,unsafe=true,unsafe_arrows=true,unsafe_methods=true,unsafe_proto=true,unsafe_regexp=true,unsafe_undefined=true,drop_console=true,drop_debugger=true,booleans_as_integers=true,dead_code=true,global_defs='DEBUG=false' \
 #   --mangle \
@@ -119,10 +135,12 @@ node dev/updateReadmeCursorDeeplink.js > /dev/null 2>&1
 # Sincronitza la versió a index.js (new Server(..., { version: ... }) )
 sed -i '' "s/\(version: '\)[^']*'/\1$new_version'/" index.js
 
-# Publica el paquet a npm
+# Publica el paquet a npm i filtra la sortida per mostrar només les línies desitjades
 echo
 echo "\033[95mPublicant el paquet a NPM...\033[0m"
-(cd dist && npm publish --access public > /dev/null 2>&1)
+(cd dist && npm publish --access public) 2>&1 | grep -E 'npm notice (name:|version:|shasum:|total files:)' | while read -r line; do
+  printf "   \033[96mnpm notice\033[0m%s\n" "${line#npm notice}"
+done
 
 # Si tot ha anat bé, elimina les còpies de seguretat
 echo

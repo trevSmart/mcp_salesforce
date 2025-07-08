@@ -31,7 +31,7 @@ import {executeSoqlQueryTool, executeSoqlQueryToolDefinition} from './src/tools/
 //import {metadataApiRequestTool, metadataApiRequestToolDefinition} from './src/tools/metadataApiRequest.js';
 //import {chatWithAgentforceTool, chatWithAgentforceToolDefinition} from './src/tools/chatWithAgentforce.js';
 //import {generateSoqlQueryTool, generateSoqlQueryToolDefinition} from './src/tools/generateSoqlQueryTool.js';
-import {runApexTestTool, runApexTestToolDefinition} from './src/tools/runApexTest.js';
+import {runApexTestTool, runApexTestToolDefinition} from './src/tools/runApexTestTool.js';
 
 const toolImplementations = {
 	salesforceMcpUtils: salesforceMcpUtilsTool,
