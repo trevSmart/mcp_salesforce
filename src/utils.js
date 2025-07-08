@@ -9,6 +9,7 @@ import {promisify} from 'util';
 import {runCliCommand} from './salesforceServices/runCliCommand.js';
 import {getOrgAndUserDetails} from './salesforceServices/getOrgAndUserDetails.js';
 import os from 'os';
+import {executeSoqlQuery} from './salesforceServices/executeSoqlQuery.js';
 
 const isWindows = os.platform() === 'win32';
 const __filename = fileURLToPath(import.meta.url);
@@ -44,6 +45,8 @@ export const initServer = async () => {
 	const orgAlias = JSON.parse(await runCliCommand('sf config get target-org --json'))?.result?.[0]?.value;
 	if (orgAlias) {
 		await getOrgAndUserDetails();
+		const query = await executeSoqlQuery(`SELECT Id FROM PermissionSetAssignment WHERE AssigneeId = '${state.orgDescription.user.id}' AND PermissionSet.Name = 'IBM_SalesforceMcpUser'`);
+		return query?.records?.length; //true if user has permission set, false if not
 
 		/*
 		//SF CLI update every week

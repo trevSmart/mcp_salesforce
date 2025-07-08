@@ -129,7 +129,12 @@ async function main() {
 		log(`IBM Salesforce MCP server (v${SERVER_VERSION})`, 'debug');
 		log(`Working directory: "${CONFIG.workspacePath}"`, 'debug');
 		log('Initializing server...', 'debug');
-		await initServer();
+		const ok = await initServer();
+		if (!ok) {
+			log(`❌ User ${state.orgDescription.user.username} does not have the required permissions. Closing connection...`, 'error');
+			await server.close();
+			process.exit(1);
+		}
 		await server.connect(transport);
 		log('Server initialized and running', 'debug');
 
