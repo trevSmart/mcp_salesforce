@@ -1,6 +1,4 @@
 import {log, loadToolDescription} from '../utils.js';
-import {apexCodeSchema} from './paramSchemas.js';
-import {z} from 'zod';
 import {executeAnonymousApex} from '../salesforceServices/executeAnonymousApex.js';
 
 export const executeAnonymousApexToolDefinition = {
@@ -42,22 +40,18 @@ function formatApexCode(code) {
 	}
 }
 
-export async function executeAnonymousApexTool(params) {
-	const schema = z.object({
-		apexCode: apexCodeSchema,
-	});
-	const parseResult = schema.safeParse(params);
-	if (!parseResult.success) {
+export async function executeAnonymousApexTool({apexCode}) {
+	if (!apexCode) {
 		return {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: `❌ Error de validació: ${parseResult.error.message}`
+				text: 'Error de validación, es obligatorio indicar un valor de apexCode'
 			}]
 		};
 	}
 	try {
-		const formattedCode = formatApexCode(params.apexCode);
+		const formattedCode = formatApexCode(apexCode);
 		const result = await executeAnonymousApex(formattedCode);
 		return {
 			content: [

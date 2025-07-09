@@ -1,3 +1,5 @@
+//import {setResource} from '../index.js';
+
 let orgDescription;
 let server;
 
@@ -7,6 +9,7 @@ const state = {
 	},
 	set orgDescription(newOrgDescription) {
 		orgDescription = newOrgDescription;
+		//setResource('mcp://org/org-and-user-details.json', newOrgDescription);
 	},
 
 	get server() {

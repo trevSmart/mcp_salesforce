@@ -25,3 +25,4 @@ Thumbs.db
 dist/
 .cursor/rules/
 tmp/
+mcp_salesforce.code-workspace

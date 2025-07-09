@@ -1,5 +1,3 @@
-import {lastDaysSchema, createdByNameSchema, metadataNameSchema} from './paramSchemas.js';
-import {z} from 'zod';
 import {executeSoqlQuery} from '../salesforceServices/executeSoqlQuery.js';
 import {loadToolDescription} from '../utils.js';
 
@@ -35,43 +33,37 @@ export const getSetupAuditTrailToolDefinition = {
 	}
 };
 
-export async function getSetupAuditTrailTool(params) {
-	const schema = z.object({
-		lastDays: lastDaysSchema,
-		createdByName: createdByNameSchema,
-		metadataName: metadataNameSchema,
-	});
-	const parseResult = schema.safeParse(params);
-	if (!parseResult.success) {
+export async function getSetupAuditTrailTool({lastDays, createdByName, metadataName}) {
+	if (!lastDays) {
 		return {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: `❌ Error de validació: ${parseResult.error.message}`
+				text: 'Error de validación, es obligatorio indicar un valor de lastDays y createdByName'
 			}]
 		};
 	}
 
 	try {
 		let soqlQuery = 'SELECT Section, CreatedDate, CreatedBy.Name, Display FROM SetupAuditTrail';
-		let shouldFilterByMetadataName = params.metadataName && params.metadataName.trim() !== '';
+		let shouldFilterByMetadataName = metadataName && metadataName.trim() !== '';
 
 		let conditions = ['CreatedById != NULL'];
 
-		if (params.lastDays) {
-			conditions.push(`CreatedDate >= LAST_N_DAYS:${params.lastDays}`);
+		if (lastDays) {
+			conditions.push(`CreatedDate >= LAST_N_DAYS:${lastDays}`);
 		}
 
-		if (params.createdByName) {
-			conditions.push(`CreatedBy.Name = '${params.createdByName.replace(/'/g, '\\\'')}'`);
+		if (createdByName) {
+			conditions.push(`CreatedBy.Name = '${createdByName.replace(/'/g, '\\\'')}'`);
 		}
 
 		if (conditions.length > 0) {
 			soqlQuery += ' WHERE ' + conditions.join(' AND ');
 		}
 
-		if (params.metadataName) {
-			soqlQuery += ` AND Display LIKE '%${params.metadataName}%'`;
+		if (metadataName) {
+			soqlQuery += ` AND Display LIKE '%${metadataName}%'`;
 		}
 
 		soqlQuery += ` ORDER BY CreatedDate DESC LIMIT ${SOQL_LIMIT}`;
@@ -113,7 +105,7 @@ export async function getSetupAuditTrailTool(params) {
 		let results = validRecords.filter(r => {
 			if (!r || typeof r !== 'object'
 			|| !r.Section || ignoredSections.includes(r.Section)
-			|| shouldFilterByMetadataName && r.Display && !r.Display.toLowerCase().includes(params.metadataName.toLowerCase())
+			|| shouldFilterByMetadataName && r.Display && !r.Display.toLowerCase().includes(metadataName.toLowerCase())
 			) {
 				return false;
 			}
@@ -173,7 +165,7 @@ export async function getSetupAuditTrailTool(params) {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: `❌ Error: ${error.message}`
+				text: `Error: ${error.message}`
 			}]
 		};
 	}

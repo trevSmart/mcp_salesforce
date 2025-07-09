@@ -42,28 +42,28 @@ export const initServer = async () => {
 	} else {
 		await execPromise(`export HOME=${process.env.HOME}`);
 	}
-	const orgAlias = JSON.parse(await runCliCommand('sf config get target-org --json'))?.result?.[0]?.value;
-	if (orgAlias) {
-		await getOrgAndUserDetails();
-		const query = await executeSoqlQuery(`SELECT Id FROM PermissionSetAssignment WHERE AssigneeId = '${state.orgDescription.user.id}' AND PermissionSet.Name = 'IBM_SalesforceMcpUser'`);
-		return query?.records?.length; //true if user has permission set, false if not
 
-		/*
-		//SF CLI update every week
-		const lastSfCliUpdate = globalCache.get(orgDescription.alias, 'maintenance', 'sfCliUpdateLastRunDate');
-		if (
-			lastSfCliUpdate && now - lastSfCliUpdate > globalCache.EXPIRATION_TIME.UPDATE_SF_CLI ||
-			!lastSfCliUpdate && Math.random() < 0.1
-		) {
-			log('Launching sf update...');
-			setTimeout(() => runCliCommand('sf update'), 0); //immediate
-			globalCache.set(orgDescription.alias, 'maintenance', 'sfCliUpdateLastRunDate', now);
-		} else if (!lastSfCliUpdate) {
-			log('No last SF CLI update date and not selected by probability.');
+	try {
+		const orgAlias = JSON.parse(await runCliCommand('sf config get target-org --json'))?.result?.[0]?.value;
+		if (orgAlias) {
+			await getOrgAndUserDetails();
+
+			//Verificar que state.orgDescription se ha inicializado correctamente
+			if (!state.orgDescription || !state.orgDescription.user || !state.orgDescription.user.id) {
+				log('Error: No se pudo obtener la información del usuario de Salesforce', 'error');
+				return true; //Permitir que el servidor continúe sin verificar permisos
+			}
+
+			const query = await executeSoqlQuery(`SELECT Id FROM PermissionSetAssignment WHERE AssigneeId = '${state.orgDescription.user.id}' AND PermissionSet.Name = 'IBM_SalesforceMcpUser'`);
+			return query?.records?.length; //true if user has permission set, false if not
 		} else {
-			log('No need to update SF CLI, last update was less than a week ago.');
+			log('No se encontró un org alias configurado. El servidor continuará sin verificar permisos.', 'warn');
+			return true; //Permitir que el servidor continúe sin verificar permisos
 		}
-		*/
+
+	} catch (error) {
+		log(`Error al inicializar el servidor: ${error.message}`, 'error');
+		return true; //Permitir que el servidor continúe a pesar del error
 	}
 };
 
@@ -83,22 +83,38 @@ export function notifyProgressChange(progressToken, total, progress, message) {
 	});
 }
 
+export function sendListRootsRequest() {
+	const server = state.server;
+	if (!server) {
+		return;
+	}
+	server.listRoots()
+	.then(rootsResult => {
+		if (rootsResult && rootsResult.roots) {
+			log('Available workspace roots:', rootsResult.roots, 'debug');
+		}
+	}).catch(error => log(`Error requesting workspace roots: ${error}`, 'error'));
+}
+
 /**
  * Loads the markdown description for a tool from src/tools/{toolName}.md
  * @param {string} toolName - The name of the tool (e.g. 'getRecord')
  * @returns {string} The markdown content, or a warning if not found
  */
 export function loadToolDescription(toolName) {
-	const mdPath = path.join(__dirname, 'tools', `${toolName}.md`);
-	const b64Path = mdPath + '.b64';
-	try {
-		if (fs.existsSync(b64Path)) {
-			const b64 = fs.readFileSync(b64Path, 'utf8');
-			return Buffer.from(b64, 'base64').toString('utf8');
-		} else {
-			return fs.readFileSync(mdPath, 'utf8');
-		}
-	} catch (err) {
-		return `No description found for tool: ${toolName}`;
-	}
+    // Calcular __dirname localment dins la funció
+    const localFilename = fileURLToPath(import.meta.url);
+    const localDirname = path.dirname(localFilename);
+    const mdPath = path.join(localDirname, 'tools', `${toolName}.md`);
+    const b64Path = mdPath + '.b64';
+    try {
+        if (fs.existsSync(b64Path)) {
+            const b64 = fs.readFileSync(b64Path, 'utf8');
+            return Buffer.from(b64, 'base64').toString('utf8');
+        } else {
+            return fs.readFileSync(mdPath, 'utf8');
+        }
+    } catch (err) {
+        return `No description found for tool: ${toolName}`;
+    }
 }

@@ -1,5 +1,3 @@
-import {soqlQuerySchema, useToolingApiSchema} from './paramSchemas.js';
-import {z} from 'zod';
 import {executeSoqlQuery} from '../salesforceServices/executeSoqlQuery.js';
 import {loadToolDescription} from '../utils.js';
 
@@ -30,17 +28,12 @@ export const executeSoqlQueryToolDefinition = {
 };
 
 export async function executeSoqlQueryTool({query, useToolingApi = false}) {
-	const schema = z.object({
-		query: soqlQuerySchema,
-		useToolingApi: useToolingApiSchema,
-	});
-	const parseResult = schema.safeParse({query, useToolingApi});
-	if (!parseResult.success) {
+	if (!query) {
 		return {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: `❌ Error de validació: ${parseResult.error.message}`
+				text: 'Error de validación, es obligatorio indicar un valor de query'
 			}]
 		};
 	}

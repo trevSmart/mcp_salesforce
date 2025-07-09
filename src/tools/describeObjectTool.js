@@ -1,7 +1,5 @@
 import {log, loadToolDescription} from '../utils.js';
 import {globalCache} from '../cache.js';
-import {sObjectNameSchema} from './paramSchemas.js';
-import {z} from 'zod';
 import {describeObject} from '../salesforceServices/describeObject.js';
 
 export const describeObjectToolDefinition = {
@@ -152,22 +150,16 @@ export const describeObjectToolDefinition = {
 	}
 };
 
-export async function describeObjectTool(params) {
-	const schema = z.object({
-		sObjectName: sObjectNameSchema,
-	});
-	const parseResult = schema.safeParse(params);
-	if (!parseResult.success) {
+export async function describeObjectTool({sObjectName}) {
+	if (!sObjectName) {
 		return {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: `❌ Error de validació: ${parseResult.error.message}`
+				text: 'Error de validación, es obligatorio indicar un valor de sObjectName'
 			}]
 		};
 	}
-
-	const {sObjectName} = params;
 
 	try {
 		//Validate object name
@@ -240,7 +232,7 @@ export async function describeObjectTool(params) {
 			return {
 				content: [{
 					type: 'text',
-					text: JSON.stringify(filtered)
+					text: 'Successfully retrieved the SObject schema for ' + sObjectName + ' with the following data: ' + JSON.stringify(filtered)
 				}],
 				structuredContent: filtered
 			};

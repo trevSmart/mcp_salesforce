@@ -1,8 +1,6 @@
 //import {TestService, TestLevel} from '@salesforce/apex-node';
 import {runApexTest} from '../salesforceServices/runApexTest.js';
 import {executeSoqlQuery} from '../salesforceServices/executeSoqlQuery.js';
-import {classNamesSchema, methodNamesSchema} from './paramSchemas.js';
-import {z} from 'zod';
 import {log, loadToolDescription, notifyProgressChange} from '../utils.js';
 
 export const runApexTestToolDefinition = {
@@ -42,32 +40,26 @@ export const runApexTestToolDefinition = {
  * @param {string[]} [args.methodNames] - Names of the test methods (optional)
  * @returns {Promise<Object>} Test result
  */
-export async function runApexTestTool(params, _meta) {
+export async function runApexTestTool({classNames, methodNames}, _meta) {
 	try {
-
-		const schema = z.object({
-			classNames: classNamesSchema.optional(),
-			methodNames: methodNamesSchema.optional()
-		});
-		const parseResult = schema.safeParse(params);
-		if (!parseResult.success) {
+		if (!classNames && !methodNames) {
 			return {
 				isError: true,
 				content: [{
 					type: 'text',
-					text: `❌ Error de validació: ${parseResult.error.message}`
+					text: 'Error de validación, es obligatorio indicar un valor de classNames o methodNames'
 				}]
 			};
 		}
 
 		let testRunId;
-		if (params.methodNames && params.methodNames.length) {
+		if (methodNames && methodNames.length) {
 			//Cas B: només mètodes concrets, ignora classNames
-			testRunId = await runApexTest([], params.methodNames);
+			testRunId = await runApexTest([], methodNames);
 
-		} else if (params.classNames && params.classNames.length) {
+		} else if (classNames && classNames.length) {
 			//Cas A: només classes senceres, ignora methodNames
-			testRunId = await runApexTest(params.classNames, []);
+			testRunId = await runApexTest(classNames, []);
 
 		} else {
 			throw new Error('Cal especificar classNames o methodNames.');
@@ -77,7 +69,7 @@ export async function runApexTestTool(params, _meta) {
 			throw new Error('No s\'ha obtingut testRunId del salesforceService');
 		}
 
-		const progressToken = params.classNames.length > 1 ? _meta.progressToken : null;
+		const progressToken = classNames.length > 1 ? _meta?.progressToken : null;
 		//Polling per esperar que el test acabi
 		let testRunResult;
 		while (true) {

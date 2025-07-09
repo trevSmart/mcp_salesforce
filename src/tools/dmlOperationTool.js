@@ -1,7 +1,5 @@
 import state from '../state.js';
 import {log, notifyProgressChange, loadToolDescription} from '../utils.js';
-import {operationSchema, sObjectNameSchema, recordIdSchema, fieldsSchema} from './paramSchemas.js';
-import {z} from 'zod';
 import {createRecord} from '../salesforceServices/createRecord.js';
 import {updateRecord} from '../salesforceServices/updateRecord.js';
 import {deleteRecord} from '../salesforceServices/deleteRecord.js';
@@ -40,42 +38,34 @@ export const dmlOperationToolDefinition = {
 	}
 };
 
-export async function dmlOperationTool(params, _meta) {
-	const schema = z.object({
-		operation: operationSchema,
-		sObjectName: sObjectNameSchema,
-		recordId: recordIdSchema.optional(),
-		fields: fieldsSchema.optional(),
-	});
-	const parseResult = schema.safeParse(params);
-	if (!parseResult.success) {
+export async function dmlOperationTool({operation, sObjectName, recordId, fields}) {
+	if (!operation || !sObjectName) {
 		return {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: `❌ Validation error: ${parseResult.error.message}`
+				text: 'Error de validación, es obligatorio indicar un valor de operation y sObjectName'
 			}]
 		};
 	}
 
 	try {
-		if (!params.sObjectName || typeof params.sObjectName !== 'string') {
+		if (!sObjectName || typeof sObjectName !== 'string') {
 			throw new Error('SObject name must be a non-empty string');
 		}
 
-		switch (params.operation) {
+		switch (operation) {
 			case 'create': {
-				notifyProgressChange(_meta.progressToken, 1, 1, 'Executing DML operation (create)');
-				const fieldsObject = typeof params.fields === 'string' ? JSON.parse(params.fields) : params.fields;
+				const fieldsObject = typeof fields === 'string' ? JSON.parse(fields) : fields;
 				if (!fieldsObject || typeof fieldsObject !== 'object') {
 					throw new Error('Field values must be a valid object or JSON string');
 				}
-				const result = await createRecord(params.sObjectName, fieldsObject);
+				const result = await createRecord(sObjectName, fieldsObject);
 				const newRecordId = result.id || result.Id;
 				const recordUrl = `https://${state.orgDescription.instanceUrl}/${newRecordId}`;
 				const structuredContent = {
-					operation: params.operation,
-					sObject: params.sObjectName,
+					operation,
+					sObject: sObjectName,
 					result
 				};
 				return {
@@ -87,48 +77,50 @@ export async function dmlOperationTool(params, _meta) {
 				};
 			}
 			case 'update': {
-				notifyProgressChange(_meta.progressToken, 2, 2, 'Executing DML operation (update)');
-				if (!params.recordId) {throw new Error('Record ID is required for update operation')}
-				const fieldsObject = typeof params.fields === 'string' ? JSON.parse(params.fields) : params.fields;
+				if (!recordId) {
+					throw new Error('Record ID is required for update operation');
+				}
+				const fieldsObject = typeof fields === 'string' ? JSON.parse(fields) : fields;
 				if (!fieldsObject || typeof fieldsObject !== 'object') {
 					throw new Error('Field values must be a valid object or JSON string');
 				}
-				const result = await updateRecord(params.sObjectName, params.recordId, fieldsObject);
+				const result = await updateRecord(sObjectName, recordId, fieldsObject);
 				const structuredContent = {
-					operation: params.operation,
-					sObject: params.sObjectName,
+					operation,
+					sObject: sObjectName,
 					result
 				};
 				return {
 					content: [{
 						type: 'text',
-						text: `✅ Record with id "${params.recordId}" updated successfully.`
+						text: `✅ Record with id "${recordId}" updated successfully.`
 					}],
 					structuredContent
 				};
 			}
 			case 'delete': {
-				notifyProgressChange(_meta.progressToken, 3, 3, 'Executing DML operation (delete)');
-				if (!params.recordId) {throw new Error('Record ID is required for delete operation')}
-				const result = await deleteRecord(params.sObjectName, params.recordId);
+				if (!recordId) {
+					throw new Error('Record ID is required for delete operation');
+				}
+				const result = await deleteRecord(sObjectName, recordId);
 				const structuredContent = {
-					operation: params.operation,
-					sObject: params.sObjectName,
+					operation,
+					sObject: sObjectName,
 					result
 				};
 				return {
 					content: [{
 						type: 'text',
-						text: `✅ Record with id "${params.recordId}" deleted successfully.`
+						text: `✅ Record with id "${recordId}" deleted successfully.`
 					}],
 					structuredContent
 				};
 			}
 			default:
-				throw new Error(`Invalid operation: "${params.operation}". Must be "create", "update", or "delete".`);
+				throw new Error(`Invalid operation: "${operation}". Must be "create", "update", or "delete".`);
 		}
 	} catch (error) {
-		log(`Error during DML operation "${params.operation}" on ${params.sObjectName}: ${error.message}`);
+		log(`Error during DML operation "${operation}" on ${sObjectName}: ${error.message}`);
 		const errorContent = {error: true, message: error.message};
 		return {
 			isError: true,

@@ -1,7 +1,7 @@
 {
-  "name": "test_research4",
-  "version": "0.2.60",
-  "description": "test_research4",
+  "name": "ibm-salesforce-mcp",
+  "version": "0.2.63",
+  "description": "IBM Salesforce MCP Server",
   "main": "index.js",
   "type": "module",
   "bin": {
@@ -20,7 +20,8 @@
   "author": "Trevor Smart",
   "license": "EUPL-1.2",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.11.4"
+    "@modelcontextprotocol/sdk": "1.12.1",
+    "mcp-client": "^1.12.4"
   },
   "engines": {
     "node": ">=14.0.0"

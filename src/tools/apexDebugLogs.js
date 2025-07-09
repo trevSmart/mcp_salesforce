@@ -4,10 +4,6 @@ import {createRecord} from '../salesforceServices/createRecord.js';
 import {updateRecord} from '../salesforceServices/updateRecord.js';
 import {log, loadToolDescription} from '../utils.js';
 import {runCliCommand} from '../salesforceServices/runCliCommand.js';
-import {logIdSchema, messageSchema} from './paramSchemas.js';
-import {z} from 'zod';
-
-const actionSchema = z.enum(['status', 'on', 'off', 'list', 'get']);
 
 export const apexDebugLogsToolDefinition = {
 	name: 'apexDebugLogs',
@@ -31,19 +27,13 @@ export const apexDebugLogsToolDefinition = {
 	}
 };
 
-export async function apexDebugLogsTool(params) {
-	const schema = z.object({
-		action: actionSchema,
-		logId: logIdSchema.optional(),
-		message: messageSchema.optional(),
-	});
-	const parseResult = schema.safeParse(params);
-	if (!parseResult.success) {
+export async function apexDebugLogsTool({action, logId}) {
+	if (!['start', 'stop', 'get'].includes(action)) {
 		return {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: `❌ Error de validació: ${parseResult.error.message}`
+				text: 'Error de validación, es obligatorio indicar un valor de action'
 			}]
 		};
 	}
@@ -52,7 +42,7 @@ export async function apexDebugLogsTool(params) {
 		const userDescription = state.orgDescription.user;
 		let traceFlag;
 
-		if (params.action === 'status') {
+		if (action === 'status') {
 			log('Checking existing TraceFlag...');
 
 			traceFlag = await executeSoqlQuery({
@@ -68,7 +58,7 @@ export async function apexDebugLogsTool(params) {
 				structuredContent: {status: traceFlag ? 'active' : 'inactive', traceFlag}
 			};
 
-		} else if (params.action === 'on') {
+		} else if (action === 'on') {
 			log('Checking existing TraceFlag...');
 
 			traceFlag = await executeSoqlQuery({
@@ -119,7 +109,7 @@ export async function apexDebugLogsTool(params) {
 				};
 			}
 
-		} else if (params.action === 'off') {
+		} else if (action === 'off') {
 			traceFlag = await executeSoqlQuery({
 				query: `SELECT DebugLevelId FROM TraceFlag WHERE TracedEntityId = '${userDescription.id}' AND ExpirationDate > ${new Date().toISOString()}`,
 				useToolingApi: true
@@ -151,7 +141,7 @@ export async function apexDebugLogsTool(params) {
 				structuredContent: {status: 'deactivated', traceFlag}
 			};
 
-		} else if (params.action === 'list') {
+		} else if (action === 'list') {
 			const logs = await runCliCommand('sf apex:log:list --include-body');
 
 			return {
@@ -164,8 +154,8 @@ export async function apexDebugLogsTool(params) {
 				structuredContent: logs
 			};
 
-		} else if (params.action === 'get') {
-			const apexLog = await runCliCommand(`sf apex:log:get --log-id ${params.logId} --include-body`);
+		} else if (action === 'get') {
+			const apexLog = await runCliCommand(`sf apex:log:get --log-id ${logId} --include-body`);
 
 			return {
 				content: [

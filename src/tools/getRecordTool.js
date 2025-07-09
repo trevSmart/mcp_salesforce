@@ -1,5 +1,3 @@
-import {z} from 'zod';
-import {sObjectNameSchema, recordIdSchema} from './paramSchemas.js';
 import {getRecordById} from '../salesforceServices/getRecord.js';
 import {loadToolDescription} from '../utils.js';
 
@@ -29,27 +27,22 @@ export const getRecordToolDefinition = {
 	}
 };
 
-export async function getRecordTool(params) {
+export async function getRecordTool({sObjectName, recordId}) {
 	try {
-		const schema = z.object({
-			sObjectName: sObjectNameSchema,
-			recordId: recordIdSchema,
-		});
-		const parseResult = schema.safeParse(params);
-		if (!parseResult.success) {
+		if (!sObjectName || !recordId) {
 			return {
 				isError: true,
 				content: [{
 					type: 'text',
-					text: `❌ Error de validació: ${parseResult.error.message}`
+					text: 'Error de validación, es obligatorio indicar un valor de sObjectName y recordId'
 				}]
 			};
 		}
 
-		const result = await getRecordById(params.sObjectName, params.recordId);
+		const result = await getRecordById(sObjectName, recordId);
 		const structuredContent = {
-			id: params.recordId,
-			sObject: params.sObjectName,
+			id: recordId,
+			sObject: sObjectName,
 			fields: result
 		};
 		return {

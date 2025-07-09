@@ -2,8 +2,6 @@ import state from '../state.js';
 import {log, loadToolDescription} from '../utils.js';
 import {callSalesforceApi} from '../salesforceServices/callSalesforceApi.js';
 import crypto from 'crypto';
-import {messageSchema} from './paramSchemas.js';
-import {z} from 'zod';
 import {getOrgAndUserDetails} from '../salesforceServices/getOrgAndUserDetails.js';
 
 let currentSessionId = null;
@@ -124,17 +122,13 @@ async function sendMessage(message) {
 	}
 }
 
-export async function chatWithAgentforce(params) {
-	const schema = z.object({
-		message: messageSchema,
-	});
-	const parseResult = schema.safeParse(params);
-	if (!parseResult.success) {
+export async function chatWithAgentforce({message}) {
+	if (!message) {
 		return {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: `❌ Error de validació: ${parseResult.error.message}`
+				text: 'Error de validación, es obligatorio indicar un valor de message'
 			}]
 		};
 	}
@@ -144,7 +138,7 @@ export async function chatWithAgentforce(params) {
 	}
 
 	try {
-		const response = await sendMessage(params.message);
+		const response = await sendMessage(message);
 		return {
 			content: [{
 				type: 'text',
