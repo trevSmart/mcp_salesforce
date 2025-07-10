@@ -26,7 +26,7 @@ export const deployMetadataToolDefinition = {
 
 export async function deployMetadataTool({sourceDir}) {
 	try {
-		const result = await deployMetadata({sourceDir});
+		const result = await deployMetadata(sourceDir);
 		return {
 			content: [{
 				type: 'text',
@@ -34,8 +34,9 @@ export async function deployMetadataTool({sourceDir}) {
 			}],
 			structuredContent: result
 		};
+
 	} catch (error) {
-		log(`Error deploying metadata file ${sourceDir}: ${JSON.stringify(error, null, 2)}`);
+		log(`Error deploying metadata file ${sourceDir}: ${JSON.stringify(error, null, 2)}`, 'error');
 		return {
 			isError: true,
 			content: [{

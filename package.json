@@ -1,7 +1,7 @@
 {
-  "name": "ibm-salesforce-mcp",
+  "name": "test_research4",
   "version": "0.2.63",
-  "description": "IBM Salesforce MCP Server",
+  "description": "Test Research 4",
   "main": "index.js",
   "type": "module",
   "bin": {

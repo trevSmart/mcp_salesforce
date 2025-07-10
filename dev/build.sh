@@ -108,26 +108,6 @@ if [ -d "dist/src/tools" ]; then
     fi
   done
 fi
-# find dist -name '*.js' -exec npx terser {} \
-#   --compress passes=3,unsafe=true,unsafe_arrows=true,unsafe_methods=true,unsafe_proto=true,unsafe_regexp=true,unsafe_undefined=true,drop_console=true,drop_debugger=true,booleans_as_integers=true,dead_code=true,global_defs='DEBUG=false' \
-#   --mangle \
-#   --mangle-props regex=/.*/ \
-#   --toplevel \
-#   --module \
-#   --output {} \
-#   --ascii-only \
-#   --name-cache tmp/terser-name-cache.json \
-# \;
-
-# find dist -name '*.js' -exec npx terser {} \
-#   --compress passes=3,unsafe=true,unsafe_arrows=true,unsafe_methods=true,unsafe_proto=true,unsafe_regexp=true,unsafe_undefined=true,drop_console=true,drop_debugger=true \
-#   --mangle \
-#   --mangle-props 'regex=/^_/' \
-#   --toplevel \
-#   --module \
-#   --output {} \
-#   --ascii-only \
-# \;
 
 # Executa l'script de post-processat
 node dev/updateReadmeCursorDeeplink.js > /dev/null 2>&1

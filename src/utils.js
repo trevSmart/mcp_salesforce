@@ -102,19 +102,19 @@ export function sendListRootsRequest() {
  * @returns {string} The markdown content, or a warning if not found
  */
 export function loadToolDescription(toolName) {
-    // Calcular __dirname localment dins la funció
-    const localFilename = fileURLToPath(import.meta.url);
-    const localDirname = path.dirname(localFilename);
-    const mdPath = path.join(localDirname, 'tools', `${toolName}.md`);
-    const b64Path = mdPath + '.b64';
-    try {
-        if (fs.existsSync(b64Path)) {
-            const b64 = fs.readFileSync(b64Path, 'utf8');
-            return Buffer.from(b64, 'base64').toString('utf8');
-        } else {
-            return fs.readFileSync(mdPath, 'utf8');
-        }
-    } catch (err) {
-        return `No description found for tool: ${toolName}`;
-    }
+	//Calcular __dirname localment dins la funció
+	const localFilename = fileURLToPath(import.meta.url);
+	const localDirname = path.dirname(localFilename);
+	const mdPath = path.join(localDirname, 'tools', `${toolName}.md`);
+	const b64Path = mdPath + '.b64';
+	try {
+		if (fs.existsSync(b64Path)) {
+			const b64 = fs.readFileSync(b64Path, 'utf8');
+			return Buffer.from(b64, 'base64').toString('utf8');
+		} else {
+			return fs.readFileSync(mdPath, 'utf8');
+		}
+	} catch (err) {
+		return `No description found for tool: ${toolName}`;
+	}
 }

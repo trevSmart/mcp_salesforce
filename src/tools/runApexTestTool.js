@@ -69,7 +69,7 @@ export async function runApexTestTool({classNames, methodNames}, _meta) {
 			throw new Error('No s\'ha obtingut testRunId del salesforceService');
 		}
 
-		const progressToken = classNames.length > 1 ? _meta?.progressToken : null;
+		const progressToken = classNames?.length > 1 ? _meta?.progressToken : null;
 		//Polling per esperar que el test acabi
 		let testRunResult;
 		while (true) {
