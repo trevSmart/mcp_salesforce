@@ -21,7 +21,7 @@ Crea un fitxer `.env` a l'arrel del projecte amb les variables necessàries per 
 	[Add to VSCode](vscode:mcp/install?%7B%22name%22%3A%22ibm-salesforce-mcp%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22test_research4%22%5D%7D)
 
 - #### Afegeix a Cursor:
-	[Add to Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=ibm-salesforce-mcp&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyJ0ZXN0X3Jlc2VhcmNoNCJdLCJlbnYiOnt9fQ==)
+	[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](cursor://anysphere.cursor-deeplink/mcp/install?name=ibm-salesforce-mcp&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyJ0ZXN0X3Jlc2VhcmNoNCJdLCJlbnYiOnt9fQ==)
 
 - #### Afegeix a altres clients
 ```json
