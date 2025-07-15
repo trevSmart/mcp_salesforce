@@ -2,17 +2,15 @@ import fs from 'fs';
 import path from 'path';
 import {fileURLToPath} from 'url';
 
-//Obté __dirname equivalent en ES modules
+//Get __dirname equivalent in ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-//Carrega variables d'entorn del .env, ignorant línies comentades
+//Load .env variables, ignoring commented lines
 const envPath = path.resolve(__dirname, '../.env');
 let envRaw = fs.readFileSync(envPath, 'utf8');
-//Elimina línies que comencen per # (comentaris)
 envRaw = envRaw.split('\n').filter(line => !line.trim().startsWith('#')).join('\n');
 
-//Assigna les variables del .env a process.env
 envRaw.split('\n').forEach(line => {
 	const [key, ...vals] = line.split('=');
 	if (key && vals.length > 0) {
@@ -20,69 +18,45 @@ envRaw.split('\n').forEach(line => {
 	}
 });
 
-
-//Genera la config per al deeplink
-const envVars = {};
-envRaw.split('\n').forEach(line => {
-	const [key, ...vals] = line.split('=');
-	if (key && vals.length > 0) {
-		envVars[key.trim()] = vals.join('=').trim();
-	}
-});
-
-//Cursor deeplink
+//Generate deeplink configs
 const cfgCursorBase64 = Buffer.from(JSON.stringify({command: 'npx', args: ['test_research4'], env: {}})).toString('base64');
 const deeplinkCursor = `cursor://anysphere.cursor-deeplink/mcp/install?name=ibm-salesforce-mcp&config=${cfgCursorBase64}`;
+const deeplinkVSCode = `vscode:mcp/install?${encodeURIComponent(JSON.stringify({name: 'ibm-salesforce-mcp', command: 'npx', args: ['test_research4']}))}`;
 
-//VSCode deeplink
-const deeplinkVSCode = `vscode:mcp/install?${encodeURIComponent(JSON.stringify({
-	name: 'ibm-salesforce-mcp', command: 'npx', args: ['test_research4']
-}))}`;
+//Markdown lines for each button
+const markdownCursor = `[![Install MCP Server (Cursor)](https://cursor.com/deeplink/mcp-install-dark.svg)](${deeplinkCursor})`;
+const markdownVSCode = `[![Install MCP Server (VSCode)](https://cursor.com/deeplink/mcp-install-dark.svg)](${deeplinkVSCode})`;
 
-//Llegeix el README.md
+//Read README.md
 const readmePath = path.resolve(__dirname, '../README.md');
 let readme = fs.readFileSync(readmePath, 'utf8');
 
-//Regex per trobar la línia Markdown de l'enllaç deeplink
-const markdownDeeplinkRegex = /\[!\[Install MCP Server\]\(https:\/\/cursor\.com\/deeplink\/mcp-install-dark\.svg\)\]\(cursor:\/\/anysphere\.cursor-deeplink\/mcp\/install\?name=ibm-salesforce-mcp&config=[^\n`)]*\)/g;
-const markdownDeeplinkLine = `[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](${deeplink})`;
+//Regex for each button line
+const regexCursor = /\[!\[Install MCP Server( \(Cursor\))?\]\(https:\/\/cursor\.com\/deeplink\/mcp-install-dark\.svg\)\]\(cursor:\/\/anysphere\.cursor-deeplink\/mcp\/install\?name=ibm-salesforce-mcp&config=[^\n`)]*\)/g;
+const regexVSCode = /\[!\[Install MCP Server( \(VSCode\))?\]\(https:\/\/cursor\.com\/deeplink\/mcp-install-dark\.svg\)\]\(vscode:mcp\/install\?[^\n`)]*\)/g;
 
-if (markdownDeeplinkRegex.test(readme)) {
-	//Substitueix tota la línia Markdown de l'enllaç
-	readme = readme.replace(markdownDeeplinkRegex, markdownDeeplinkLine);
+//Update or append Cursor deeplink
+if (regexCursor.test(readme)) {
+	readme = readme.replace(regexCursor, markdownCursor);
 } else {
-	//Si no existeix, afegeix la línia Markdown nova al final
-	readme += `\n\n${markdownDeeplinkLine}\n`;
+	readme += `\n\n${markdownCursor}\n`;
 }
 
-
-
-
-
-
-
-const link = `vscode:mcp/install?${encodeURIComponent(JSON.stringify({
-	name: 'ibm-salesforce-mcp',
-	command: 'npx',
-	args: ['test_research4']
-}))}`;
-
-
-
-
-
-
-
+//Update or append VSCode deeplink
+if (regexVSCode.test(readme)) {
+	readme = readme.replace(regexVSCode, markdownVSCode);
+} else {
+	readme += `\n\n${markdownVSCode}\n`;
+}
 
 console.log('');
-console.log('Updating Cursor deeplink in README.md...');
+console.log('Updating Cursor and VSCode deeplinks in README.md...');
 
 try {
 	fs.writeFileSync(readmePath, readme, 'utf8');
-	console.log('Cursor deeplink successfully updated in README.md.');
+	console.log('Deeplinks successfully updated in README.md.');
 	console.log('');
 	process.exit(0);
-
 } catch (error) {
 	console.error('❌ Error updating README.md:', error.message);
 	console.log('');
