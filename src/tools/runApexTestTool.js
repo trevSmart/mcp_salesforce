@@ -43,13 +43,7 @@ export const runApexTestToolDefinition = {
 export async function runApexTestTool({classNames, methodNames}, _meta) {
 	try {
 		if (!classNames && !methodNames) {
-			return {
-				isError: true,
-				content: [{
-					type: 'text',
-					text: 'Error de validación, es obligatorio indicar un valor de classNames o methodNames'
-				}]
-			};
+			throw new Error('Cal especificar classNames o methodNames.');
 		}
 
 		let testRunId;
@@ -109,7 +103,6 @@ export async function runApexTestTool({classNames, methodNames}, _meta) {
 		};
 
 	} catch (error) {
-		log('Error executant runApexTest:', 'error');
 		log(error, 'error');
 
 		return {

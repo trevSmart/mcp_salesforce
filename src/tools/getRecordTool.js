@@ -30,13 +30,7 @@ export const getRecordToolDefinition = {
 export async function getRecordTool({sObjectName, recordId}) {
 	try {
 		if (!sObjectName || !recordId) {
-			return {
-				isError: true,
-				content: [{
-					type: 'text',
-					text: 'Error de validación, es obligatorio indicar un valor de sObjectName y recordId'
-				}]
-			};
+			throw new Error('SObject name and record ID are required');
 		}
 
 		const result = await getRecordById(sObjectName, recordId);
@@ -52,7 +46,9 @@ export async function getRecordTool({sObjectName, recordId}) {
 			}],
 			structuredContent
 		};
+
 	} catch (error) {
+		log(error, 'error');
 		const errorContent = {error: true, message: error.message};
 		return {
 			isError: true,

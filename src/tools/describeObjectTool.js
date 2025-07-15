@@ -151,17 +151,11 @@ export const describeObjectToolDefinition = {
 };
 
 export async function describeObjectTool({sObjectName}) {
-	if (!sObjectName) {
-		return {
-			isError: true,
-			content: [{
-				type: 'text',
-				text: 'Error de validación, es obligatorio indicar un valor de sObjectName'
-			}]
-		};
-	}
-
 	try {
+		if (!sObjectName) {
+			throw new Error('SObject name must be a non-empty string');
+		}
+
 		//Validate object name
 		if (!sObjectName || typeof sObjectName !== 'string') {
 			log('SObject name is invalid:', sObjectName);
@@ -238,7 +232,7 @@ export async function describeObjectTool({sObjectName}) {
 			};
 		}
 	} catch (error) {
-		log(`Error requesting describe for SObject ${sObjectName}:`, JSON.stringify(error, null, 2));
+		log(`Error requesting describe for SObject ${sObjectName}:`, JSON.stringify(error, null, 2), 'error');
 		const errorContent = {error: true, message: error.message};
 		return {
 			isError: true,

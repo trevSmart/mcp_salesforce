@@ -20,8 +20,6 @@ envRaw.split('\n').forEach(line => {
 	}
 });
 
-//Ruta absoluta de l'index.js
-const indexPath = path.resolve(__dirname, '../index.js');
 
 //Genera la config per al deeplink
 const envVars = {};
@@ -32,28 +30,49 @@ envRaw.split('\n').forEach(line => {
 	}
 });
 
-const config = {
-	command: 'node',
-	args: [indexPath],
-	env: envVars
-};
-const configBase64 = Buffer.from(JSON.stringify(config)).toString('base64');
-const deeplink = `cursor://anysphere.cursor-deeplink/mcp/install?name=salesforce-mcp&config=${configBase64}`;
+//Cursor deeplink
+const cfgCursorBase64 = Buffer.from(JSON.stringify({command: 'npx', args: ['test_research4'], env: {}})).toString('base64');
+const deeplinkCursor = `cursor://anysphere.cursor-deeplink/mcp/install?name=ibm-salesforce-mcp&config=${cfgCursorBase64}`;
+
+//VSCode deeplink
+const deeplinkVSCode = `vscode:mcp/install?${encodeURIComponent(JSON.stringify({
+	name: 'ibm-salesforce-mcp', command: 'npx', args: ['test_research4']
+}))}`;
 
 //Llegeix el README.md
 const readmePath = path.resolve(__dirname, '../README.md');
 let readme = fs.readFileSync(readmePath, 'utf8');
 
-//Regex per trobar el bloc deeplink
-const deeplinkRegex = /cursor:\/\/anysphere\.cursor-deeplink\/mcp\/install\?name=salesforce-mcp&config=[^\n`"]+/g;
+//Regex per trobar la línia Markdown de l'enllaç deeplink
+const markdownDeeplinkRegex = /\[!\[Install MCP Server\]\(https:\/\/cursor\.com\/deeplink\/mcp-install-dark\.svg\)\]\(cursor:\/\/anysphere\.cursor-deeplink\/mcp\/install\?name=ibm-salesforce-mcp&config=[^\n`)]*\)/g;
+const markdownDeeplinkLine = `[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](${deeplink})`;
 
-if (deeplinkRegex.test(readme)) {
-	//Substitueix el deeplink existent
-	readme = readme.replace(deeplinkRegex, deeplink);
+if (markdownDeeplinkRegex.test(readme)) {
+	//Substitueix tota la línia Markdown de l'enllaç
+	readme = readme.replace(markdownDeeplinkRegex, markdownDeeplinkLine);
 } else {
-	//Si no existeix, afegeix-lo al final
-	readme += `\n\n${deeplink}\n`;
+	//Si no existeix, afegeix la línia Markdown nova al final
+	readme += `\n\n${markdownDeeplinkLine}\n`;
 }
+
+
+
+
+
+
+
+const link = `vscode:mcp/install?${encodeURIComponent(JSON.stringify({
+	name: 'ibm-salesforce-mcp',
+	command: 'npx',
+	args: ['test_research4']
+}))}`;
+
+
+
+
+
+
+
 
 console.log('');
 console.log('Updating Cursor deeplink in README.md...');

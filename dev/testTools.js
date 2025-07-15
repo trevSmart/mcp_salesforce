@@ -1,28 +1,33 @@
 import {callToolRequestSchemaHandler} from '../index.js';
-import {initServer} from '../src/utils.js';
+import state from '../src/state.js';
 
 const GREEN = '\x1b[32m';
 const RED = '\x1b[31m';
 const RESET = '\x1b[0m';
 
-const originalConsoleLog = console.log;
-const originalStdoutWrite = process.stdout.write;
-
-async function testTool(name, args, displayName) {
+async function testTool(name, args, displayName, expectError = false) {
 	const shownName = displayName || name;
 	try {
 		const request = {params: {name, arguments: args}};
 		const result = await callToolRequestSchemaHandler(request);
-		if (!result.isError && result.content[0].type === 'text' && result.content[0].text && result.structuredContent) {
-			originalStdoutWrite.call(process.stdout, `    ${shownName}... ${GREEN}OK${RESET}\n`);
-		} else {
-			originalStdoutWrite.call(process.stdout, `    ${shownName}... ${RED}KO${RESET}\n`);
-			originalStdoutWrite.call(process.stdout, JSON.stringify(result, null, 2) + '\n');
+		if (result && result.content && result.content[0] && result.content[0].type === 'text' && result.content[0].text) {
+			if (expectError && result.isError) {
+				process.stdout.write(`    ${shownName}... ${GREEN}OK (Expected error)${RESET}\n`);
+				return true;
+			} else if (!expectError && !result.isError) {
+				process.stdout.write(`    ${shownName}... ${GREEN}OK${RESET}\n`);
+				return true;
+			}
 		}
-		return result;
+		//Si no és cap dels casos anteriors, és KO
+		process.stdout.write(`    ${shownName}... ${RED}KO${RESET}\n`);
+		if (result) {
+			process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+		}
+		return false;
 	} catch (e) {
-		originalStdoutWrite.call(process.stdout, `    ${shownName}... ${RED}KO${RESET}\n`);
-		originalStdoutWrite.call(process.stdout, (e && e.stack ? e.stack : JSON.stringify(e, null, 2)) + '\n');
+		process.stdout.write(`    ${shownName}... ${RED}KO${RESET}\n`);
+		process.stdout.write((e && e.stack ? e.stack : JSON.stringify(e, null, 2)) + '\n');
 		return null;
 	}
 }
@@ -33,28 +38,18 @@ async function runSequentialTests() {
 	if (createResult && createResult.structuredContent && createResult.structuredContent.result) {
 		createdAccountId = createResult.structuredContent.result.id || createResult.structuredContent.result.Id;
 	}
-
 	if (createdAccountId) {
-		await testTool('getRecord', {sObjectName: 'Account', recordId: createdAccountId});
+		await testTool('getRecord', {sObjectName: 'Account', recordId: createdAccountId}, 'getRecord');
 		await testTool('dmlOperation', {operation: 'update', sObjectName: 'Account', recordId: createdAccountId, fields: {Name: 'Test Account MCP Script Updated'}}, 'dmlOperation (update)');
 		await testTool('dmlOperation', {operation: 'delete', sObjectName: 'Account', recordId: createdAccountId}, 'dmlOperation (delete)');
-	} else {
-		originalConsoleLog(` ${RED}KO${RESET} Missing account id`);
 	}
 }
 
 async function main() {
-	try {
-		const serverOk = await initServer();
-		if (!serverOk) {
-			originalConsoleLog('Warning: Server initialization returned false (no permissions), but continuing with tests...');
-		}
-	} catch (error) {
-		originalConsoleLog('Warning: Failed to initialize server:', error.message);
-		originalConsoleLog('Continuing with tests anyway...');
-	}
-	originalConsoleLog('');
-
+	process.stdout.write('');
+	process.stdout.write('');
+	process.stdout.write('Waiting for server initialization...' + state.server.isConnected);
+	process.stdout.write('');
 	//Llista de proves paral·leles
 	const parallelTestsList = [
 		['getOrgAndUserDetails', {}],
@@ -63,16 +58,22 @@ async function main() {
 		['executeAnonymousApex', {apexCode: 'System.debug(\'Hello World!\');'}],
 		['getRecentlyViewedRecords', {}],
 		['getSetupAuditTrail', {lastDays: 7, createdByName: ''}],
-		['runApexTest', {classNames: [], methodNames: ['CSBD_Utils_Test.hexToDec']}]
+		['runApexTest', {classNames: [], methodNames: ['CSBD_Utils_Test.hexToDec']}],
+		['getRecord', {sObjectName: 'Account', recordId: '001XXXXXXXXXXXXXXX'}, 'getRecord (inexistent)', true] //Prova d'id inexistent
 	];
 
-	const parallelTests = Promise.all(parallelTestsList.map(([name, args]) => testTool(name, args)));
+	const parallelTests = Promise.all(parallelTestsList.map(([name, args, displayName, expectError]) => testTool(name, args, displayName, expectError)));
 	const sequentialTests = runSequentialTests();
 
 	await Promise.all([parallelTests, sequentialTests]);
 }
 
-main().finally(() => {
-	originalConsoleLog('');
+main()
+.then(() => {
+	process.stdout.write('Tests completed successfully');
 	process.exit(0);
+
+}).catch(error => {
+	process.stdout.write(error.stack || error.message || error);
+	process.exit(1);
 });

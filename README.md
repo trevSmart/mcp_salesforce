@@ -4,13 +4,6 @@ Aquest projecte està en desenvolupament i no està preparat per a ús públic.
 
 ## Característiques
 
-- Consulta, creació, actualització i eliminació de registres
-- Deploy i recuperació de metadades
-- Execució de scripts anònims
-- Generació de consultes automàtiques
-- Gestió de logs de depuració
-- Revisió de canvis de configuració
-- Integració amb agents externs
 
 ## Requisits
 
@@ -22,16 +15,15 @@ Aquest projecte està en desenvolupament i no està preparat per a ús públic.
 
 Crea un fitxer `.env` a l'arrel del projecte amb les variables necessàries per a la connexió (consulta l'equip de desenvolupament per als detalls).
 
-# Ús
-## Connecta des de Cursor IDE
+# Instal·lació
 
-Pots instal·lar i llançar el servidor directament des de Cursor utilitzant el deeplink proporcionat per l'equip de desenvolupament.
+- #### Afegeix a Cursor:
+	[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](cursor://anysphere.cursor-deeplink/mcp/install?name=ibm-salesforce-mcp&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyJ0ZXN0X3Jlc2VhcmNoNCJdLCJlbnYiOnt9fQ==)
 
-cursor://anysphere.cursor-deeplink/mcp/install?name=salesforce-mcp&config=eyJjb21tYW5kIjoibm9kZSIsImFyZ3MiOlsiL1VzZXJzL21hcmNwbGEvRG9jdW1lbnRzL0ZlaW5hL1Byb2plY3Rlcy9tY3AvbWNwX3NhbGVzZm9yY2UvaW5kZXguanMiXSwiZW52Ijp7IlNmQWdlbnRmb3JjZUFnZW50SWQiOiJZT1VSX0FHRU5URk9SQ0VfSUQifX0=
+- #### Afegeix a VSCode:
+	[Add to VSCode](vscode:mcp/install?%7B%22name%22%3A%22ibm-salesforce-mcp%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22test_research4%22%5D%7D)
 
-## Connecta des de VSCode
-
-Afegir a la configuració de l'MCP:
+- #### Afegeix a altres clients
 
 ```json
 {
@@ -54,3 +46,9 @@ Afegir a la configuració de l'MCP:
 ## Llicència
 
 Consulta el fitxer LICENSE per als detalls de la llicència.
+
+
+cursor://anysphere.cursor-deeplink/mcp/install?name=salesforce-mcp&config=eyJjb21tYW5kIjoibm9kZSIsImFyZ3MiOlsidGVzdF9yZXNlYXJjaDQiXSwiZW52Ijp7IlNmQWdlbnRmb3JjZUFnZW50SWQiOiJZT1VSX0FHRU5URk9SQ0VfSUQifX0=
+
+
+https://cursor.com/deeplink/mcp-install-dark.svg)](cursor://anysphere.cursor-deeplink/mcp/install?name=ibm-salesforce-mcp&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyJ0ZXN0X3Jlc2VhcmNoNCJdLCJlbnYiOnt9fQ==

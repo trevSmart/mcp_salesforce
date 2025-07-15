@@ -29,6 +29,14 @@ export async function salesforceMcpUtilsTool({action}) {
 		if (action === 'clearCache') {
 			globalCache.clear(true);
 
+			return {
+				content: [{
+					type: 'text',
+					text: '✅ Cache cleared successfully'
+				}],
+				structuredContent: {action, status: 'success'}
+			};
+
 		} else if (action === 'getCurrentDatetime') {
 			const now = new Date();
 
@@ -46,19 +54,12 @@ export async function salesforceMcpUtilsTool({action}) {
 				}],
 				structuredContent: result
 			};
+
 		} else {
 			throw new Error(`Invalid action: ${action}`);
 		}
-		return {
-			content: [{
-				type: 'text',
-				text: `✅ Action "${action}" executed successfully`
-			}],
-			structuredContent: {action, status: 'success'}
-		};
 
 	} catch (error) {
-		log(`Error executing action "${action}":`, 'error');
 		log(error, 'error');
 		return {
 			isError: true,

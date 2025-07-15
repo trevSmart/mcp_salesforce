@@ -72,7 +72,7 @@ echo
 echo "\033[95mClonant codi font a la carpeta \\dist...\033[0m"
 rm -rf dist
 mkdir dist
-rsync -a --exclude='node_modules' --exclude='logs' --exclude='*.log' --exclude='.idea' --exclude='.vscode' --exclude='.DS_Store' --exclude='Thumbs.db' --exclude='*.swp' --exclude='*.swo' --exclude='package-lock.json' --exclude='dist' --exclude='tmp' --exclude='.eslintrc.json' --exclude='.gitignore' --exclude='.npmignore' --exclude='.*' --exclude='*.bak' --exclude='*.tmp' --exclude='*.temp' --exclude='rules' --exclude='dev' --exclude='@/deva' ./ ./dist/
+rsync -a --exclude='node_modules' --exclude='logs' --exclude='*.log' --exclude='.idea' --exclude='.vscode' --exclude='.DS_Store' --exclude='Thumbs.db' --exclude='*.swp' --exclude='*.swo' --exclude='package*.json' --exclude='dist' --exclude='tmp' --exclude='.eslintrc.json' --exclude='.gitignore' --exclude='.npmignore' --exclude='.*' --exclude='*.bak' --exclude='*.tmp' --exclude='*.temp' --exclude='rules' --exclude='dev' --exclude='@/deva' ./ ./dist/
 
 echo
 echo "\033[95mOfuscant els fitxers JavaScript...\033[0m"
@@ -118,9 +118,9 @@ sed -i '' "s/\(version: '\)[^']*'/\1$new_version'/" index.js
 # Publica el paquet a npm i filtra la sortida per mostrar només les línies desitjades
 echo
 echo "\033[95mPublicant el paquet a NPM...\033[0m"
-(cd dist && npm publish --access public) 2>&1 | grep -E 'npm notice (name:|version:|shasum:|total files:)' | while read -r line; do
-  printf "   \033[96mnpm notice\033[0m%s\n" "${line#npm notice}"
-done
+# (cd dist && npm publish --access public) 2>&1 | grep -E 'npm notice (name:|version:|shasum:|total files:)' | while read -r line; do
+#   printf "   \033[96mnpm notice\033[0m%s\n" "${line#npm notice}"
+# done
 
 # Si tot ha anat bé, elimina les còpies de seguretat
 echo

@@ -1,6 +1,6 @@
 {
   "name": "test_research4",
-  "version": "0.2.63",
+  "version": "0.2.62",
   "description": "Test Research 4",
   "main": "index.js",
   "type": "module",
@@ -20,13 +20,13 @@
   "author": "Trevor Smart",
   "license": "EUPL-1.2",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.12.1",
-    "mcp-client": "^1.12.4"
+    "@modelcontextprotocol/sdk": "^1.15.1"
   },
   "engines": {
     "node": ">=14.0.0"
   },
   "devDependencies": {
+    "@modelcontextprotocol/inspector": "^1.15.1",
     "@babel/eslint-parser": "^7.27.5",
     "eslint": "^8.57.1",
     "javascript-obfuscator": "^4.1.0"

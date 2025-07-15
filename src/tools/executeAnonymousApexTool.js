@@ -41,29 +41,24 @@ function formatApexCode(code) {
 }
 
 export async function executeAnonymousApexTool({apexCode}) {
-	if (!apexCode) {
-		return {
-			isError: true,
-			content: [{
-				type: 'text',
-				text: 'Error de validación, es obligatorio indicar un valor de apexCode'
-			}]
-		};
-	}
 	try {
+		if (!apexCode) {
+			throw new Error('Apex code is required');
+		}
+
 		const formattedCode = formatApexCode(apexCode);
 		const result = await executeAnonymousApex(formattedCode);
 		return {
-			content: [
-				{
-					type: 'text',
-					text: `Resultat execució Anonymous Apex:\n\n${JSON.stringify(result, null, 2)}`
-				}
+			content: [{
+				type: 'text',
+				text: `Resultat execució Anonymous Apex:\n\n${JSON.stringify(result, null, 2)}`
+			}
 			],
 			structuredContent: result
 		};
+
 	} catch (error) {
-		log(error);
+		log(error, 'error');
 		const errorContent = {error: true, message: error.message};
 		return {
 			isError: true,

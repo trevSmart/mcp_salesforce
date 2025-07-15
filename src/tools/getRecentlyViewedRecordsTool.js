@@ -32,7 +32,9 @@ export async function getRecentlyViewedRecordsTool() {
 			}],
 			structuredContent
 		};
+
 	} catch (error) {
+		log(error, 'error');
 		const errorContent = {error: true, message: error.message};
 		return {
 			isError: true,

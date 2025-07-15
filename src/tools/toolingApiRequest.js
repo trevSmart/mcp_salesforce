@@ -48,12 +48,10 @@ export async function toolingApiRequestTool({method, endpoint}) {
 			);
 
 			const response = {
-				content: [
-					{
-						type: 'text',
-						text: JSON.stringify(result, null, 2)
-					}
-				],
+				content: [{
+					type: 'text',
+					text: JSON.stringify(result, null, 2)
+				}],
 				structuredContent: result
 			};
 
@@ -63,35 +61,28 @@ export async function toolingApiRequestTool({method, endpoint}) {
 			}
 			globalCache.set('toolingApiRequest', toolingEndpoint, response);
 			return response;
+
 		} else {
 			//For POST/PUT/DELETE do not cache
-			const result = await callSalesforceApi(
-				method,
-				null,
-				toolingEndpoint
-			);
-
-			log(`Tooling API request result: ${JSON.stringify(result, null, 2)}`, 'debug');
+			const result = await callSalesforceApi(method, null, toolingEndpoint);
 
 			return {
-				content: [
-					{
-						type: 'text',
-						text: JSON.stringify(result, null, 2)
-					}
-				],
+				content: [{
+					type: 'text',
+					text: JSON.stringify(result, null, 2)
+				}],
 				structuredContent: result
 			};
 		}
+
 	} catch (error) {
+		log(error, 'error');
 		return {
 			isError: true,
-			content: [
-				{
-					type: 'text',
-					text: `Error in calling Salesforce Tooling API (${method} ${endpoint}): ${error.message}`
-				}
-			]
+			content: [{
+				type: 'text',
+				text: `Error in calling Salesforce Tooling API (${method} ${endpoint}): ${error.message}`
+			}]
 		};
 	}
 }

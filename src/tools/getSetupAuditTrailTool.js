@@ -1,5 +1,5 @@
 import {executeSoqlQuery} from '../salesforceServices/executeSoqlQuery.js';
-import {loadToolDescription} from '../utils.js';
+import {loadToolDescription, log} from '../utils.js';
 
 const SOQL_LIMIT = 1000;
 
@@ -34,38 +34,27 @@ export const getSetupAuditTrailToolDefinition = {
 };
 
 export async function getSetupAuditTrailTool({lastDays, createdByName, metadataName}) {
-	if (!lastDays) {
-		return {
-			isError: true,
-			content: [{
-				type: 'text',
-				text: 'Error de validación, es obligatorio indicar un valor de lastDays y createdByName'
-			}]
-		};
-	}
-
 	try {
+		if (!lastDays) {
+			throw new Error('Last days is required');
+		}
+
 		let soqlQuery = 'SELECT Section, CreatedDate, CreatedBy.Name, Display FROM SetupAuditTrail';
 		let shouldFilterByMetadataName = metadataName && metadataName.trim() !== '';
-
 		let conditions = ['CreatedById != NULL'];
 
 		if (lastDays) {
 			conditions.push(`CreatedDate >= LAST_N_DAYS:${lastDays}`);
 		}
-
 		if (createdByName) {
 			conditions.push(`CreatedBy.Name = '${createdByName.replace(/'/g, '\\\'')}'`);
 		}
-
-		if (conditions.length > 0) {
+		if (conditions.length) {
 			soqlQuery += ' WHERE ' + conditions.join(' AND ');
 		}
-
 		if (metadataName) {
 			soqlQuery += ` AND Display LIKE '%${metadataName}%'`;
 		}
-
 		soqlQuery += ` ORDER BY CreatedDate DESC LIMIT ${SOQL_LIMIT}`;
 
 		//Clean the query by replacing line breaks and tabs with spaces
@@ -87,15 +76,6 @@ export async function getSetupAuditTrailTool({lastDays, createdByName, metadataN
 				return record;
 			}
 		}).filter(record => record !== null);
-
-		if (validRecords.length === 0) {
-			return {
-				content: [{
-					type: 'text',
-					text: 'No valid records found in response'
-				}]
-			};
-		}
 
 		const ignoredSections = [
 			'Manage Users', 'Customize Activities', 'Connected App Session Policy',
@@ -161,6 +141,7 @@ export async function getSetupAuditTrailTool({lastDays, createdByName, metadataN
 		};
 
 	} catch (error) {
+		log(error, 'error');
 		return {
 			isError: true,
 			content: [{

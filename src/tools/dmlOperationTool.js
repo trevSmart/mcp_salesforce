@@ -39,19 +39,9 @@ export const dmlOperationToolDefinition = {
 };
 
 export async function dmlOperationTool({operation, sObjectName, recordId, fields}) {
-	if (!operation || !sObjectName) {
-		return {
-			isError: true,
-			content: [{
-				type: 'text',
-				text: 'Error de validación, es obligatorio indicar un valor de operation y sObjectName'
-			}]
-		};
-	}
-
 	try {
-		if (!sObjectName || typeof sObjectName !== 'string') {
-			throw new Error('SObject name must be a non-empty string');
+		if (!operation || !sObjectName || typeof sObjectName !== 'string') {
+			throw new Error('Operation and SObject name are required');
 		}
 
 		switch (operation) {
@@ -120,7 +110,7 @@ export async function dmlOperationTool({operation, sObjectName, recordId, fields
 				throw new Error(`Invalid operation: "${operation}". Must be "create", "update", or "delete".`);
 		}
 	} catch (error) {
-		log(`Error during DML operation "${operation}" on ${sObjectName}: ${error.message}`);
+		log(`Error during DML operation "${operation}" on ${sObjectName}: ${error.message}`, 'error');
 		const errorContent = {error: true, message: error.message};
 		return {
 			isError: true,

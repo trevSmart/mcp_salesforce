@@ -1,7 +1,8 @@
-//import {setResource} from '../index.js';
+import {setResource} from '../index.js';
 
 let orgDescription;
-let server;
+let server = {};
+let client = {};
 
 const state = {
 	get orgDescription() {
@@ -9,7 +10,7 @@ const state = {
 	},
 	set orgDescription(newOrgDescription) {
 		orgDescription = newOrgDescription;
-		//setResource('mcp://org/org-and-user-details.json', newOrgDescription);
+		setResource('mcp://org/org-and-user-details.json', newOrgDescription);
 	},
 
 	get server() {
@@ -17,6 +18,13 @@ const state = {
 	},
 	set server(newServer) {
 		server = newServer;
+	},
+
+	get client() {
+		return client;
+	},
+	set client(newClient) {
+		client = newClient;
 	},
 
 	get currentAccessToken() {

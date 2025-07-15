@@ -12,14 +12,18 @@ export async function getOrgAndUserDetails() {
 		const orgDescription = {
 			...orgResultWithoutUserFields, user: {id, username, profileName, name: userFullName}
 		};
-		log(`Org and user details successfully retrieved: \n${JSON.stringify(orgDescription, null, '\t')}`);
 
+		if (!orgDescription || !orgDescription.user || !orgDescription.user.id) {
+			throw new Error('Error: No se pudo obtener la información del usuario de Salesforce');
+		}
+		log(`Org and user details successfully retrieved: \n${JSON.stringify(orgDescription, null, '\t')}`);
 		state.orgDescription = orgDescription;
 		return orgDescription;
 
 	} catch (error) {
 		log('Error getting org and user details:', 'error');
 		log(error, 'error');
-		throw error;
+		state.server.close();
+		process.exit(1);
 	}
 }

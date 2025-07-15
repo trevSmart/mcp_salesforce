@@ -1,5 +1,5 @@
 import {executeSoqlQuery} from '../salesforceServices/executeSoqlQuery.js';
-import {loadToolDescription} from '../utils.js';
+import {loadToolDescription, log} from '../utils.js';
 
 export const executeSoqlQueryToolDefinition = {
 	name: 'executeSoqlQuery',
@@ -28,28 +28,24 @@ export const executeSoqlQueryToolDefinition = {
 };
 
 export async function executeSoqlQueryTool({query, useToolingApi = false}) {
-	if (!query) {
-		return {
-			isError: true,
-			content: [{
-				type: 'text',
-				text: 'Error de validación, es obligatorio indicar un valor de query'
-			}]
-		};
-	}
-
 	try {
+		if (!query) {
+			throw new Error('Query is required');
+		}
+
 		const result = await executeSoqlQuery(query);
 		return {
 			content: [{
 				type: 'text',
-				text: `SOQL query returned ${result.records.length} records: ${JSON.stringify(result.records, null, '\t')}`
+				text: `SOQL query returned ${result.totalSize} records: ${JSON.stringify(result.records, null, '\t')}`
 			}],
 			structuredContent: {
-				records: result.records
+				records: result
 			}
 		};
+
 	} catch (error) {
+		log(error, 'error');
 		return {
 			isError: true,
 			content: [{
