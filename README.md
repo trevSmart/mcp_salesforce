@@ -17,14 +17,13 @@ Crea un fitxer `.env` a l'arrel del projecte amb les variables necessàries per 
 
 # Instal·lació
 
-- #### Afegeix a Cursor:
-	[![Install MCP Server (Cursor)](https://cursor.com/deeplink/mcp-install-dark.svg)](cursor://anysphere.cursor-deeplink/mcp/install?name=ibm-salesforce-mcp&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyJ0ZXN0X3Jlc2VhcmNoNCJdLCJlbnYiOnt9fQ==)
-
 - #### Afegeix a VSCode:
 	[Add to VSCode](vscode:mcp/install?%7B%22name%22%3A%22ibm-salesforce-mcp%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22test_research4%22%5D%7D)
 
-- #### Afegeix a altres clients
+- #### Afegeix a Cursor:
+	[Add to Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=ibm-salesforce-mcp&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyJ0ZXN0X3Jlc2VhcmNoNCJdLCJlbnYiOnt9fQ==)
 
+- #### Afegeix a altres clients
 ```json
 {
 	"mcpServers": {
@@ -46,12 +45,3 @@ Crea un fitxer `.env` a l'arrel del projecte amb les variables necessàries per 
 ## Llicència
 
 Consulta el fitxer LICENSE per als detalls de la llicència.
-
-
-cursor://anysphere.cursor-deeplink/mcp/install?name=salesforce-mcp&config=eyJjb21tYW5kIjoibm9kZSIsImFyZ3MiOlsidGVzdF9yZXNlYXJjaDQiXSwiZW52Ijp7IlNmQWdlbnRmb3JjZUFnZW50SWQiOiJZT1VSX0FHRU5URk9SQ0VfSUQifX0=
-
-
-https://cursor.com/deeplink/mcp-install-dark.svg)](cursor://anysphere.cursor-deeplink/mcp/install?name=ibm-salesforce-mcp&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyJ0ZXN0X3Jlc2VhcmNoNCJdLCJlbnYiOnt9fQ==
-
-
-[![Install MCP Server (VSCode)](https://cursor.com/deeplink/mcp-install-dark.svg)](vscode:mcp/install?%7B%22name%22%3A%22ibm-salesforce-mcp%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22test_research4%22%5D%7D)

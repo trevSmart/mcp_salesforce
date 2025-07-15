@@ -23,30 +23,21 @@ const cfgCursorBase64 = Buffer.from(JSON.stringify({command: 'npx', args: ['test
 const deeplinkCursor = `cursor://anysphere.cursor-deeplink/mcp/install?name=ibm-salesforce-mcp&config=${cfgCursorBase64}`;
 const deeplinkVSCode = `vscode:mcp/install?${encodeURIComponent(JSON.stringify({name: 'ibm-salesforce-mcp', command: 'npx', args: ['test_research4']}))}`;
 
-//Markdown lines for each button
-const markdownCursor = `[![Install MCP Server (Cursor)](https://cursor.com/deeplink/mcp-install-dark.svg)](${deeplinkCursor})`;
-const markdownVSCode = `[![Install MCP Server (VSCode)](https://cursor.com/deeplink/mcp-install-dark.svg)](${deeplinkVSCode})`;
-
 //Read README.md
 const readmePath = path.resolve(__dirname, '../README.md');
 let readme = fs.readFileSync(readmePath, 'utf8');
 
 //Regex for each button line
-const regexCursor = /\[!\[Install MCP Server( \(Cursor\))?\]\(https:\/\/cursor\.com\/deeplink\/mcp-install-dark\.svg\)\]\(cursor:\/\/anysphere\.cursor-deeplink\/mcp\/install\?name=ibm-salesforce-mcp&config=[^\n`)]*\)/g;
-const regexVSCode = /\[!\[Install MCP Server( \(VSCode\))?\]\(https:\/\/cursor\.com\/deeplink\/mcp-install-dark\.svg\)\]\(vscode:mcp\/install\?[^\n`)]*\)/g;
+const regexCursor = /cursor:\/\/anysphere\.cursor-deeplink\/mcp\/install\?name=ibm-salesforce-mcp&config=[^\n`)]*/g;
+const regexVSCode = /vscode:mcp\/install\?[^\n`)]*/g;
 
 //Update or append Cursor deeplink
 if (regexCursor.test(readme)) {
-	readme = readme.replace(regexCursor, markdownCursor);
-} else {
-	readme += `\n\n${markdownCursor}\n`;
+	readme = readme.replace(regexCursor, deeplinkCursor);
 }
 
-//Update or append VSCode deeplink
 if (regexVSCode.test(readme)) {
-	readme = readme.replace(regexVSCode, markdownVSCode);
-} else {
-	readme += `\n\n${markdownVSCode}\n`;
+	readme = readme.replace(regexVSCode, deeplinkVSCode);
 }
 
 console.log('');
