@@ -24,7 +24,7 @@ export async function executeAnonymousApex(apexCode) {
 		//Escriu el codi Apex al fitxer temporal
 		await fs.writeFile(tmpFile, apexCode, 'utf8');
 		const command = `sf apex run --file "${tmpFile}" --json > "${tmpOutFile}"`;
-		log(`Executing anonymous Apex: ${command}`);
+		log(`Executing anonymous Apex: ${command}`, 'debug');
 		let cliError = null;
 		try {
 			await runCliCommand(command); //Ja no cal capturar la sortida aquí
@@ -68,8 +68,9 @@ export async function executeAnonymousApex(apexCode) {
 		return response.result;
 
 	} catch (error) {
-		log('Error executing anonymous Apex:', JSON.stringify(error, null, 2));
+		log(`Error executing anonymous Apex: ${JSON.stringify(error, null, 2)}`, 'error');
 		throw error;
+
 	} finally {
 		//Elimina els fitxers temporals
 		if (tmpFile) {

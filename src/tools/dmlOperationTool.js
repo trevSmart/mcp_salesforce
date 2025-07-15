@@ -52,7 +52,7 @@ export async function dmlOperationTool({operation, sObjectName, recordId, fields
 				}
 				const result = await createRecord(sObjectName, fieldsObject);
 				const newRecordId = result.id || result.Id;
-				const recordUrl = `https://${state.orgDescription.instanceUrl}/${newRecordId}`;
+				const recordUrl = `https://${state.org.instanceUrl}/${newRecordId}`;
 				const structuredContent = {
 					operation,
 					sObject: sObjectName,

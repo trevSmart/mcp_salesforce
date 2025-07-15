@@ -48,7 +48,7 @@ class GlobalCache {
 	}
 
 	get(tool, key) {
-		const org = state?.orgDescription?.alias;
+		const org = state.org?.alias;
 		if (!CACHE_ENABLED || !org) {
 			return null;
 		}
@@ -180,10 +180,10 @@ class GlobalCache {
 					}
 				}
 			} else {
-				log('[CACHE] _loadFromFile: file does not exist', 'info');
+				log(`Cache file ${this.cacheFile} not found`, 'notice');
 			}
 		} catch (err) {
-			log('[CACHE] Error loading cache: ' + err, 'error');
+			log('Error loading cache: ' + err, 'error');
 		}
 	}
 }

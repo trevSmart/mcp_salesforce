@@ -16,7 +16,7 @@ export async function createRecord(sObjectName, fields) {
 			.map(([key, value]) => `${key}='${String(value).replace(/'/g, '\\\'')}'`)
 			.join(' ');
 		const command = `sf data create record --sobject ${sObjectName} --values "${valuesString}" --json`;
-		log(`Executing create record command: ${command}`);
+		log(`Executing create record command: ${command}`, 'debug');
 		const response = await JSON.parse(await runCliCommand(command));
 		if (response.status !== 0) {
 			throw new Error(response.message || 'Error creant el registre');

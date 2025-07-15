@@ -15,7 +15,7 @@ export async function callSalesforceApi(method, baseUrl = null, apiPath = '', bo
 	if (!baseUrl) {
 		//For relative paths, construct the full URL using org instance URL
 		await getOrgAndUserDetails();
-		const orgDesc = state.orgDescription;
+		const orgDesc = state.org;
 		if (!orgDesc || !orgDesc.instanceUrl) {
 			throw new Error('Org description not initialized. Please wait for server initialization.');
 		}

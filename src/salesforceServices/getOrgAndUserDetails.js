@@ -9,20 +9,19 @@ export async function getOrgAndUserDetails() {
 		const soqlUserResult = await executeSoqlQuery(`SELECT Name FROM User WHERE Id = '${orgResult.id}'`);
 		const userFullName = soqlUserResult?.records?.[0]?.Name;
 		const {id, username, profileName, ...orgResultWithoutUserFields} = orgResult;
-		const orgDescription = {
+		const org = {
 			...orgResultWithoutUserFields, user: {id, username, profileName, name: userFullName}
 		};
 
-		if (!orgDescription || !orgDescription.user || !orgDescription.user.id) {
+		if (!org || !org.user || !org.user.id) {
 			throw new Error('Error: No se pudo obtener la información del usuario de Salesforce');
 		}
-		log(`Org and user details successfully retrieved: \n${JSON.stringify(orgDescription, null, '\t')}`);
-		state.orgDescription = orgDescription;
-		return orgDescription;
+		log(`Org and user details successfully retrieved: \n${JSON.stringify(org, null, '\t')}`, 'debug');
+		state.org = org;
+		return org;
 
 	} catch (error) {
-		log('Error getting org and user details:', 'error');
-		log(error, 'error');
+		log(`Error getting org and user details: ${error.message}`, 'error');
 		state.server.close();
 		process.exit(1);
 	}

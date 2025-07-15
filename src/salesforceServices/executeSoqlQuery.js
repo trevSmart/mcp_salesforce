@@ -12,7 +12,7 @@ export async function executeSoqlQuery(query) {
 	}
 	try {
 		const command = `sf data query --query "${query}" --json`;
-		log(`Executing SOQL query command: ${command}`);
+		log(`Executing SOQL query command: ${command}`, 'debug');
 		const response = await JSON.parse(await runCliCommand(command));
 		if (response.status !== 0) {
 			throw new Error(response.message || 'Error executant la consulta SOQL');
@@ -20,7 +20,7 @@ export async function executeSoqlQuery(query) {
 		return response.result;
 
 	} catch (error) {
-		log('Error executing SOQL query:', JSON.stringify(error, null, 2));
+		log(`Error executing SOQL query: ${error.message}`, 'error');
 		throw error;
 	}
 }
