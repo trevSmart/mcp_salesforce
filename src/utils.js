@@ -17,32 +17,25 @@ const isWindows = os.platform() === 'win32';
 
 const execPromise = promisify(execCallback);
 
-export function log(message, logLevel = 'info') {
-	const LOG_LEVEL_PRIORITY = {info: 0, debug: 1, warn: 2, error: 3};
-
+export function log(data, logLevel = 'info') {
+	const LOG_LEVEL_PRIORITY = {debug: 0, info: 1, notice: 2, warning: 3, error: 4, critical: 5, alert: 6, emergency: 7};
 	if (LOG_LEVEL_PRIORITY[logLevel] < LOG_LEVEL_PRIORITY[CONFIG.currentLogLevel]) {
 		return;
 	}
 
-	//if (typeof message === 'object') {
-	//message = JSON.stringify(message, null, 2);
-	//}
-	if (CONFIG.logPrefix) {
-		message = `${CONFIG.logPrefix} ${message}`;
-	}
-	if (message.length > 1000) {
-		message = message.slice(0, 1000) + '...';
+	if (typeof data === 'string') {
+		if (data.length > 1000) {
+			data = data.slice(0, 1000) + '...';
+		}
+		data = '\n' + data + '\n';
 	}
 
-	if (state.client.capabilities?.logging) {
-		state.server.sendLoggingMessage(message, logLevel);
-		//state.server.sendLoggingMessage({
-		//level: logLevel,
-		//logger: 'server',
-		//data: {text: message}
-		//});
-	} else {
-		console.error(message);
+	if (state.server && Object.keys(state.server).length) {
+		const logger = `${CONFIG.logPrefix ? CONFIG.logPrefix + ' ' : ''}MCP server`;
+		state.server.sendLoggingMessage({level: logLevel, logger, data});
+
+	} else if (LOG_LEVEL_PRIORITY[logLevel] >= LOG_LEVEL_PRIORITY['error']) {
+		console.error(data);
 	}
 }
 
@@ -62,9 +55,9 @@ export const initServer = async () => {
 		} else {
 			await execPromise(`export HOME=${process.env.HOME}`);
 		}
-		const orgDescription = await getOrgAndUserDetails();
-		log(`Server initialized and running. Target org: ${orgDescription.alias}`, 'debug');
-		validateUserPermissions(orgDescription.user.id);
+		const org = await getOrgAndUserDetails();
+		log(`Server initialized and running. Target org: ${org.alias}`, 'debug');
+		validateUserPermissions(org.user.id);
 
 	} catch (error) {
 		throw new Error(error.message);
@@ -111,7 +104,7 @@ export async function sendElicitRequest(title, message) {
 						title,
 						description: message,
 						enum: ['Yes', 'No'],
-						enumNames: [`✅ Deploy metadata to ${state.orgDescription.alias}`, '❌ Don\'t deploy']
+						enumNames: [`✅ Deploy metadata to ${state.org.alias}`, '❌ Don\'t deploy']
 					}
 				},
 				required: ['confirmation']

@@ -37,7 +37,7 @@ async function startSession() {
 		const body = {
 			externalSessionKey: crypto.randomUUID(),
 			instanceConfig: {
-				endpoint: state.orgDescription.instanceUrl
+				endpoint: state.org.instanceUrl
 			},
 			tz: 'America/Los_Angeles',
 			variables: [

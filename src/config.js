@@ -1,5 +1,5 @@
 export const CONFIG = {
-	currentLogLevel: 'debug',
+	currentLogLevel: 'info',
 	logPrefix: '(👁🐝Ⓜ️)',
 	workspacePath: process.env.WORKSPACE_FOLDER_PATHS || ''
 };

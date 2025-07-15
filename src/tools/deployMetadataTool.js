@@ -34,7 +34,7 @@ export async function deployMetadataTool({sourceDir}) {
 		log(JSON.stringify(serverCapabilities, null, 2), 'debug');
 
 		if (serverCapabilities && 'elicitation' in serverCapabilities) {
-			const elicitResult = await sendElicitRequest('Deploy metadata confirmation', `Are you sure you want to deploy this metadata to ${state.orgDescription.alias}?`);
+			const elicitResult = await sendElicitRequest('Deploy metadata confirmation', `Are you sure you want to deploy this metadata to ${state.org.alias}?`);
 			if (elicitResult.action !== 'accept' || elicitResult.content?.confirmation !== 'Yes') {
 				return {
 					content: [{

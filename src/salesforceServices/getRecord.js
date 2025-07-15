@@ -13,14 +13,15 @@ export async function getRecordById(sObjectName, recordId) {
 	}
 	try {
 		const command = `sf data get record --sobject ${sObjectName} --record-id ${recordId} --json`;
-		log(`Executing get record command: ${command}`);
+		log(`Executing get record command: ${command}`, 'debug');
 		const response = await JSON.parse(await runCliCommand(command));
 		if (response.status !== 0) {
 			throw new Error(response.message || 'Error obtenint el registre');
 		}
 		return response.result;
+
 	} catch (error) {
-		log(`Error getting record ${recordId} from object ${sObjectName}:`, JSON.stringify(error, null, 2));
+		log(`Error getting record ${recordId} from object ${sObjectName}: ${error.message}`, 'error');
 		throw error;
 	}
 }

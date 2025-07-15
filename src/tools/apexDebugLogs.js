@@ -39,7 +39,7 @@ export async function apexDebugLogsTool({action, logId}) {
 	}
 
 	try {
-		const userDescription = state.orgDescription.user;
+		const userDescription = state.org.user;
 		let traceFlag;
 
 		if (action === 'status') {

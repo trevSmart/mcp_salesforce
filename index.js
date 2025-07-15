@@ -28,12 +28,16 @@ import {getSetupAuditTrailToolDefinition, getSetupAuditTrailTool} from './src/to
 import {executeSoqlQueryToolDefinition, executeSoqlQueryTool} from './src/tools/executeSoqlQueryTool.js';
 import {runApexTestToolDefinition, runApexTestTool} from './src/tools/runApexTestTool.js';
 import {metadataApiRequestToolDefinition, metadataApiRequestTool} from './src/tools/metadataApiRequestTool.js';
-/*eslint-enable no-unused-vars */
 
 const SERVER_INFO = {name: 'salesforce-mcp', version: pkg.version};
 const SERVER_CAPABILITIES = {
 	logging: {}, resources: {}, prompts: {}, tools: {}, completions: {}, elicitation: {}
 };
+
+const mcpServer = new McpServer(SERVER_INFO, {capabilities: SERVER_CAPABILITIES});
+const server = mcpServer.server;
+state.server = server;
+
 
 const resourceDefinitions = {
 	'mcp://org/org-and-user-details.json': {
@@ -50,12 +54,15 @@ const resources = {
 };
 
 export function setResource(uri, content) {
-	resources[uri] = content;
+	try {
+		resources[uri] = content;
+		if (mcpServer.isConnected()) {
+			server.sendResourceListChanged();
+		}
+	} catch (error) {
+		log(`Error setting resource ${uri}: ${error.message}`, 'error');
+	}
 }
-
-const mcpServer = new McpServer(SERVER_INFO, {capabilities: SERVER_CAPABILITIES});
-const server = mcpServer.server;
-state.server = server;
 
 //Register prompts
 mcpServer.registerPrompt('code-modification', codeModificationPromptDefinition, codeModificationPrompt);
@@ -77,17 +84,14 @@ mcpServer.registerTool('runApexTest', runApexTestToolDefinition, runApexTestTool
 
 server.setRequestHandler(InitializeRequestSchema, async ({params: {clientInfo, capabilities}}) => {
 	state.client = {clientInfo, capabilities};
-	log(`Establishing connection with client ${state.client.clientInfo.name} (v${state.client.clientInfo.version})`, 'debug');
+	log(`Establishing connection with client "${state.client.clientInfo.name} (v${state.client.clientInfo.version})"`, 'notice');
 	return {protocolVersion: '2025-06-18', capabilities: SERVER_CAPABILITIES, serverInfo: SERVER_INFO};
 });
 
 //Register resources
 server.setRequestHandler(ListResourcesRequestSchema, async () => ({resources: Object.values(resourceDefinitions)}));
 server.setRequestHandler(ReadResourceRequestSchema, async request => {
-	console.error('Reading resource request object:', JSON.stringify(request));
-	//Intento obtener la uri de distintas formas
 	const uri = request?.uri || request?.params?.uri;
-	console.error(`Reading resource: "${uri}"`);
 	return {
 		contents: [{
 			...resourceDefinitions[uri],
@@ -107,9 +111,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({tools: toolNames.
 export const callToolRequestSchemaHandler = async request => {
 	const {name, arguments: args, _meta = {}} = request.params;
 	try {
-		if (!mcpServer.clie.isConnected) {
-			throw new Error('The MCP server is not running');
-		}
 		const toolImplementation = eval(name + 'Tool');
 		return await toolImplementation(args, _meta);
 
@@ -139,10 +140,10 @@ const transport = new StdioServerTransport();
 
 export async function main() {
 	try {
-		log(`IBM Salesforce MCP server (v${SERVER_INFO.version})`, 'debug');
+		await server.connect(transport);
+		log(`IBM Salesforce MCP server (v${SERVER_INFO.version})`, 'notice');
 		CONFIG.workspacePath && log(`Working directory: "${CONFIG.workspacePath}"`, 'debug');
 		await initServer();
-		await server.connect(transport);
 
 		server.listRoots();
 

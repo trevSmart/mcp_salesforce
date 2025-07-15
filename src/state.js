@@ -1,16 +1,16 @@
 import {setResource} from '../index.js';
 
-let orgDescription;
+let org = {};
 let server = {};
 let client = {};
 
 const state = {
-	get orgDescription() {
-		return orgDescription;
+	get org() {
+		return org			;
 	},
-	set orgDescription(newOrgDescription) {
-		orgDescription = newOrgDescription;
-		setResource('mcp://org/org-and-user-details.json', newOrgDescription);
+	set org(newOrg) {
+		org = newOrg;
+		setResource('mcp://org/org-and-user-details.json', newOrg);
 	},
 
 	get server() {
@@ -28,11 +28,11 @@ const state = {
 	},
 
 	get currentAccessToken() {
-		return orgDescription?.accessToken;
+		return org?.accessToken;
 	},
 	set currentAccessToken(newAccessToken) {
-		if (orgDescription) {
-			orgDescription.accessToken = newAccessToken;
+		if (org) {
+			org.accessToken = newAccessToken;
 		}
 	}
 };

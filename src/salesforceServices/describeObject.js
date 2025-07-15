@@ -12,11 +12,12 @@ export async function describeObject(sObjectName) {
 	}
 	try {
 		const command = `sf sobject describe --sobject ${sObjectName} --json`;
-		log(`Executing describe object command: ${command}`);
+		log(`Executing describe object command: ${command}`, 'debug');
 		const response = await JSON.parse(await runCliCommand(command));
 		return response;
+
 	} catch (error) {
-		log(`Error describing object ${sObjectName}:`, JSON.stringify(error, null, 2));
+		log(`Error describing object ${sObjectName}: ${error.message}`, 'error');
 		throw error;
 	}
 }
