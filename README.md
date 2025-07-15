@@ -1,4 +1,4 @@
-## <img src="resources/images/ibmLogo.png" alt="IBM logo" width="52" style="position: relative; margin-right: 3px; top: 4;"/> Salesforce MCP
+## <img src="resources/images/ibmLogo.png" alt="IBM logo" width="52" style="position: relative; margin-right: 4px; top: 4px;"/> Salesforce MCP
 A Model Context Protocol (MCP) server that provides Salesforce org context to your IDE AI agent
 
 ### Key features
