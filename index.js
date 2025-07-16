@@ -38,6 +38,12 @@ const mcpServer = new McpServer(SERVER_INFO, {capabilities: SERVER_CAPABILITIES}
 const server = mcpServer.server;
 state.server = server;
 
+//Ready promise for server connection
+let resolveServerReady;
+state.server.readyPromise = new Promise(resolve => {
+	resolveServerReady = resolve;
+});
+
 
 const resourceDefinitions = {
 	'mcp://org/org-and-user-details.json': {
@@ -144,6 +150,11 @@ export async function main() {
 		log(`IBM Salesforce MCP server (v${SERVER_INFO.version})`, 'notice');
 		CONFIG.workspacePath && log(`Working directory: "${CONFIG.workspacePath}"`, 'debug');
 		await initServer();
+
+		//Resolve readyPromise when server is connected
+		if (typeof resolveServerReady === 'function') {
+			resolveServerReady();
+		}
 
 		server.listRoots();
 

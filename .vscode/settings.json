@@ -23,6 +23,7 @@
     "eslint.useFlatConfig": false,
     "actionButtons": {
 
+
         "commands": [
             {
                 "name": "$(test-view-icon) Inspect",
@@ -40,7 +41,8 @@
             {
                 "name": "$(send) Publish",
                 "useVsCodeApi": true,
-                "command": "workbench.action.tasks.build",
+                "command": "workbench.action.tasks.runTask",
+                "args": ["npm: publish"],
                 "color": "#cc8888"
             },
         ],
