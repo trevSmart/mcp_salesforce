@@ -4,6 +4,59 @@ import state from '../src/state.js';
 const GREEN = '\x1b[32m';
 const RED = '\x1b[31m';
 const RESET = '\x1b[0m';
+const PURPLE = '\x1b[35m';
+const CYAN = '\x1b[36m';
+const GRAY = '\x1b[90m';
+
+const LOG_LEVEL_PRIORITY = {debug: 0, info: 1, notice: 2, warning: 3, error: 4, critical: 5, alert: 6, emergency: 7};
+
+//Intercept stdout to filter log messages by level
+const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+//Llista de patrons d'errors esperats per a proves amb expectError=true
+const expectedErrorPatterns = [
+	{
+		tool: 'getRecord',
+		pattern: /Error getting record 001XXXXXXXXXXXXXXX from object Account/
+	}
+	//Si cal, afegeix més patrons aquí
+];
+
+process.stdout.write = function(chunk, encoding, callback) {
+	let text = chunk instanceof Buffer ? chunk.toString('utf8') : chunk;
+	let printed = false;
+	try {
+		const json = JSON.parse(text);
+		if (json && json.method === 'notifications/message' && json.params && json.params.level) {
+			const level = json.params.level;
+			const data = json.params.data || '';
+			//Si és error, comprova si és un error esperat
+			if (level === 'error') {
+				const isExpected = expectedErrorPatterns.some(({pattern}) => pattern.test(data));
+				if (isExpected) {
+					//No imprimir l'error esperat
+					return false;
+				}
+			}
+			if (LOG_LEVEL_PRIORITY[level] >= LOG_LEVEL_PRIORITY['warning']) {
+				originalStdoutWrite(chunk, encoding, callback);
+				printed = true;
+			}
+			return printed;
+		} else if (json && json.method) {
+			//Qualsevol altre log JSON amb method: no imprimir
+			return false;
+		} else {
+			//No és un log JSON, imprimir normal
+			originalStdoutWrite(chunk, encoding, callback);
+			printed = true;
+		}
+	} catch (e) {
+		//No és JSON, imprimir normal
+		originalStdoutWrite(chunk, encoding, callback);
+		printed = true;
+	}
+	return printed;
+};
 
 async function testTool(name, args, displayName, expectError = false) {
 	const shownName = displayName || name;
@@ -12,21 +65,21 @@ async function testTool(name, args, displayName, expectError = false) {
 		const result = await callToolRequestSchemaHandler(request);
 		if (result && result.content && result.content[0] && result.content[0].type === 'text' && result.content[0].text) {
 			if (expectError && result.isError) {
-				process.stdout.write(`    ${shownName}... ${GREEN}OK (Expected error)${RESET}\n`);
+				process.stdout.write(`   ${CYAN}${shownName}${RESET}... ${GREEN}OK${RESET} (expected error)\n`);
 				return true;
 			} else if (!expectError && !result.isError) {
-				process.stdout.write(`    ${shownName}... ${GREEN}OK${RESET}\n`);
+				process.stdout.write(`   ${CYAN}${shownName}${RESET}... ${GREEN}OK${RESET}\n`);
 				return true;
 			}
 		}
 		//Si no és cap dels casos anteriors, és KO
-		process.stdout.write(`    ${shownName}... ${RED}KO${RESET}\n`);
+		process.stdout.write(`   ${CYAN}${shownName}${RESET}... ${RED}KO${RESET}\n`);
 		if (result) {
 			process.stdout.write(JSON.stringify(result, null, 2) + '\n');
 		}
 		return false;
 	} catch (e) {
-		process.stdout.write(`    ${shownName}... ${RED}KO${RESET}\n`);
+		process.stdout.write(`   ${CYAN}${shownName}${RESET}... ${RED}KO${RESET}\n`);
 		process.stdout.write((e && e.stack ? e.stack : JSON.stringify(e, null, 2)) + '\n');
 		return null;
 	}
@@ -34,32 +87,31 @@ async function testTool(name, args, displayName, expectError = false) {
 
 async function runSequentialTests() {
 	let createdAccountId = null;
-	const createResult = await testTool('dmlOperation', {operation: 'create', sObjectName: 'Account', fields: {Name: 'Test Account MCP Script'}}, 'dmlOperation (create)');
+	const createResult = await testTool('dmlOperation', {operation: 'create', sObjectName: 'Account', fields: {Name: 'Test Account MCP Script'}}, 'Tool dmlOperation (create)');
 	if (createResult && createResult.structuredContent && createResult.structuredContent.result) {
 		createdAccountId = createResult.structuredContent.result.id || createResult.structuredContent.result.Id;
 	}
 	if (createdAccountId) {
-		await testTool('getRecord', {sObjectName: 'Account', recordId: createdAccountId}, 'getRecord');
-		await testTool('dmlOperation', {operation: 'update', sObjectName: 'Account', recordId: createdAccountId, fields: {Name: 'Test Account MCP Script Updated'}}, 'dmlOperation (update)');
-		await testTool('dmlOperation', {operation: 'delete', sObjectName: 'Account', recordId: createdAccountId}, 'dmlOperation (delete)');
+		await testTool('getRecord', {sObjectName: 'Account', recordId: createdAccountId}, 'Tool getRecord');
+		await testTool('dmlOperation', {operation: 'update', sObjectName: 'Account', recordId: createdAccountId, fields: {Name: 'Test Account MCP Script Updated'}}, 'Tool dmlOperation (update)');
+		await testTool('dmlOperation', {operation: 'delete', sObjectName: 'Account', recordId: createdAccountId}, 'Tool dmlOperation (delete)');
 	}
 }
 
 async function main() {
-	process.stdout.write('');
-	process.stdout.write('');
-	process.stdout.write('Waiting for server initialization...' + state.server.isConnected);
-	process.stdout.write('');
+	process.stdout.write(GRAY + 'Waiting for MCP server initialization... ');
+	await state.server.readyPromise;
+	process.stdout.write('done. Running tests...\n' + RESET);
 	//Llista de proves paral·leles
 	const parallelTestsList = [
-		['getOrgAndUserDetails', {}],
-		['executeSoqlQuery', {query: 'SELECT Id, Name FROM Account LIMIT 3', useToolingApi: false}],
-		['describeObject', {sObjectName: 'Account'}],
-		['executeAnonymousApex', {apexCode: 'System.debug(\'Hello World!\');'}],
-		['getRecentlyViewedRecords', {}],
-		['getSetupAuditTrail', {lastDays: 7, createdByName: ''}],
-		['runApexTest', {classNames: [], methodNames: ['CSBD_Utils_Test.hexToDec']}],
-		['getRecord', {sObjectName: 'Account', recordId: '001XXXXXXXXXXXXXXX'}, 'getRecord (inexistent)', true] //Prova d'id inexistent
+		['runApexTest', {classNames: [], methodNames: ['CSBD_Utils_Test.hexToDec']}, 'Tool runApexTest'],
+		['getOrgAndUserDetails', {}, 'Tool getOrgAndUserDetails'],
+		['executeSoqlQuery', {query: 'SELECT Id, Name FROM Account LIMIT 3', useToolingApi: false}, 'Tool executeSoqlQuery'],
+		['describeObject', {sObjectName: 'Account'}, 'Tool describeObject'],
+		['executeAnonymousApex', {apexCode: 'System.debug(\'Hello World!\');'}, 'Tool executeAnonymousApex'],
+		['getRecentlyViewedRecords', {}, 'Tool getRecentlyViewedRecords'],
+		['getSetupAuditTrail', {lastDays: 7, createdByName: ''}, 'Tool getSetupAuditTrail'],
+		['getRecord', {sObjectName: 'Account', recordId: '001XXXXXXXXXXXXXXX'}, 'Tool getRecord (recordId inexistent)', true] //Prova d'id inexistent
 	];
 
 	const parallelTests = Promise.all(parallelTestsList.map(([name, args, displayName, expectError]) => testTool(name, args, displayName, expectError)));
@@ -69,11 +121,5 @@ async function main() {
 }
 
 main()
-.then(() => {
-	process.stdout.write('Tests completed successfully');
-	process.exit(0);
-
-}).catch(error => {
-	process.stdout.write(error.stack || error.message || error);
-	process.exit(1);
-});
+.then(() => process.stdout.write(GRAY + 'Finished running tests.\n\n' + RESET, () => process.exit(0)))
+.catch(error => process.stdout.write((error.stack || error.message || error) + '\n', () => process.exit(1)));

@@ -12,7 +12,6 @@ echo
 
 # Executa el script de testTools.js i comprova si hi ha algun KO
 echo "\033[95mComprovació bàsica de funcionament de les tools...\033[0m"
-echo
 TEST_OUTPUT=$(mktemp)
 node dev/testTools.js | tee "$TEST_OUTPUT"
 if grep -q 'KO' "$TEST_OUTPUT"; then
@@ -23,23 +22,18 @@ fi
 rm -f "$TEST_OUTPUT"
 
 if [ -n "$published_version" ]; then
-  # Actualitza només el camp version de package.json
   tmpfile=$(mktemp)
   jq --arg v "$published_version" '.version = $v' package.json > "$tmpfile" && mv "$tmpfile" package.json
 fi
 
-# Obté la versió actual
 current_version=$(node -p "require('./package.json').version")
-# Extreu major, minor i patch
 major=$(echo $current_version | cut -d. -f1)
 minor=$(echo $current_version | cut -d. -f2)
 patch=$(echo $current_version | cut -d. -f3)
-# Incrementa el patch en 1
 new_patch=$((patch + 1))
 new_version="$major.$minor.$(printf '%02d' $new_patch)"
 
-echo "\033[95mATENCIÓ: S'actualitzarà la versió a la $new_version i es publicarà a NPM (versió actual: $published_version). \033[0m"
-echo "\033[95mVols continuar? (S/n)\033[0m"
+echo "\033[95mATENCIÓ: S'actualitzarà la versió a la $new_version i es publicarà a NPM (versió actual: $published_version). Vols continuar? (S/n)\033[0m"
 read -r resposta
 if [[ ! "$resposta" =~ ^[Ss]$ ]]; then
   echo
@@ -47,34 +41,32 @@ if [[ ! "$resposta" =~ ^[Ss]$ ]]; then
   exit 1
 fi
 
-# Actualitza package.json amb la versió actualment publicada a NPM
 npm view "$package_name" version > /dev/null 2>&1
 
-# Guarda còpia de seguretat de package.json i index.js
 cp package.json package.json.bak
 cp index.js index.js.bak
 
-# Funció per restaurar les versions originals si hi ha error
 restore_versions() {
+  echo
   echo "\033[95mRestauració de la versió original de package.json i index.js...\033[0m"
+  if [ ! -f package.json.bak ] || [ ! -f index.js.bak ]; then
+    echo "\033[91mATENCIÓ: No s'ha trobat package.json.bak o index.js.bak per restaurar!\033[0m"
+    return 1
+  fi
   mv package.json.bak package.json
   mv index.js.bak index.js
 }
+trap restore_versions ERR
 
-# Assegura la restauració en cas d'error o sortida inesperada
-trap restore_versions ERR EXIT
-
-# Actualitza la versió al package.json
 npm version $new_version --no-git-tag-version > /dev/null 2>&1
 
-# Copia els fitxers excepte els exclosos
 echo
-echo "\033[95mClonant codi font a la carpeta \\dist...\033[0m"
+
+# Clona el codi font a dist
 rm -rf dist
 mkdir dist
 rsync -a --exclude='node_modules' --exclude='logs' --exclude='*.log' --exclude='.idea' --exclude='.vscode' --exclude='.DS_Store' --exclude='Thumbs.db' --exclude='*.swp' --exclude='*.swo' --exclude='package*.json' --exclude='dist' --exclude='tmp' --exclude='.eslintrc.json' --exclude='.gitignore' --exclude='.npmignore' --exclude='.*' --exclude='*.bak' --exclude='*.tmp' --exclude='*.temp' --exclude='rules' --exclude='dev' --exclude='@/deva' ./ ./dist/
 
-echo
 echo "\033[95mOfuscant els fitxers JavaScript...\033[0m"
 find dist -name '*.js' | while read -r file; do
   echo "   $file..."
@@ -96,8 +88,8 @@ find dist -name '*.js' | while read -r file; do
 done
 
 echo
+
 echo "\033[95mCodificant els fitxers Markdown...\033[0m"
-# Codifica els fitxers .md de dist/src/tools/ a base64 i elimina els .md
 if [ -d "dist/src/tools" ]; then
   find dist/src/tools -name '*.md' | while read -r file; do
     if [ -f "$file" ]; then
@@ -109,25 +101,20 @@ if [ -d "dist/src/tools" ]; then
   done
 fi
 
-# Executa l'script de post-processat
-node dev/updateReadmeCursorDeeplink.js > /dev/null 2>&1
+node dev/updateReadmeDeeplinks.js > /dev/null 2>&1
 
-# Sincronitza la versió a index.js (new Server(..., { version: ... }) )
 sed -i '' "s/\(version: '\)[^']*'/\1$new_version'/" index.js
 
-# Publica el paquet a npm i filtra la sortida per mostrar només les línies desitjades
 echo
+
 echo "\033[95mPublicant el paquet a NPM...\033[0m"
 # (cd dist && npm publish --access public) 2>&1 | grep -E 'npm notice (name:|version:|shasum:|total files:)' | while read -r line; do
 #   printf "   \033[96mnpm notice\033[0m%s\n" "${line#npm notice}"
 # done
 
-# Si tot ha anat bé, elimina les còpies de seguretat
 echo
+
 echo "\033[95mFinalitzant...\033[0m"
+trap - ERR
 rm -f package.json.bak index.js.bak
-
-# Desactiva el trap
-trap - ERR EXIT
-
 echo

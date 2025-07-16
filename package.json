@@ -1,6 +1,6 @@
 {
   "name": "test_research4",
-  "version": "0.2.62",
+  "version": "0.2.63",
   "description": "Test Research 4",
   "main": "index.js",
   "type": "module",
@@ -8,7 +8,7 @@
     "test_research": "bin/cli.js"
   },
   "scripts": {
-    "build": "sh dev/build.sh",
+    "publish": "sh dev/publish.sh",
     "test": "node dev/testTools.js",
     "lint": "eslint . --ext .js,.mjs,.cjs,.jsx,.ts,.tsx",
     "startMcpInspector": "sh dev/startMcpInspector.sh"

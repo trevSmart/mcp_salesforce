@@ -3,14 +3,14 @@
 	"tasks": [
 		{
 			"type": "npm",
-			"script": "build",
+			"script": "publish",
 			"group": {
 				"kind": "build",
 				"isDefault": true
 			},
 			"problemMatcher": [],
-			"label": "npm: build",
-			"detail": "sh dev/build.sh",
+			"label": "npm: publish",
+			"detail": "sh dev/publish.sh",
 			"presentation": {
 				"showReuseMessage": false,
 				"close": false,
