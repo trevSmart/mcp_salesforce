@@ -1,4 +1,5 @@
-import {log, loadToolDescription} from '../utils.js';
+import state from '../state.js';
+import {log, loadToolDescription, setResource, sendElicitRequest} from '../utils.js';
 import {executeAnonymousApex} from '../salesforceServices/executeAnonymousApex.js';
 
 export const executeAnonymousApexToolDefinition = {
@@ -7,11 +8,15 @@ export const executeAnonymousApexToolDefinition = {
 	description: loadToolDescription('executeAnonymousApexTool'),
 	inputSchema: {
 		type: 'object',
-		required: ['apexCode'],
+		required: ['apexCode', 'mayModify'],
 		properties: {
 			apexCode: {
 				type: 'string',
 				description: 'The Apex code to execute'
+			},
+			mayModify: {
+				type: 'boolean',
+				description: 'Required. Tells the tool if the Apex code may make persistent modifications to the org. Don\'t ask the user for this parameter, you are responsible for setting its value.',
 			}
 		}
 	},
@@ -40,22 +45,64 @@ function formatApexCode(code) {
 	}
 }
 
-export async function executeAnonymousApexTool({apexCode}) {
+export async function executeAnonymousApexTool({apexCode, mayModify}) {
 	try {
-		if (!apexCode) {
-			throw new Error('Apex code is required');
+		if (!apexCode || typeof mayModify !== 'boolean') {
+			throw new Error('apexCode and mayModify are required inputs');
+		}
+
+		if (mayModify && state.client.capabilities?.elicitation) {
+			const elicitResult = await sendElicitRequest({
+				confirmation: {
+					type: 'string',
+					title: 'Execute anonymous apex confirmation',
+					description: 'Are you sure you want to execute this anonymous Apex code?',
+					enum: ['Yes', 'No'],
+					enumNames: ['✅ Execute anonymous Apex code', '❌ Don\'t execute']
+				}
+			});
+			if (elicitResult.action !== 'accept' || elicitResult.content?.confirmation !== 'Yes') {
+				return {
+					content: [{
+						type: 'text',
+						text: 'Deployment cancelled by user'
+					}]
+				};
+			}
 		}
 
 		const formattedCode = formatApexCode(apexCode);
 		const result = await executeAnonymousApex(formattedCode);
-		return {
-			content: [{
-				type: 'text',
-				text: `Resultat execució Anonymous Apex:\n\n${JSON.stringify(result, null, 2)}`
-			}
-			],
-			structuredContent: result
-		};
+
+		//Create a temporary file with the content of result.logs
+		const fs = await import('fs/promises');
+		const path = await import('path');
+
+		let contentResource = null;
+		if (state.client.clientInfo.isVscode && result?.logs) {
+			const tmpDir = state.workspacePath + '/tmp';
+			const logFileName = `anonymousApex_${Date.now()}.apex`;
+			await fs.mkdir(tmpDir, {recursive: true});
+			await fs.writeFile(path.join(tmpDir, logFileName), result.logs, 'utf8');
+
+			setResource(`mcp://apex/${logFileName}`, result.logs);
+			contentResource = {
+				type: 'resource',
+				resource: {
+					uri: `mcp://apex/${logFileName}`,
+					name: logFileName,
+					description: 'Logs de l\'execució d\'Apex',
+					mimeType: 'text/plain'
+				}
+			};
+		}
+
+		const content = [{
+			type: 'text',
+			text: `Resultat execució Anonymous Apex:\n\n${JSON.stringify(result, null, 2)}`
+		}];
+		contentResource && content.push(contentResource);
+		return {content, structuredContent: result};
 
 	} catch (error) {
 		log(error, 'error');

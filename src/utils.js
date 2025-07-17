@@ -90,21 +90,13 @@ export function loadToolDescription(toolName) {
 	}
 }
 
-export async function sendElicitRequest(title, message) {
+export async function sendElicitRequest(elicitationProperties) {
 	if (state.client.capabilities?.elicitation) {
 		const elicitationResult = await state.server.elicitInput({
 			message,
 			requestedSchema: {
 				type: 'object',
-				properties: {
-					confirmation: {
-						type: 'string',
-						title,
-						description: message,
-						enum: ['Yes', 'No'],
-						enumNames: [`✅ Deploy metadata to ${state.org.alias}`, '❌ Don\'t deploy']
-					}
-				},
+				properties: elicitationProperties,
 				required: ['confirmation']
 			}
 		});
@@ -116,4 +108,13 @@ export function saveToFile(object, filename) {
 	const filePath = path.join(os.tmpdir(), `${filename}_${Date.now()}.json`);
 	fs.writeFileSync(filePath, JSON.stringify(object, null, 2), 'utf8');
 	log(`Object written to temporary file: ${filePath}`, 'debug');
+}
+
+export function setResource(uri, content) {
+	try {
+		state.resources[uri] = content;
+		state.server.sendResourceListChanged();
+	} catch (error) {
+		log(`Error setting resource ${uri}: ${error.message}`, 'error');
+	}
 }
