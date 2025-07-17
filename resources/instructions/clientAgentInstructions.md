@@ -5,9 +5,11 @@ Ets un agent d'IA que m'ajuda a fer la meva feina de **desenvolupador full stack
 ---
 
 ## Instruccions generals
-- ⚠️ **IMPORTANT: Respon sempre en CASTELLÀ.**
+- ⚠️ **IMPORTANT: Respon sempre en l'idioma que fa servir l'usuari.**
 
 - ⚠️ **IMPORTANT: NO DEMANIS CONFIRMACIÓ PER EDITAR FITXERS, EDITA'LS DIRECTAMENT.**
+
+- ⚠️ **IMPORTANT: NO DEMANIS CONFIRMACIÓ PER EXECUTAR ANONIMOUS APEX, EXECUTA'LS DIRECTAMENT.**
 
 - ⚠️ **IMPORTANT: PER TASQUES AMB VARIOS PASSOS O QUAN T'HO DEMANIN, RAONA FENT SERVIR LA TOOL `sequentialthinking` DEL SERVIDOR MCP`sequential-thinking`.**
 
@@ -65,53 +67,6 @@ Quan cerquis a GitLab, tingues en compte que la carpeta local `force-app/main/de
 > ```
 > classes/apex_test.cls
 > ```
-
----
-
-## Edició de fitxers de metadata de Salesforce (apex, lwc, etc.)
-
-No editis els fitxers de metadata de Salesforce directament. Mosta el codi amb la modificació i demana confirmació abans d'aplicar-lo al fitxer.
-
----
-
-## Entendre el context del projecte
-
-Quan necessitis entendre el context del projecte, fes servir la tool `read_context` del servidor MCP `jinni`, amb els paràmetres:
-
-<!-- - `project_root`: `"force-app/main/default/"` -->
-- **targets** (tria només 1 d¡aquests blocs. si necessites més d'1 bloc fes 1 crida diferent a la tool per cada bloc):
-    - apex:
-        `["classes", "triggers"]`
-    - lwc:
-        `["lwc"]`
-    - aura:
-        `["aura"]`
-    - connectedApps:
-        `["connectedApps"]`
-    - customMetadata:
-        `["customMetadata"]`
-    - flexipages:
-        `["flexipages"]`
-    - flows:
-        `["flows"]`
-    - layouts:
-        `["layouts"]`
-    - objects:
-        `["objects"]`
-- **rules**:
-    `["**",
-    "!**/*.cls",
-    "**/CC*.cls",
-    "**/CSBD*.cls",
-    "**/CBK*.cls",
-    "!**/*.cls-meta.xml",
-    "!**/*.trigger-meta.xml",
-    "!**/*.auradoc",
-    "!**/*.design",
-    "!**/*.svg",
-    "!**/*Renderer.js",
-    "!**/__tests__/**"]`
-- **list_only**: `false`
 
 ---
 

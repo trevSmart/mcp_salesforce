@@ -28,7 +28,15 @@ export const deployMetadataToolDefinition = {
 export async function deployMetadataTool({sourceDir}) {
 	try {
 		if (state.client.capabilities?.elicitation) {
-			const elicitResult = await sendElicitRequest('Deploy metadata confirmation', `Are you sure you want to deploy this metadata to ${state.org.alias}?`);
+			const elicitResult = await sendElicitRequest({
+				confirmation: {
+					type: 'string',
+					title: 'Deploy metadata confirmation',
+					description: `Are you sure you want to deploy this metadata to ${state.org.alias}?`,
+					enum: ['Yes', 'No'],
+					enumNames: [`✅ Deploy metadata to ${state.org.alias}`, '❌ Don\'t deploy']
+				}
+			});
 			if (elicitResult.action !== 'accept' || elicitResult.content?.confirmation !== 'Yes') {
 				return {
 					content: [{

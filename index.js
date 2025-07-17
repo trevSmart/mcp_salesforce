@@ -52,19 +52,6 @@ const resourceDefinitions = {
 	}
 };
 
-const resources = {
-	'mcp://org/org-and-user-details.json': null
-};
-
-export function setResource(uri, content) {
-	try {
-		resources[uri] = content;
-		server.sendResourceListChanged();
-	} catch (error) {
-		log(`Error setting resource ${uri}: ${error.message}`, 'error');
-	}
-}
-
 //Register prompts
 mcpServer.registerPrompt('code-modification', codeModificationPromptDefinition, codeModificationPrompt);
 

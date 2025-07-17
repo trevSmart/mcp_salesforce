@@ -108,9 +108,9 @@ sed -i '' "s/\(version: '\)[^']*'/\1$new_version'/" index.js
 echo
 
 echo "\033[95mPublicant el paquet a NPM...\033[0m"
-# (cd dist && npm publish --access public) 2>&1 | grep -E 'npm notice (name:|version:|shasum:|total files:)' | while read -r line; do
-#   printf "   \033[96mnpm notice\033[0m%s\n" "${line#npm notice}"
-# done
+(cd dist && npm publish --access public) 2>&1 | grep -E 'npm notice (name:|version:|shasum:|total files:)' | while read -r line; do
+  printf "   \033[96mnpm notice\033[0m%s\n" "${line#npm notice}"
+done
 
 echo
 
