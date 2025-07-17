@@ -93,7 +93,7 @@ export function loadToolDescription(toolName) {
 export async function sendElicitRequest(elicitationProperties) {
 	if (state.client.capabilities?.elicitation) {
 		const elicitationResult = await state.server.elicitInput({
-			message,
+			message: elicitationProperties.description,
 			requestedSchema: {
 				type: 'object',
 				properties: elicitationProperties,
@@ -110,10 +110,19 @@ export function saveToFile(object, filename) {
 	log(`Object written to temporary file: ${filePath}`, 'debug');
 }
 
-export function setResource(uri, content) {
+export function setResource(uri, mimeType = 'text/plain', content) {
 	try {
-		state.resources[uri] = content;
+		const resource = {
+			uri,
+			name: uri,
+			description: uri,
+			mimeType,
+			text: content
+		};
+		state.resources[uri] = resource;
 		state.server.sendResourceListChanged();
+		return resource;
+
 	} catch (error) {
 		log(`Error setting resource ${uri}: ${error.message}`, 'error');
 	}

@@ -7,12 +7,12 @@ import {log} from '../utils.js';
  * @param {string} recordId - Id del registre
  * @returns {Promise<Object>} - Resultat cru de l'eliminació
  */
-export async function deleteRecord(sObjectName, recordId) {
+export async function deleteRecord(sObjectName, recordId, useToolingApi = false) {
 	if (!sObjectName || !recordId) {
 		throw new Error('sObjectName i recordId són obligatoris');
 	}
 	try {
-		const command = `sf data delete record --sobject ${sObjectName} --record-id ${recordId} --json`;
+		const command = `sf data delete record --sobject ${sObjectName} --record-id ${recordId} ${useToolingApi ? '--use-tooling-api' : ''} --json`;
 		log(`Executing delete record command: ${command}`);
 		const response = await JSON.parse(await runCliCommand(command));
 		if (response.status !== 0) {

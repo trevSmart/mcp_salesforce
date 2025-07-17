@@ -1,5 +1,5 @@
 import {getRecordById} from '../salesforceServices/getRecord.js';
-import {loadToolDescription} from '../utils.js';
+import {loadToolDescription, log} from '../utils.js';
 
 export const getRecordToolDefinition = {
 	name: 'getRecord',
