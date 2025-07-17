@@ -1,4 +1,5 @@
 import {globalCache} from '../cache.js';
+import state from '../state.js';
 import {log} from '../utils.js';
 import {loadToolDescription} from '../utils.js';
 
@@ -12,7 +13,7 @@ export const salesforceMcpUtilsToolDefinition = {
 		properties: {
 			action: {
 				type: 'string',
-				description: 'The action to perform, possible values: "clearCache", "getCurrentDatetime"'
+				description: 'The action to perform, possible values: "clearCache", "getCurrentDatetime" and "getState"'
 			}
 		}
 	},
@@ -53,6 +54,15 @@ export async function salesforceMcpUtilsTool({action}) {
 					text: JSON.stringify(result, null, 2)
 				}],
 				structuredContent: result
+			};
+
+		} else if (action === 'getState') {
+			return {
+				content: [{
+					type: 'text',
+					text: JSON.stringify(state, null, 2)
+				}],
+				structuredContent: state
 			};
 
 		} else {

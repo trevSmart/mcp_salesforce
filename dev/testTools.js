@@ -37,7 +37,7 @@ process.stdout.write = function(chunk, encoding, callback) {
 					return false;
 				}
 			}
-			if (LOG_LEVEL_PRIORITY[level] < LOG_LEVEL_PRIORITY['warning']) {
+			if (LOG_LEVEL_PRIORITY[level] <= LOG_LEVEL_PRIORITY['warning']) {
 				originalStdoutWrite(chunk, encoding, callback);
 				printed = true;
 			}
