@@ -8,11 +8,15 @@ export const describeObjectToolDefinition = {
 	description: loadToolDescription('describeObjectTool'),
 	inputSchema: {
 		type: 'object',
-		required: ['sObjectName'],
+		required: ['sObjectName', 'include'],
 		properties: {
 			sObjectName: {
 				type: 'string',
 				description: 'The name of the SObject to describe'
+			},
+			include: {
+				type: 'string',
+				description: 'The type of information to include in the response: "fields", "record types", "child relationships" or "all"',
 			}
 		}
 	},
@@ -150,7 +154,7 @@ export const describeObjectToolDefinition = {
 	}
 };
 
-export async function describeObjectTool({sObjectName}) {
+export async function describeObjectTool({sObjectName, include = 'all'}) {
 	try {
 		if (!sObjectName) {
 			throw new Error('SObject name must be a non-empty string');
@@ -171,21 +175,22 @@ export async function describeObjectTool({sObjectName}) {
 		const response = await describeObject(sObjectName);
 
 		if (response.status !== 0) {
-			const errorContent = {error: true, message: response.message};
-			return {
-				isError: true,
-				content: [{
-					type: 'text',
-					text: JSON.stringify(errorContent)
-				}],
-				structuredContent: errorContent
-			};
+			throw new Error(response.message);
+
 		} else {
 			//Filtra només les claus desitjades
-			const keys = [
-				'childRelationships', 'createable', 'custom', 'deletable', 'fields', 'keyPrefix',
-				'label', 'labelPlural', 'name', 'recordTypeInfos', 'searchable', 'urls'
-			];
+			let keys = ['name', 'label', 'labelPlural', 'keyPrefix', 'searchable', 'createable', 'custom', 'deletable'];
+
+			if (include === 'fields' || include === 'all') {
+				keys.push('fields');
+			}
+			if (include === 'record types' || include === 'all') {
+				keys.push('recordTypeInfos');
+			}
+			if (include === 'child relationships' || include === 'all') {
+				keys.push('childRelationships');
+			}
+
 			const fieldKeys = [
 				'calculated', 'cascadeDelete', 'createable', 'custom', 'defaultValue', 'digits',
 				'encrypted', 'label', 'length', 'name', 'nameField', 'picklistValues', 'filterable',
@@ -231,8 +236,9 @@ export async function describeObjectTool({sObjectName}) {
 				structuredContent: filtered
 			};
 		}
+
 	} catch (error) {
-		log(`Error requesting describe for SObject ${sObjectName}:`, JSON.stringify(error, null, 2), 'error');
+		log(`Error requesting describe for SObject ${sObjectName}: ${error.message}`, 'error');
 		const errorContent = {error: true, message: error.message};
 		return {
 			isError: true,

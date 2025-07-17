@@ -1,16 +1,24 @@
 import {setResource} from '../index.js';
 
 let org = {};
+let mcpServer;
 let server = {};
 let client = {};
 
-const state = {
+export const state = {
 	get org() {
 		return org			;
 	},
 	set org(newOrg) {
 		org = newOrg;
 		setResource('mcp://org/org-and-user-details.json', newOrg);
+	},
+
+	get mcpServer() {
+		return mcpServer;
+	},
+	set mcpServer(newMcpServer) {
+		mcpServer = newMcpServer;
 	},
 
 	get server() {

@@ -153,8 +153,8 @@ class GlobalCache {
 				}
 				return;
 			}
-
 			fs.writeFileSync(this.cacheFile, JSON.stringify(cacheToSave, null, 2), 'utf8');
+
 		} catch (err) {
 			log('[CACHE] Error saving cache: ' + err, 'error');
 		}
@@ -180,7 +180,7 @@ class GlobalCache {
 					}
 				}
 			} else {
-				log(`Cache file ${this.cacheFile} not found`, 'notice');
+				log(`Cache file "${this.cacheFile}" not found`, 'debug');
 			}
 		} catch (err) {
 			log('Error loading cache: ' + err, 'error');

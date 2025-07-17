@@ -1,4 +1,4 @@
-import {callToolRequestSchemaHandler} from '../index.js';
+import {callToolRequestHandler} from '../index.js';
 import state from '../src/state.js';
 
 const GREEN = '\x1b[32m';
@@ -8,7 +8,7 @@ const PURPLE = '\x1b[35m';
 const CYAN = '\x1b[36m';
 const GRAY = '\x1b[90m';
 
-const LOG_LEVEL_PRIORITY = {debug: 0, info: 1, notice: 2, warning: 3, error: 4, critical: 5, alert: 6, emergency: 7};
+const LOG_LEVEL_PRIORITY = {emergency: 0, alert: 1, critical: 2, error: 3, warning: 4, notice: 5, info: 6, debug: 7};
 
 //Intercept stdout to filter log messages by level
 const originalStdoutWrite = process.stdout.write.bind(process.stdout);
@@ -37,7 +37,7 @@ process.stdout.write = function(chunk, encoding, callback) {
 					return false;
 				}
 			}
-			if (LOG_LEVEL_PRIORITY[level] >= LOG_LEVEL_PRIORITY['warning']) {
+			if (LOG_LEVEL_PRIORITY[level] < LOG_LEVEL_PRIORITY['warning']) {
 				originalStdoutWrite(chunk, encoding, callback);
 				printed = true;
 			}
@@ -62,7 +62,7 @@ async function testTool(name, args, displayName, expectError = false) {
 	const shownName = displayName || name;
 	try {
 		const request = {params: {name, arguments: args}};
-		const result = await callToolRequestSchemaHandler(request);
+		const result = await callToolRequestHandler(request);
 		if (result && result.content && result.content[0] && result.content[0].type === 'text' && result.content[0].text) {
 			if (expectError && result.isError) {
 				process.stdout.write(`   ${CYAN}${shownName}${RESET}... ${GREEN}OK${RESET} (expected error)\n`);
@@ -107,7 +107,8 @@ async function main() {
 		['runApexTest', {classNames: [], methodNames: ['CSBD_Utils_Test.hexToDec']}, 'Tool runApexTest'],
 		['getOrgAndUserDetails', {}, 'Tool getOrgAndUserDetails'],
 		['executeSoqlQuery', {query: 'SELECT Id, Name FROM Account LIMIT 3', useToolingApi: false}, 'Tool executeSoqlQuery'],
-		['describeObject', {sObjectName: 'Account'}, 'Tool describeObject'],
+		['describeObject', {sObjectName: 'Account', include: 'all'}, 'Tool describeObject (all)'],
+		['describeObject', {sObjectName: 'Account', include: 'fields'}, 'Tool describeObject (fields)'],
 		['executeAnonymousApex', {apexCode: 'System.debug(\'Hello World!\');'}, 'Tool executeAnonymousApex'],
 		['getRecentlyViewedRecords', {}, 'Tool getRecentlyViewedRecords'],
 		['getSetupAuditTrail', {lastDays: 7, createdByName: ''}, 'Tool getSetupAuditTrail'],

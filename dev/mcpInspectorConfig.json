@@ -1,0 +1,17 @@
+{
+    "mcpServers": {
+        "ibm-salesforce-mcp": {
+            "type": "stdio",
+            "command": "node",
+            "args": [
+                "/Users/marcpla/Documents/Feina/Projectes/mcp/mcp_salesforce/index.js"
+            ],
+            "env": {
+                "SF_MCP_AGENTFORCE_AGENT_ID": "0XxKN0000008OKp",
+                "NODE_TLS_REJECT_UNAUTHORIZED": "0",
+                "MCP_AUTO_OPEN_ENABLED": "false",
+                "WORKSPACE_FOLDER_PATHS": "/Users/marcpla/Documents/Feina/Projectes/mcp/mcp_salesforce"
+            }
+        }
+    }
+}

@@ -10,16 +10,18 @@ Allows you to obtain all information about a Salesforce SObject, including field
 ---
 ## Usage
 
-### Example 1: Describe Account
+### Example 1: Describe Account with all information
 ```json
 {
-  "sObjectName": "Account"
+  "sObjectName": "Account",
+  "include": "all"
 }
 ```
 
-### Example 2: Describe Case
+### Example 2: Describe Case with only the fields information
 ```json
 {
-  "sObjectName": "Case"
+  "sObjectName": "Case",
+  "include": "fields"
 }
 ```
