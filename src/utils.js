@@ -1,4 +1,4 @@
-import state from './state.js';
+import {state} from './state.js';
 import {CONFIG} from './config.js';
 //import {globalCache} from './cache.js';
 import fs from 'fs';
@@ -11,15 +11,14 @@ import {getOrgAndUserDetails} from './salesforceServices/getOrgAndUserDetails.js
 import os from 'os';
 import {executeSoqlQuery} from './salesforceServices/executeSoqlQuery.js';
 
-const isWindows = os.platform() === 'win32';
-//const __filename = fileURLToPath(import.meta.url);
-//const __dirname = path.dirname(__filename);
-
 const execPromise = promisify(execCallback);
 
 export function log(data, logLevel = 'info') {
-	const LOG_LEVEL_PRIORITY = {debug: 0, info: 1, notice: 2, warning: 3, error: 4, critical: 5, alert: 6, emergency: 7};
-	if (LOG_LEVEL_PRIORITY[logLevel] < LOG_LEVEL_PRIORITY[CONFIG.currentLogLevel]) {
+	const LOG_LEVEL_PRIORITY = {emergency: 0, alert: 1, critical: 2, error: 3, warning: 4, notice: 5, info: 6, debug: 7};
+
+	const logLevelPriority = LOG_LEVEL_PRIORITY[logLevel];
+	const currentLogLevelPriority = LOG_LEVEL_PRIORITY[CONFIG.currentLogLevel];
+	if (logLevelPriority > currentLogLevelPriority) {
 		return;
 	}
 
@@ -30,11 +29,10 @@ export function log(data, logLevel = 'info') {
 		data = '\n' + data + '\n';
 	}
 
-	if (state.server && Object.keys(state.server).length) {
+	if (state.mcpServer?.isConnected()) {
 		const logger = `${CONFIG.logPrefix ? CONFIG.logPrefix + ' ' : ''}MCP server`;
 		state.server.sendLoggingMessage({level: logLevel, logger, data});
-
-	} else if (LOG_LEVEL_PRIORITY[logLevel] >= LOG_LEVEL_PRIORITY['error']) {
+	} else {
 		console.error(data);
 	}
 }
@@ -50,7 +48,7 @@ async function validateUserPermissions(userId) {
 
 export const initServer = async () => {
 	try {
-		if (isWindows) {
+		if (os.platform() === 'win32') {
 			await execPromise(`set HOME=${process.env.HOME}`);
 		} else {
 			await execPromise(`export HOME=${process.env.HOME}`);

@@ -1,5 +1,6 @@
 import {getOrgAndUserDetails} from '../salesforceServices/getOrgAndUserDetails.js';
-import {loadToolDescription} from '../utils.js';
+import {state} from '../state.js';
+import {loadToolDescription, log} from '../utils.js';
 
 export const getOrgAndUserDetailsToolDefinition = {
 	name: 'getOrgAndUserDetails',
@@ -18,14 +19,17 @@ export const getOrgAndUserDetailsToolDefinition = {
 };
 
 export async function getOrgAndUserDetailsTool() {
-	const result = await getOrgAndUserDetails();
-	return {
-		content: [
+	try {
+		const result = await getOrgAndUserDetails();
+		const content = [
 			{
 				type: 'text',
 				text: JSON.stringify(result, null, '\t')
-			},
-			{
+			}
+		];
+
+		if (!state.client.clientInfo.isCursor) {
+			content.push({
 				type: 'resource',
 				resource: {
 					uri: 'mcp://org/org-and-user-details2.json',
@@ -33,8 +37,22 @@ export async function getOrgAndUserDetailsTool() {
 					description: 'Salesforce org and user details (org id, org alias, user id, username, and user full name)',
 					mimeType: 'application/json'
 				}
-			}
-		],
-		structuredContent: result
-	};
+			});
+		}
+
+		return {
+			content,
+			structuredContent: result
+		};
+
+	} catch (error) {
+		log(`Error getting org and user details: ${error.message}`, 'error');
+		return {
+			isError: true,
+			content: [{
+				type: 'text',
+				text: `❌ Error getting org and user details: ${error.message}`
+			}]
+		};
+	}
 }

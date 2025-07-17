@@ -20,7 +20,8 @@ cleanup
 echo ""
 
 printf "\033[1mLoading environment variables\033[0m...\n"
-cd /Users/marcpla/Documents/Feina/Projectes/mcp/mcp_salesforce
+MCP_SALESFORCE_PATH="/Users/marcpla/Documents/Feina/Projectes/mcp/mcp_salesforce/"
+cd "$MCP_SALESFORCE_PATH"
 if [ -f ".env" ]; then
     # Load all variables at once
     set -a
@@ -47,13 +48,13 @@ if [ -f ".env" ]; then
 fi
 
 
-# Function to show a spinner
+# Function to show a spinner and detect server startup
 show_spinner() {
     local temp_file=$1
     local delay=0.1
     local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
     local server_ready=false
-    local timeout=30  # 30 seconds maximum
+    local timeout=45  # 45 seconds maximum
     local start_time=$(date +%s)
 
     while ! $server_ready; do
@@ -68,11 +69,23 @@ show_spinner() {
             exit 1
         fi
 
-        if grep -q "MCP Inspector is up and running at " "$temp_file"; then
-            # Wait a bit more to ensure server is fully initialized
+        # Check for server readiness using multiple methods
+        # Method 1: Check for old message format
+        if grep -q "MCP Inspector is up and running at" "$temp_file"; then
             sleep 2
             server_ready=true
         fi
+
+        # Method 2: Check if server is listening on a port
+        local port=$(lsof -i | grep node | grep LISTEN | awk '{print $9}' | grep -o '[0-9]*$' | head -1)
+        if [ -n "$port" ]; then
+            # Verify it's the MCP Inspector by checking HTML content
+            if curl -s http://localhost:$port | grep -q "MCP Inspector"; then
+                sleep 2
+                server_ready=true
+            fi
+        fi
+
         for i in $(seq 0 9); do
             printf "\r\033[1mStarting MCP Inspector server\033[0m... \033[38;5;208m%s\033[0m  " "${spinstr:$i:1}"
             sleep $delay
@@ -200,7 +213,7 @@ temp_file=$(mktemp)
 SERVER_COMMAND="node /Users/marcpla/Documents/Feina/Projectes/mcp/mcp_salesforce/index.js"
 
 # Define allowed variables
-INSPECTOR_ENV_VARS=(SF_MCP_API_VERSION SF_MCP_LOGIN_URL SF_MCP_CONNECTED_APP_CLIENT_ID SF_MCP_CONNECTED_APP_CLIENT_SECRET SF_MCP_USERNAME SF_MCP_PASSWORD SF_MCP_AGENTFORCE_AGENT_ID)
+INSPECTOR_ENV_VARS=(WORKSPACE_FOLDER_PATHS SF_MCP_AGENTFORCE_AGENT_ID)
 for var in "${INSPECTOR_ENV_VARS[@]}"; do
     value="${!var}"
     if [ -n "$value" ]; then
@@ -208,7 +221,9 @@ for var in "${INSPECTOR_ENV_VARS[@]}"; do
     fi
 done
 
-npx @modelcontextprotocol/inspector $SERVER_COMMAND $INSPECTOR_ARGS > "$temp_file" 2>&1 &
+export MCP_AUTO_OPEN_ENABLED=false
+npx @modelcontextprotocol/inspector --config $MCP_SALESFORCE_PATH/dev/mcpInspectorConfig.json --server ibm-salesforce-mcp > "$temp_file" 2>&1 &
+# npx @modelcontextprotocol/inspector $SERVER_COMMAND $INSPECTOR_ARGS > "$temp_file" 2>&1 &
 
 # Save process PID
 server_pid=$!
@@ -216,12 +231,25 @@ server_pid=$!
 # Show spinner while waiting for server to start
 show_spinner "$temp_file"
 
-# Extract URL from server message
-url=$(grep "MCP Inspector is up and running at " "$temp_file" | sed 's/.*running at \(http[^ ]*\).*/\1/')
+# Find the MCP Inspector URL
+# First try the old way
+# url=$(grep "MCP Inspector is up and running at " "$temp_file" | sed 's/.*running at \(http[^ ]*\).*/\1/')
+url=$(awk '/MCP Inspector is up and running at/{getline; print $1}' "$temp_file")
+
+# If not found, try to detect it from the listening ports
+if [ -z "$url" ]; then
+    port=$(lsof -i | grep node | grep LISTEN | awk '{print $9}' | grep -o '[0-9]*$' | head -1)
+    if [ -n "$port" ]; then
+        if curl -s http://localhost:$port | grep -q "MCP Inspector"; then
+            url="http://localhost:$port"
+        fi
+    fi
+fi
 
 if [ -n "$url" ]; then
     # Show server output in real time
     echo ""
+    echo "MCP Inspector is running at $url"
     tail -n 2 "$temp_file"
 
     echo ""

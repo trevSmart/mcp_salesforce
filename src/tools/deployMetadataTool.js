@@ -27,13 +27,7 @@ export const deployMetadataToolDefinition = {
 
 export async function deployMetadataTool({sourceDir}) {
 	try {
-		log('Server capabilities', 'debug');
-		//let serverCapabilities = await state.server.getCapabilities();
-		//log(JSON.stringify(serverCapabilities, null, 2), 'debug');
-		const serverCapabilities = state.server.getCapabilities();
-		log(JSON.stringify(serverCapabilities, null, 2), 'debug');
-
-		if (serverCapabilities && 'elicitation' in serverCapabilities) {
+		if (state.client.capabilities?.elicitation) {
 			const elicitResult = await sendElicitRequest('Deploy metadata confirmation', `Are you sure you want to deploy this metadata to ${state.org.alias}?`);
 			if (elicitResult.action !== 'accept' || elicitResult.content?.confirmation !== 'Yes') {
 				return {
@@ -55,7 +49,7 @@ export async function deployMetadataTool({sourceDir}) {
 		};
 
 	} catch (error) {
-		log(`Error deploying metadata file ${sourceDir}: ${JSON.stringify(error, null, 2)}`, 'error');
+		log(`Error deploying metadata file "${sourceDir}": ${error.message}`, 'error');
 		return {
 			isError: true,
 			content: [{

@@ -13,9 +13,10 @@ export async function getOrgAndUserDetails() {
 			...orgResultWithoutUserFields, user: {id, username, profileName, name: userFullName}
 		};
 
-		if (!org || !org.user || !org.user.id) {
+		if (!org?.user?.id) {
 			throw new Error('Error: No se pudo obtener la información del usuario de Salesforce');
 		}
+
 		log(`Org and user details successfully retrieved: \n${JSON.stringify(org, null, '\t')}`, 'debug');
 		state.org = org;
 		return org;
