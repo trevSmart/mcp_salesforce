@@ -24,11 +24,11 @@ export async function getOrgAndUserDetailsTool() {
 		const content = [
 			{
 				type: 'text',
-				text: JSON.stringify(result, null, '\t')
+				text: JSON.stringify(result, null, '4')
 			}
 		];
 
-		if (!state.client.clientInfo.isCursor) {
+		if (state.client.clientInfo.isVscode) {
 			content.push({
 				type: 'resource',
 				resource: {

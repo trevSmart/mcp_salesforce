@@ -3,7 +3,11 @@ import {setResource} from '../index.js';
 let org = {};
 let mcpServer;
 let server = {};
-let client = {};
+let client = {
+	clientInfo: {
+		isVscode: false
+	}
+};
 
 export const state = {
 	get org() {

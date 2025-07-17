@@ -87,12 +87,11 @@ server.setRequestHandler(InitializeRequestSchema, async ({params}) => {
 	try {
 		const {clientInfo, capabilities, protocolVersion} = params;
 		state.client = {clientInfo, capabilities, protocolVersion};
-		state.client.clientInfo.isCursor = state.client.clientInfo.name.toLowerCase().includes('cursor');
+		state.client.clientInfo.isVscode = state.client.clientInfo.name?.toLowerCase().includes('visual studio code');
 
 		log(`IBM Salesforce MCP server (v${SERVER_INFO.version})`, 'notice');
 		log(`Connecting with client: "${state.client.clientInfo.name} (v${state.client.clientInfo.version})"`, 'notice');
 		log(`Client capabilities: ${JSON.stringify(state.client.capabilities, null, '\t')}`, 'debug');
-
 	} catch (error) {
 		log(`Error initializing server: ${error.message}`, 'error');
 	}
@@ -165,7 +164,7 @@ export async function main() {
 		await server.connect(transport);
 
 		await new Promise(resolve => setTimeout(resolve, 400));
-		CONFIG.workspacePath && log(`Working directory: "${CONFIG.workspacePath}"`, 'warning');
+		CONFIG.workspacePath && log(`Working directory: "${CONFIG.workspacePath}"`, 'debug');
 		await initServer();
 
 		//Resolve readyPromise when server is connected
@@ -176,11 +175,9 @@ export async function main() {
 		listRootsResultHandler(await server.listRoots());
 
 	} catch (error) {
-		console.error('**************error**********', error); //PENDENT DE TREURE
 		log(`Error starting IBM MCP Salesforce server: ${error.message}`, 'error');
 		await server.close();
 		process.exit(1);
 	}
 }
-
 main();
