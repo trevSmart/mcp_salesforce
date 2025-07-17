@@ -7,7 +7,7 @@ import {log} from '../utils.js';
  * @param {Object} fields - Objecte amb els camps i valors
  * @returns {Promise<Object>} - Resultat cru de la creació
  */
-export async function createRecord(sObjectName, fields) {
+export async function createRecord(sObjectName, fields, useToolingApi = false) {
 	if (!sObjectName || !fields || typeof fields !== 'object') {
 		throw new Error('sObjectName i fields són obligatoris');
 	}
@@ -15,7 +15,7 @@ export async function createRecord(sObjectName, fields) {
 		const valuesString = Object.entries(fields)
 			.map(([key, value]) => `${key}='${String(value).replace(/'/g, '\\\'')}'`)
 			.join(' ');
-		const command = `sf data create record --sobject ${sObjectName} --values "${valuesString}" --json`;
+		const command = `sf data create record --sobject ${sObjectName} --values "${valuesString}" ${useToolingApi ? '--use-tooling-api' : ''} --json`;
 		log(`Executing create record command: ${command}`, 'debug');
 		const response = await JSON.parse(await runCliCommand(command));
 		if (response.status !== 0) {

@@ -6,12 +6,12 @@ import {log} from '../utils.js';
  * @param {string} query - Consulta SOQL a executar
  * @returns {Promise<Object>} - Resultat cru de la consulta
  */
-export async function executeSoqlQuery(query) {
+export async function executeSoqlQuery(query, useToolingApi = false) {
 	if (!query || typeof query !== 'string') {
 		throw new Error('La consulta SOQL (query) és obligatòria i ha de ser una string');
 	}
 	try {
-		const command = `sf data query --query "${query}" --json`;
+		const command = `sf data query --query "${query}"  ${useToolingApi ? '--use-tooling-api' : ''} --json`;
 		log(`Executing SOQL query command: ${command}`, 'debug');
 		const response = await JSON.parse(await runCliCommand(command));
 		if (response.status !== 0) {

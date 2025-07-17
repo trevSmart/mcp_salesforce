@@ -1,6 +1,7 @@
 import state from '../state.js';
 import {log, loadToolDescription, setResource, sendElicitRequest} from '../utils.js';
 import {executeAnonymousApex} from '../salesforceServices/executeAnonymousApex.js';
+import {resourceLimits} from 'worker_threads';
 
 export const executeAnonymousApexToolDefinition = {
 	name: 'executeAnonymousApex',
@@ -56,17 +57,14 @@ export async function executeAnonymousApexTool({apexCode, mayModify}) {
 				confirmation: {
 					type: 'string',
 					title: 'Execute anonymous apex confirmation',
-					description: 'Are you sure you want to execute this anonymous Apex code?',
+					description: `Are you sure you want to run this anonymous Apex code in ${state.org.alias}?`,
 					enum: ['Yes', 'No'],
 					enumNames: ['✅ Execute anonymous Apex code', '❌ Don\'t execute']
 				}
 			});
 			if (elicitResult.action !== 'accept' || elicitResult.content?.confirmation !== 'Yes') {
 				return {
-					content: [{
-						type: 'text',
-						text: 'Deployment cancelled by user'
-					}]
+					content: [{type: 'text', text: 'Script execution cancelled by user'}]
 				};
 			}
 		}
@@ -78,30 +76,22 @@ export async function executeAnonymousApexTool({apexCode, mayModify}) {
 		const fs = await import('fs/promises');
 		const path = await import('path');
 
-		let contentResource = null;
-		if (state.client.clientInfo.isVscode && result?.logs) {
-			const tmpDir = state.workspacePath + '/tmp';
-			const logFileName = `anonymousApex_${Date.now()}.apex`;
-			await fs.mkdir(tmpDir, {recursive: true});
-			await fs.writeFile(path.join(tmpDir, logFileName), result.logs, 'utf8');
-
-			setResource(`mcp://apex/${logFileName}`, result.logs);
-			contentResource = {
-				type: 'resource',
-				resource: {
-					uri: `mcp://apex/${logFileName}`,
-					name: logFileName,
-					description: 'Logs de l\'execució d\'Apex',
-					mimeType: 'text/plain'
-				}
-			};
-		}
-
 		const content = [{
 			type: 'text',
 			text: `Resultat execució Anonymous Apex:\n\n${JSON.stringify(result, null, 2)}`
 		}];
-		contentResource && content.push(contentResource);
+
+		if (state.client.clientInfo.isVscode && result?.logs) {
+			const tmpDir = state.workspacePath + '/tmp';
+			const logFileName = `anonymousApex_${Date.now()}.log`;
+			await fs.mkdir(tmpDir, {recursive: true});
+			await fs.writeFile(path.join(tmpDir, logFileName), result.logs, 'utf8');
+
+			content.push({type: 'resource', resource: setResource(`file://apex/${logFileName}`, 'text/plain', result.logs)});
+		}
+
+		log('!!!!content', 'emergency');
+		log({content, structuredContent: result}, 'emergency');
 		return {content, structuredContent: result};
 
 	} catch (error) {

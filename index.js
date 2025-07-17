@@ -28,10 +28,11 @@ import {getSetupAuditTrailToolDefinition, getSetupAuditTrailTool} from './src/to
 import {executeSoqlQueryToolDefinition, executeSoqlQueryTool} from './src/tools/executeSoqlQueryTool.js';
 import {runApexTestToolDefinition, runApexTestTool} from './src/tools/runApexTestTool.js';
 import {metadataApiRequestToolDefinition, metadataApiRequestTool} from './src/tools/metadataApiRequestTool.js';
+import {apexDebugLogsToolDefinition, apexDebugLogsTool} from './src/tools/apexDebugLogs.js';
 
 const SERVER_INFO = {name: 'salesforce-mcp', version: pkg.version};
 const SERVER_CAPABILITIES = {
-	logging: {}, resources: {}, prompts: {}, tools: {}, completions: {}, elicitation: {}
+	logging: {}, resources: {listChanged: true}, prompts: {}, tools: {}, completions: {}, elicitation: {}
 };
 
 const mcpServer = new McpServer(SERVER_INFO, {capabilities: SERVER_CAPABILITIES});
@@ -92,19 +93,15 @@ server.setRequestHandler(SetLevelRequestSchema, async ({params}) => {
 });
 
 //Register resources
-server.setRequestHandler(ListResourcesRequestSchema, async () => ({resources: Object.values(resourceDefinitions)}));
+server.setRequestHandler(ListResourcesRequestSchema, async () => ({resources: Object.values(state.resources)}));
 server.setRequestHandler(ReadResourceRequestSchema, async request => {
 	const uri = request?.uri || request?.params?.uri;
-	return {
-		contents: [{
-			...resourceDefinitions[uri],
-			text: JSON.stringify(resources[uri] ?? null)
-		}]
-	};
+	const resource = state.resources[uri];
+	return {contents: [resource]};
 });
 
 const toolNames = [
-	'salesforceMcpUtils', 'getOrgAndUserDetails', 'dmlOperation', 'deployMetadata',
+	'apexDebugLogs', 'salesforceMcpUtils', 'getOrgAndUserDetails', 'dmlOperation', 'deployMetadata',
 	'describeObject', 'executeAnonymousApex', 'getRecentlyViewedRecords', 'getRecord',
 	'getSetupAuditTrail', 'executeSoqlQuery', 'runApexTest'
 ];

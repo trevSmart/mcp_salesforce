@@ -1,6 +1,6 @@
 class Config {
 	constructor() {
-		this.currentLogLevel = 'info'; //7:debug, 6:info, 5:notice, 4:warning, 3:error, 2:critical, 1:alert, 0:emergency
+		this.currentLogLevel = 'info'; //7: debug, 6: info, 5: notice, 4: warning, 3: error, 2: critical, 1: alert, 0: emergency
 		this.logPrefix = '(👁🐝Ⓜ️)';
 
 		this.workspacePath = process.env.WORKSPACE_FOLDER_PATHS || '';

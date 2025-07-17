@@ -1,6 +1,6 @@
 import {getOrgAndUserDetails} from '../salesforceServices/getOrgAndUserDetails.js';
 import {state} from '../state.js';
-import {loadToolDescription, log} from '../utils.js';
+import {loadToolDescription, log, setResource} from '../utils.js';
 
 export const getOrgAndUserDetailsToolDefinition = {
 	name: 'getOrgAndUserDetails',
@@ -21,29 +21,16 @@ export const getOrgAndUserDetailsToolDefinition = {
 export async function getOrgAndUserDetailsTool() {
 	try {
 		const result = await getOrgAndUserDetails();
-		const content = [
-			{
-				type: 'text',
-				text: JSON.stringify(result, null, '4')
-			}
-		];
+		const content = [{
+			type: 'text',
+			text: JSON.stringify(result, null, 2)
+		}];
 
 		if (state.client.clientInfo.isVscode) {
-			content.push({
-				type: 'resource',
-				resource: {
-					uri: 'mcp://org/org-and-user-details2.json',
-					name: 'Org and user details2',
-					description: 'Salesforce org and user details (org id, org alias, user id, username, and user full name)',
-					mimeType: 'application/json'
-				}
-			});
+			content.push(setResource('mcp://org/org-and-user-details2.json', 'application/json', JSON.stringify(result, null, 2)));
 		}
 
-		return {
-			content,
-			structuredContent: result
-		};
+		return {content, structuredContent: result};
 
 	} catch (error) {
 		log(`Error getting org and user details: ${error.message}`, 'error');

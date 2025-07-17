@@ -39,10 +39,7 @@ export async function deployMetadataTool({sourceDir}) {
 			});
 			if (elicitResult.action !== 'accept' || elicitResult.content?.confirmation !== 'Yes') {
 				return {
-					content: [{
-						type: 'text',
-						text: 'Deployment cancelled by user'
-					}]
+					content: [{type: 'text', text: 'Deployment cancelled by user'}]
 				};
 			}
 		}
