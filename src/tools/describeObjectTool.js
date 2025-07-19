@@ -1,150 +1,19 @@
-import {log, loadToolDescription} from '../utils.js';
-import {globalCache} from '../cache.js';
-import {describeObject} from '../salesforceServices/describeObject.js';
+import {log, textFileContent} from '../utils.js';
+//import {globalCache} from '../cache.js';
+import {describeObject} from '../salesforceServices.js';
+import {z} from 'zod';
 
 export const describeObjectToolDefinition = {
 	name: 'describeObject',
 	title: 'Describe Object',
-	description: loadToolDescription('describeObjectTool'),
+	description: textFileContent('describeObjectTool'),
 	inputSchema: {
-		type: 'object',
-		required: ['sObjectName', 'include'],
-		properties: {
-			sObjectName: {
-				type: 'string',
-				description: 'The name of the SObject to describe'
-			},
-			include: {
-				type: 'string',
-				description: 'The type of information to include in the response: "fields", "record types", "child relationships" or "all"',
-			}
-		}
-	},
-	outputSchema: {
-		type: 'object',
-		properties: {
-			name: {
-				type: 'string',
-				description: 'API name of the object'
-			},
-			label: {
-				type: 'string',
-				description: 'Label of the object'
-			},
-			fields: {
-				type: 'array',
-				description: 'List of fields of the object',
-				items: {
-					type: 'object',
-					properties: {
-						name: {
-							type: 'string'
-						},
-						label: {
-							type: 'string'
-						},
-						type: {
-							type: 'string'
-						},
-						relationshipName: {
-							type: [
-								'string',
-								'null'
-							]
-						}
-					},
-					required: [
-						'name',
-						'label',
-						'type'
-					]
-				}
-			},
-			recordTypeInfos: {
-				type: 'array',
-				description: 'List of available record types',
-				items: {
-					type: 'object',
-					properties: {
-						name: {
-							type: 'string'
-						},
-						active: {
-							type: 'boolean'
-						},
-						available: {
-							type: 'boolean'
-						},
-						defaultRecordTypeMapping: {
-							type: 'boolean'
-						},
-						developerName: {
-							type: 'string'
-						},
-						master: {
-							type: 'boolean'
-						},
-						recordTypeId: {
-							type: 'string'
-						}
-					},
-					required: [
-						'name',
-						'available',
-						'defaultRecordTypeMapping',
-						'developerName',
-						'master',
-						'recordTypeId'
-					]
-				}
-			},
-			childRelationships: {
-				type: 'array',
-				description: 'List of child relationships',
-				items: {
-					type: 'object',
-					properties: {
-						childSObject: {
-							type: 'string'
-						},
-						field: {
-							type: 'string'
-						},
-						relationshipName: {
-							type: 'string'
-						}
-					},
-					required: [
-						'childSObject',
-						'field'
-					]
-				}
-			},
-			createable: {
-				type: 'boolean'
-			},
-			custom: {
-				type: 'boolean'
-			},
-			deletable: {
-				type: 'boolean'
-			},
-			keyPrefix: {
-				type: 'string'
-			},
-			labelPlural: {
-				type: 'string'
-			},
-			searchable: {
-				type: 'boolean'
-			}
-		},
-		required: [
-			'name',
-			'label',
-			'fields',
-			'recordTypeInfos'
-		]
+		sObjectName: z
+			.string()
+			.describe('The name of the SObject to describe'),
+		include: z
+			.enum(['fields', 'record types', 'child relationships', 'all'])
+			.describe('The type of information to include in the response: "fields", "record types", "child relationships" or "all"')
 	},
 	annotations: {
 		readOnlyHint: true,
@@ -166,12 +35,11 @@ export async function describeObjectTool({sObjectName, include = 'all'}) {
 			throw new Error('SObject name must be a non-empty string');
 		}
 
-		const cached = globalCache.get('describeObject', sObjectName);
+		/*const cached = globalCache.get('describeObject', sObjectName);
 		if (cached) {
 			return cached;
-		}
+		} */
 
-		//Utilitza el nou servei
 		const response = await describeObject(sObjectName);
 
 		if (response.status !== 0) {
@@ -226,7 +94,7 @@ export async function describeObjectTool({sObjectName, include = 'all'}) {
 			if (!('label' in filtered)) {filtered.label = ''}
 			if (!('fields' in filtered)) {filtered.fields = []}
 			if (!('recordTypeInfos' in filtered)) {filtered.recordTypeInfos = []}
-			globalCache.set('describeObject', sObjectName, filtered);
+			//globalCache.set('describeObject', sObjectName, filtered);
 
 			return {
 				content: [{

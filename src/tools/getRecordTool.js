@@ -1,23 +1,18 @@
-import {getRecordById} from '../salesforceServices/getRecord.js';
-import {loadToolDescription, log} from '../utils.js';
+import {getRecord} from '../salesforceServices.js';
+import {log, textFileContent} from '../utils.js';
+import {z} from 'zod';
 
 export const getRecordToolDefinition = {
 	name: 'getRecord',
 	title: 'Get Record',
-	description: loadToolDescription('getRecordTool'),
+	description: textFileContent('getRecordTool'),
 	inputSchema: {
-		type: 'object',
-		required: ['sObjectName', 'recordId'],
-		properties: {
-			sObjectName: {
-				type: 'string',
-				description: 'The name of the SObject type of the record to retrieve.',
-			},
-			recordId: {
-				type: 'string',
-				description: 'The Id of the record to retrieve.',
-			}
-		}
+		sObjectName: z
+			.string()
+			.describe('The name of the SObject type of the record to retrieve.'),
+		recordId: z
+			.string()
+			.describe('The Id of the record to retrieve.')
 	},
 	annotations: {
 		readOnlyHint: true,
@@ -33,7 +28,7 @@ export async function getRecordTool({sObjectName, recordId}) {
 			throw new Error('SObject name and record ID are required');
 		}
 
-		const result = await getRecordById(sObjectName, recordId);
+		const result = await getRecord(sObjectName, recordId);
 		const structuredContent = {
 			id: recordId,
 			sObject: sObjectName,

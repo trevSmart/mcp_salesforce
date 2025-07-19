@@ -1,4 +1,3 @@
-import {callToolRequestHandler} from '../index.js';
 import state from '../src/state.js';
 
 const GREEN = '\x1b[32m';
@@ -100,7 +99,9 @@ async function runSequentialTests() {
 
 async function main() {
 	process.stdout.write(GRAY + 'Waiting for MCP server initialization... ');
-	await state.server.readyPromise;
+	if (state.server?.readyPromise) {
+		await state.server.readyPromise;
+	}
 	process.stdout.write('done. Running tests...\n' + RESET);
 	//Llista de proves paral·leles
 	const parallelTestsList = [

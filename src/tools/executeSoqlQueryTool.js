@@ -1,23 +1,20 @@
-import {executeSoqlQuery} from '../salesforceServices/executeSoqlQuery.js';
-import {loadToolDescription, log} from '../utils.js';
+import {executeSoqlQuery} from '../salesforceServices.js';
+import {log, textFileContent} from '../utils.js';
+import {z} from 'zod';
 
 export const executeSoqlQueryToolDefinition = {
 	name: 'executeSoqlQuery',
 	title: 'Execute SOQL Query',
-	description: loadToolDescription('executeSoqlQueryTool'),
+	description: textFileContent('executeSoqlQueryTool'),
 	inputSchema: {
-		type: 'object',
-		required: ['query'],
-		properties: {
-			query: {
-				type: 'string',
-				description: 'The SOQL query to execute'
-			},
-			useToolingApi: {
-				type: 'boolean',
-				description: 'Whether to use the Tooling API for the query (default: false)'
-			}
-		}
+		query: z
+			.string()
+			.describe('The SOQL query to execute'),
+		useToolingApi: z
+			.boolean()
+			.optional()
+			.default(false)
+			.describe('Whether to use the Tooling API for the query (default: false)')
 	},
 	annotations: {
 		readOnlyHint: true,
@@ -29,19 +26,13 @@ export const executeSoqlQueryToolDefinition = {
 
 export async function executeSoqlQueryTool({query, useToolingApi = false}) {
 	try {
-		if (!query) {
-			throw new Error('Query is required');
-		}
-
-		const result = await executeSoqlQuery(query);
+		const result = await executeSoqlQuery(query, useToolingApi);
 		return {
 			content: [{
 				type: 'text',
-				text: `SOQL query returned ${result.totalSize} records: ${JSON.stringify(result.records, null, '\t')}`
+				text: `SOQL query returned the following ${result.totalSize} records: ${JSON.stringify(result.records, null, '\t')}`
 			}],
-			structuredContent: {
-				records: result
-			}
+			structuredContent: result
 		};
 
 	} catch (error) {

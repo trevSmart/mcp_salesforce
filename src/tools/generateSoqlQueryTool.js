@@ -1,27 +1,18 @@
-import {log, loadToolDescription} from '../utils.js';
-import {callSalesforceApi} from '../salesforceServices/callSalesforceApi.js';
-import {describeObject} from '../salesforceServices/describeObject.js';
+import {log, textFileContent} from '../utils.js';
+import {callSalesforceApi, describeObject} from '../salesforceServices.js';
+import {z} from 'zod';
 
 export const generateSoqlQueryToolDefinition = {
 	name: 'generateSoqlQuery',
 	title: 'Generate SOQL Query',
-	description: loadToolDescription('generateSoqlQuery'),
+	description: textFileContent('generateSoqlQueryTool'),
 	inputSchema: {
-		type: 'object',
-		required: ['soqlQueryDescription', 'involvedSObjects'],
-		properties: {
-			soqlQueryDescription: {
-				type: 'string',
-				description: 'The description of the SOQL query to generate'
-			},
-			involvedSObjects: {
-				type: 'array',
-				items: {
-					type: 'string'
-				},
-				description: 'The SObjects involved in the query (e.g. ["Account", "Contact"])'
-			}
-		}
+		soqlQueryDescription: z
+			.string()
+			.describe('The description of the SOQL query to generate'),
+		involvedSObjects: z
+			.array(z.string())
+			.describe('The SObjects involved in the query (e.g. ["Account", "Contact"])')
 	},
 	annotations: {
 		readOnlyHint: true,
@@ -42,7 +33,7 @@ export async function generateSoqlQueryTool({soqlQueryDescription, involvedSObje
 
 		const describeSObjectResults = await Promise.all(
 			involvedSObjects.map(async sObjectName => {
-				const result = await describeObject({sObjectName});
+				const result = await describeObject(sObjectName);
 				log('DESCRIBE OBJECT RESULT:');
 				log(JSON.stringify(result, null, '\t'));
 				let sObjDesc = result;
@@ -104,7 +95,6 @@ export async function generateSoqlQueryTool({soqlQueryDescription, involvedSObje
 		//Hacer la llamada POST al endpoint de acciones personalizadas
 		const response = await callSalesforceApi(
 			'POST',
-			null,
 			'/einstein/prompt-templates/generateSoqlQueryToolPrompt/generations',
 			body
 		);

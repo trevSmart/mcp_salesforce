@@ -1,23 +1,18 @@
 import {runCliCommand} from '../salesforceServices/runCliCommand.js';
-import {loadToolDescription} from '../utils.js';
+import {textFileContent} from '../utils.js';
+import {z} from 'zod';
 
 export const metadataApiRequestToolDefinition = {
 	name: 'metadataApiRequest',
 	title: 'Metadata API Request',
-	description: loadToolDescription('metadataApiRequestTool'),
+	description: textFileContent('metadataApiRequestTool'),
 	inputSchema: {
-		type: 'object',
-		required: ['metadataType', 'targetUsername'],
-		properties: {
-			metadataType: {
-				type: 'string',
-				description: 'The type of metadata to retrieve'
-			},
-			targetUsername: {
-				type: 'string',
-				description: 'The username to retrieve metadata for'
-			}
-		}
+		metadataType: z
+			.string()
+			.describe('The type of metadata to retrieve'),
+		targetUsername: z
+			.string()
+			.describe('The username to retrieve metadata for')
 	},
 	annotations: {
 		readOnlyHint: false,

@@ -1,20 +1,17 @@
 import state from '../state.js';
-import {deployMetadata} from '../salesforceServices/deployMetadata.js';
-import {log, loadToolDescription, sendElicitRequest} from '../utils.js';
+import client from '../client.js';
+import {deployMetadata} from '../salesforceServices.js';
+import {log, textFileContent} from '../utils.js';
+import {z} from 'zod';
 
 export const deployMetadataToolDefinition = {
 	name: 'deployMetadata',
 	title: 'Deploy Metadata',
-	description: loadToolDescription('deployMetadataTool'),
+	description: textFileContent('deployMetadataTool'),
 	inputSchema: {
-		type: 'object',
-		required: ['sourceDir'],
-		properties: {
-			sourceDir: {
-				type: 'string',
-				description: 'The path to the local metadata file to deploy.',
-			}
-		}
+		sourceDir: z
+			.string()
+			.describe('The path to the local metadata file to deploy.')
 	},
 	annotations: {
 		readOnlyHint: false,
@@ -27,8 +24,8 @@ export const deployMetadataToolDefinition = {
 
 export async function deployMetadataTool({sourceDir}) {
 	try {
-		if (state.client.capabilities?.elicitation) {
-			const elicitResult = await sendElicitRequest({
+		if (client.supportsCapability('elicitation')) {
+			const elicitResult = await server.sendElicitRequest({
 				confirmation: {
 					type: 'string',
 					title: 'Deploy metadata confirmation',
@@ -37,6 +34,7 @@ export async function deployMetadataTool({sourceDir}) {
 					enumNames: [`✅ Deploy metadata to ${state.org.alias}`, '❌ Don\'t deploy']
 				}
 			});
+
 			if (elicitResult.action !== 'accept' || elicitResult.content?.confirmation !== 'Yes') {
 				return {
 					content: [{type: 'text', text: 'Deployment cancelled by user'}]

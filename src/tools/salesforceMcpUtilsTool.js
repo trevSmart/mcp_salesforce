@@ -1,21 +1,17 @@
 import {globalCache} from '../cache.js';
 import state from '../state.js';
 import {log} from '../utils.js';
-import {loadToolDescription} from '../utils.js';
+import {textFileContent} from '../utils.js';
+import {z} from 'zod';
 
 export const salesforceMcpUtilsToolDefinition = {
 	name: 'salesforceMcpUtils',
 	title: 'Salesforce MCP Utils',
-	description: loadToolDescription('salesforceMcpUtilsTool'),
+	description: textFileContent('salesforceMcpUtilsTool'),
 	inputSchema: {
-		type: 'object',
-		required: ['action'],
-		properties: {
-			action: {
-				type: 'string',
-				description: 'The action to perform, possible values: "clearCache", "getCurrentDatetime" and "getState"'
-			}
-		}
+		action: z
+			.enum(['clearCache', 'getCurrentDatetime', 'getState'])
+			.describe('The action to perform: "clearCache", "getCurrentDatetime" or "getState"')
 	},
 	annotations: {
 		readOnlyHint: false,

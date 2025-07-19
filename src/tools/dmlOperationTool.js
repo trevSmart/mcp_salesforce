@@ -1,34 +1,26 @@
 import state from '../state.js';
-import {log, notifyProgressChange, loadToolDescription} from '../utils.js';
-import {createRecord} from '../salesforceServices/createRecord.js';
-import {updateRecord} from '../salesforceServices/updateRecord.js';
-import {deleteRecord} from '../salesforceServices/deleteRecord.js';
+import {log, textFileContent} from '../utils.js';
+import {createRecord, updateRecord, deleteRecord} from '../salesforceServices.js';
+import {z} from 'zod';
 
 export const dmlOperationToolDefinition = {
 	name: 'dmlOperation',
 	title: 'DML Operation (create, update or delete a record)',
-	description: loadToolDescription('dmlOperationTool'),
+	description: textFileContent('dmlOperationTool'),
 	inputSchema: {
-		type: 'object',
-		required: ['operation', 'sObjectName', 'fields'],
-		properties: {
-			operation: {
-				type: 'string',
-				description: 'The DML operation to perform. Possible values: "create", "update", "delete".'
-			},
-			sObjectName: {
-				type: 'string',
-				description: 'The SObject type of the record.'
-			},
-			recordId: {
-				type: 'string',
-				description: 'Only applicable for operations "update" and "delete". The ID of the record.'
-			},
-			fields: {
-				type: 'object',
-				description: 'Required (For "delete" operation, pass {}). An object with the field values for the record. E.g. {"Name": "New Name", "Description": "New Description"}.'
-			}
-		}
+		operation: z
+			.enum(['create', 'update', 'delete'])
+			.describe('The DML operation to perform. Possible values: "create", "update", "delete".'),
+		sObjectName: z
+			.string()
+			.describe('The SObject type of the record.'),
+		recordId: z
+			.string()
+			.optional()
+			.describe('Only applicable for operations "update" and "delete". The ID of the record.'),
+		fields: z
+			.record(z.string())
+			.describe('Required (For "delete" operation, pass {}). An object with the field values for the record. E.g. {"Name": "New Name", "Description": "New Description"}.')
 	},
 	annotations: {
 		destructiveHint: true,

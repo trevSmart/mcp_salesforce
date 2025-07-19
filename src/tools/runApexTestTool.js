@@ -1,27 +1,22 @@
-//import {TestService, TestLevel} from '@salesforce/apex-node';
-import {runApexTest} from '../salesforceServices/runApexTest.js';
-import {executeSoqlQuery} from '../salesforceServices/executeSoqlQuery.js';
-import {log, loadToolDescription, notifyProgressChange} from '../utils.js';
+import {mcpServer, resources, sendElicitRequest} from '../mcp-server.js';
+import client from '../client.js';
+import {runApexTest, executeSoqlQuery} from '../salesforceServices.js';
+import {log, textFileContent, notifyProgressChange} from '../utils.js';
+import {z} from 'zod';
 
 export const runApexTestToolDefinition = {
 	name: 'runApexTest',
 	title: 'Run Apex Tests',
-	description: loadToolDescription('runApexTestTool'),
+	description: textFileContent('runApexTestTool'),
 	inputSchema: {
-		type: 'object',
-		required: [],
-		properties: {
-			classNames: {
-				type: 'array',
-				items: {type: 'string'},
-				description: 'Names of the Apex test classes to run (all tests in the classes will be run).'
-			},
-			methodNames: {
-				type: 'array',
-				items: {type: 'string'},
-				description: 'Test methods to run with the format "testClassName.testMethodName" (only the specified methods will be run).'
-			}
-		}
+		classNames: z
+			.array(z.string())
+			.optional()
+			.describe('Names of the Apex test classes to run (all tests in the classes will be run).'),
+		methodNames: z
+			.array(z.string())
+			.optional()
+			.describe('Test methods to run with the format "testClassName.testMethodName" (only the specified methods will be run).')
 	},
 	annotations: {
 		testHint: true,
@@ -33,17 +28,58 @@ export const runApexTestToolDefinition = {
 	}
 };
 
-/**
- * Executes Apex test classes (and optionally methods) using @salesforce/apex-node.
- * @param {Object} args - Tool arguments
- * @param {string[]} args.classNames - Names of the Apex test classes
- * @param {string[]} [args.methodNames] - Names of the test methods (optional)
- * @returns {Promise<Object>} Test result
- */
-export async function runApexTestTool({classNames, methodNames}, _meta) {
+async function classNameElicitation() {
+	if ('Apex test classes list' in resources) {
+		return resources['Apex test classes list'].contents[0].text; //PENDENT
+	}
+
+	const soqlQuery = 'SELECT Name, Body FROM ApexClass WHERE NamespacePrefix = NULL AND Status = \'Active\' ORDER BY Name';
+	const classes = (await executeSoqlQuery(soqlQuery)).records;
+	const testClasses = classes.filter(r => r.Body.toLowerCase().includes('@istest'));
+	const testClassNames = testClasses.map(r => r.Name);
+
+	resources['Apex test classes list'] = {
+		title: 'Apex test classes list',
+		description: 'Apex test classes list',
+		mimeType: 'text/plain',
+		contents: [{uri: 'mcp://org/apex-test-classes-list.txt', text: testClassNames.join('\n')}]
+	};
+
+	if (client.supportsCapability('resources')) {
+		mcpServer.server.registerResource(
+			'Apex test classes list',
+			'mcp://org/apex-test-classes-list.txt',
+			{
+				title: 'Apex test classes list',
+				description: 'Apex test classes list',
+				mimeType: 'text/plain'
+			},
+			async uri => ({contents: [{uri: uri.href, text: testClassNames.join('\n')}]})
+		);
+	}
+
+	const elicitResult = await sendElicitRequest({
+		confirmation: {
+			type: 'string',
+			title: 'Select the Apex test class to run (all its methods will be evaluated).',
+			description: 'Select the Apex class to test.',
+			enum: testClassNames,
+			enumNames: testClassNames
+		}
+	});
+	if (elicitResult.action !== 'accept' || !elicitResult.content?.confirmation) {
+		return {
+			content: [{type: 'text', text: 'Script execution cancelled by user'}]
+		};
+	} else {
+		return elicitResult.content.confirmation;
+	}
+}
+
+export async function runApexTestTool({classNames = [], methodNames = []}, _meta) {
 	try {
-		if (!classNames && !methodNames) {
-			throw new Error('Cal especificar classNames o methodNames.');
+		if (!classNames.length && !methodNames.length) {
+			classNames = [await classNameElicitation()];
 		}
 
 		let testRunId;
@@ -75,7 +111,7 @@ export async function runApexTestTool({classNames, methodNames}, _meta) {
 			}
 			const progress = testRunResult.MethodsCompleted + testRunResult.MethodsFailed;
 			notifyProgressChange(progressToken, testRunResult.MethodsEnqueued, progress, 'Executant el test...');
-			await new Promise(resolve => setTimeout(resolve, 8000)); //Espera 8 segons
+			await new Promise(resolve => setTimeout(resolve, 8000)); //Polling cada 8 segons
 		}
 
 		//Obtenir els resultats finals dels tests

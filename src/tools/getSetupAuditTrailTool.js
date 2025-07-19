@@ -1,29 +1,25 @@
-import {executeSoqlQuery} from '../salesforceServices/executeSoqlQuery.js';
-import {loadToolDescription, log} from '../utils.js';
+import {executeSoqlQuery} from '../salesforceServices.js';
+import {log, textFileContent} from '../utils.js';
+import {z} from 'zod';
 
 const SOQL_LIMIT = 1000;
 
 export const getSetupAuditTrailToolDefinition = {
 	name: 'getSetupAuditTrail',
 	title: 'Get the changes in the Salesforce org metadata performed in the last days from the Salesforce Setup Audit Trail data',
-	description: loadToolDescription('getSetupAuditTrailTool'),
+	description: textFileContent('getSetupAuditTrailTool'),
 	inputSchema: {
-		type: 'object',
-		required: ['lastDays', 'createdByName'],
-		properties: {
-			lastDays: {
-				type: 'number',
-				description: 'Number of days to query (between 1 and 90)'
-			},
-			createdByName: {
-				type: 'string',
-				description: 'Only the changes performed by this user will be returned (null to return changes from all users)'
-			},
-			metadataName: {
-				type: 'string',
-				description: 'Name of the file or folder to get the changes of (e.g. "FOO_AlertMessages_Controller", "FOO_AlertMessage__c", "FOO_AlertNessageList_LWC", etc.)'
-			},
-		},
+		lastDays: z
+			.number()
+			.describe('Number of days to query (between 1 and 90)'),
+		createdByName: z
+			.string()
+			.nullable()
+			.describe('Only the changes performed by this user will be returned (null to return changes from all users)'),
+		metadataName: z
+			.string()
+			.optional()
+			.describe('Name of the file or folder to get the changes of (e.g. "FOO_AlertMessages_Controller", "FOO_AlertMessage__c", "FOO_AlertNessageList_LWC", etc.)')
 	},
 	annotations: {
 		readOnlyHint: true,

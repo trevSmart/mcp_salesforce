@@ -1,14 +1,11 @@
-import {executeSoqlQuery} from '../salesforceServices/executeSoqlQuery.js';
-import {loadToolDescription} from '../utils.js';
+import {executeSoqlQuery} from '../salesforceServices.js';
+import {textFileContent} from '../utils.js';
 
 export const getRecentlyViewedRecordsToolDefinition = {
 	name: 'getRecentlyViewedRecords',
 	title: 'Get Recently Viewed Records',
-	description: loadToolDescription('getRecentlyViewedRecordsTool'),
-	inputSchema: {
-		type: 'object',
-		properties: {}
-	},
+	description: textFileContent('getRecentlyViewedRecordsTool'),
+	inputSchema: {},
 	annotations: {
 		readOnlyHint: true,
 		idempotentHint: false,
