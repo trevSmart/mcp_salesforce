@@ -162,7 +162,7 @@ class Server {
 
 				log(`IBM Salesforce MCP server (v${SERVER_CONSTANTS.serverInfo.version})`, 'notice');
 				log(`Connecting with client: "${client.clientInfo.name} (v${client.clientInfo.version})"`, 'notice');
-				log(`Client capabilities: ${JSON.stringify(client.capabilities, null, '\t')}`, 'debug');
+				log(`Client capabilities: ${JSON.stringify(client.capabilities, null, '3')}`, 'debug');
 
 				return {
 					protocolVersion: SERVER_CONSTANTS.protocolVersion,

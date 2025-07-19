@@ -131,7 +131,7 @@ export async function getSetupAuditTrailTool({lastDays, createdByName, metadataN
 		return {
 			content: [{
 				type: 'text',
-				text: `✅ Setup audit trail history: ${JSON.stringify(formattedResult, null, '\t')}`
+				text: `✅ Setup audit trail history: ${JSON.stringify(formattedResult, null, '3')}`
 			}],
 			structuredContent: formattedResult
 		};

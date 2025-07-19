@@ -25,16 +25,6 @@ export const describeObjectToolDefinition = {
 
 export async function describeObjectTool({sObjectName, include = 'all'}) {
 	try {
-		if (!sObjectName) {
-			throw new Error('SObject name must be a non-empty string');
-		}
-
-		//Validate object name
-		if (!sObjectName || typeof sObjectName !== 'string') {
-			log('SObject name is invalid:', sObjectName);
-			throw new Error('SObject name must be a non-empty string');
-		}
-
 		/*const cached = globalCache.get('describeObject', sObjectName);
 		if (cached) {
 			return cached;

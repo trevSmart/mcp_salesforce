@@ -46,7 +46,7 @@ export async function deployMetadataTool({sourceDir}) {
 		return {
 			content: [{
 				type: 'text',
-				text: JSON.stringify(result, null, '\t')
+				text: JSON.stringify(result, null, '3')
 			}],
 			structuredContent: result
 		};
@@ -57,7 +57,7 @@ export async function deployMetadataTool({sourceDir}) {
 			isError: true,
 			content: [{
 				type: 'Error deploying metadata: ' + error.message,
-				text: JSON.stringify(error, null, '\t')
+				text: JSON.stringify(error, null, '3')
 			}]
 		};
 	}
