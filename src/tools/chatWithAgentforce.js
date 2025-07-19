@@ -1,24 +1,19 @@
 import state from '../state.js';
-import {log, loadToolDescription} from '../utils.js';
-import {callSalesforceApi} from '../salesforceServices/callSalesforceApi.js';
+import {log, textFileContent} from '../utils.js';
+import {getOrgAndUserDetails, callSalesforceApi} from '../salesforceServices.js';
 import crypto from 'crypto';
-import {getOrgAndUserDetails} from '../salesforceServices/getOrgAndUserDetails.js';
+import {z} from 'zod';
 
 let currentSessionId = null;
 
 export const chatWithAgentforceToolDefinition = {
 	name: 'chatWithAgentforce',
 	title: 'Chat with Agentforce',
-	description: loadToolDescription('chatWithAgentforce'),
+	description: textFileContent('chatWithAgentforce'),
 	inputSchema: {
-		type: 'object',
-		required: ['message'],
-		properties: {
-			message: {
-				type: 'string',
-				description: 'The message to send to Agentforce.'
-			}
-		}
+		message: z
+			.string()
+			.describe('The message to send to Agentforce.')
 	},
 	annotations: {
 		readOnlyHint: false,
@@ -58,9 +53,9 @@ async function startSession() {
 
 		const response = await callSalesforceApi(
 			'POST',
-			'https://api.salesforce.com/einstein/ai-agent/v1',
 			`/agents/${process.env.SF_MCP_AGENTFORCE_AGENT_ID}/sessions`,
-			body
+			body,
+			'https://api.salesforce.com/einstein/ai-agent/v1'
 		);
 
 
@@ -92,7 +87,6 @@ async function sendMessage(message) {
 	try {
 		const response = await callSalesforceApi(
 			'POST',
-			'https://api.salesforce.com/einstein/ai-agent/v1',
 			`/sessions/${currentSessionId}/messages`,
 			{
 				message: {
@@ -101,7 +95,8 @@ async function sendMessage(message) {
 					text: message
 				},
 				variables: []
-			}
+			},
+			'https://api.salesforce.com/einstein/ai-agent/v1'
 		);
 
 		if (!response) {

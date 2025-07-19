@@ -1,10 +1,40 @@
 {
     "squarl.bookmarks": [
         {
-            "name": "Model Context Protocol",
+            "name": "Github repository",
+            "path": "https://github.com/mplaaguilera/mcp_salesforce",
+            "description": "",
+            "type": "link",
+            "iconName": "github"
+        },
+        {
+            "name": "Documentation",
             "path": "https://modelcontextprotocol.io/introduction",
             "description": "",
-            "type": "link"
+            "type": "link",
+            "groupId": "mcp"
+        },
+        {
+            "name": "Typescript SDK",
+            "path": "https://github.com/modelcontextprotocol/typescript-sdk",
+            "description": "",
+            "type": "link",
+            "groupId": "mcp",
+            "iconName": "github-inverted"
+        },
+        {
+            "name": "\"Everything\" example server",
+            "path": "https://github.com/modelcontextprotocol/servers/tree/main/src/everything",
+            "description": "",
+            "type": "link",
+            "groupId": "mcp",
+            "iconName": "github-inverted"
+        }
+    ],
+    "squarl.groups": [
+        {
+            "id": "mcp",
+            "name": "Model Context Protocol",
         }
     ],
     "workbench.editor.highlightModifiedTabs": true,
@@ -17,7 +47,7 @@
     "outline.showFiles": true,
     "outline.showFields": false,
     "outline.showConstants": false,
-    "outline.showVariables": false,
+    "outline.showVariables": true,
     "outline.showMethods": true,
     "outline.showModules": true,
     "eslint.useFlatConfig": false,
@@ -53,4 +83,9 @@
     "explorer.fileNesting.patterns": {
         "*.js": "${capture}.md"
     },
+    "notebook.outline.showCodeCells": false,
+    "cursorStats.currency": "EUR",
+    "todohighlight.keywords": [
+        "PENDENT"
+    ]
 }

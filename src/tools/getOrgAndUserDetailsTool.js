@@ -1,15 +1,13 @@
-import {getOrgAndUserDetails} from '../salesforceServices/getOrgAndUserDetails.js';
-import {state} from '../state.js';
-import {loadToolDescription, log, setResource} from '../utils.js';
+import {getOrgAndUserDetails} from '../salesforceServices.js';
+import state from '../state.js';
+import {log, textFileContent} from '../utils.js';
+import {z} from 'zod';
 
 export const getOrgAndUserDetailsToolDefinition = {
 	name: 'getOrgAndUserDetails',
 	title: 'Get the Salesforce organization and current user details.',
-	description: loadToolDescription('getOrgAndUserDetailsTool'),
-	inputSchema: {
-		type: 'object',
-		properties: {}
-	},
+	description: textFileContent('getOrgAndUserDetailsTool'),
+	inputSchema: {},
 	annotations: {
 		readOnlyHint: true,
 		idempotentHint: true,
@@ -26,8 +24,17 @@ export async function getOrgAndUserDetailsTool() {
 			text: JSON.stringify(result, null, 2)
 		}];
 
-		if (state.client.clientInfo.isVscode) {
-			content.push(setResource('mcp://org/org-and-user-details2.json', 'application/json', JSON.stringify(result, null, 2)));
+		if (state.client?.isVscode) {
+			state.server.registerResource(
+				'Org and user details',
+				'mcp://org/org-and-user-details.json',
+				{
+					title: 'Application Config',
+					description: 'Org and user details',
+					mimeType: 'application/json'
+				},
+				async uri => ({contents: [{uri: uri.href, text: JSON.stringify(result, null, 2)}]})
+			);
 		}
 
 		return {content, structuredContent: result};

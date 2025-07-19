@@ -1,19 +1,15 @@
 import {executeSoqlQuery} from '../salesforceServices/soqlQuery.js';
-import {loadToolDescription} from '../utils/toolDescription.js';
+import {textFileContent} from '../utils.js';
+import {z} from 'zod';
 
 export const triggerExecutionOrderToolDefinition = {
 	name: 'triggerExecutionOrder',
 	title: 'Trigger Execution Order',
-	description: loadToolDescription('triggerExecutionOrder'),
+	description: textFileContent('triggerExecutionOrder'),
 	inputSchema: {
-		type: 'object',
-		required: ['sObjectName'],
-		properties: {
-			sObjectName: {
-				type: 'string',
-				description: 'The name of the SObject to retrieve the trigger execution order for.'
-			}
-		}
+		sObjectName: z
+			.string()
+			.describe('The name of the SObject to retrieve the trigger execution order for.')
 	},
 	annotations: {
 		readOnlyHint: true,
@@ -23,21 +19,10 @@ export const triggerExecutionOrderToolDefinition = {
 	}
 };
 
-/**
- * Returns the execution order of automation components for an SObject and operation
- * @param {Object} arguments Tool arguments
- * @param {string} arguments.sObjectName SObject name
- * @param {string} arguments.operation DML operation (insert, update or delete)
- * @returns {Promise<Object>} Execution result
- */
 export async function triggerExecutionOrder(args) {
 	try {
 		const sObjectName = args.sObjectName;
 		const operation = args.operation.toLowerCase();
-
-		if (!['insert', 'update', 'delete'].includes(operation.toLowerCase())) {
-			throw new Error('Operation must be one of: insert, update, delete');
-		}
 
 		//1. Get triggers
 		const triggersQuery = `SELECT Name, NamespacePrefix, Body FROM ApexTrigger WHERE TableEnumOrId = '${sObjectName}' AND (Status = 'Active') AND (NamespacePrefix = '' OR NamespacePrefix = NULL) ORDER BY Name`;

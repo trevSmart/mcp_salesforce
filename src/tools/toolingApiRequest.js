@@ -1,24 +1,19 @@
-import {log, loadToolDescription} from '../utils.js';
-import {callSalesforceApi} from '../salesforceServices/callSalesforceApi.js';
+import {log, textFileContent} from '../utils.js';
+import {callSalesforceApi} from '../salesforceServices.js';
 import {globalCache} from '../cache.js';
+import {z} from 'zod';
 
 export const toolingApiRequestToolDefinition = {
 	name: 'toolingApiRequest',
 	title: 'Tooling API Request',
-	description: loadToolDescription('toolingApiRequest'),
+	description: textFileContent('toolingApiRequest'),
 	inputSchema: {
-		type: 'object',
-		required: ['method', 'endpoint'],
-		properties: {
-			method: {
-				type: 'string',
-				description: 'The HTTP method to use (GET, POST, PUT, DELETE)'
-			},
-			endpoint: {
-				type: 'string',
-				description: 'The endpoint to request (e.g. "/tooling/query/?q=SELECT+Name+FROM+ApexClass+LIMIT+10")'
-			}
-		}
+		method: z
+			.enum(['GET', 'POST', 'PUT', 'DELETE'])
+			.describe('The HTTP method to use (GET, POST, PUT, DELETE)'),
+		endpoint: z
+			.string()
+			.describe('The endpoint to request (e.g. "/tooling/query/?q=SELECT+Name+FROM+ApexClass+LIMIT+10")')
 	},
 	annotations: {
 		readOnlyHint: false,
@@ -43,7 +38,6 @@ export async function toolingApiRequestTool({method, endpoint}) {
 
 			const result = await callSalesforceApi(
 				method,
-				null,
 				toolingEndpoint
 			);
 
@@ -64,7 +58,7 @@ export async function toolingApiRequestTool({method, endpoint}) {
 
 		} else {
 			//For POST/PUT/DELETE do not cache
-			const result = await callSalesforceApi(method, null, toolingEndpoint);
+			const result = await callSalesforceApi(method, toolingEndpoint);
 
 			return {
 				content: [{

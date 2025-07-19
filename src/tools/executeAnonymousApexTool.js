@@ -1,25 +1,21 @@
 import state from '../state.js';
-import {log, loadToolDescription, setResource, sendElicitRequest} from '../utils.js';
-import {executeAnonymousApex} from '../salesforceServices/executeAnonymousApex.js';
-import {resourceLimits} from 'worker_threads';
+import {log, textFileContent} from '../utils.js';
+import {executeAnonymousApex} from '../salesforceServices.js';
+import {sendElicitRequest, newResource} from '../mcp-server.js';
+import client from '../client.js';
+import {z} from 'zod';
 
 export const executeAnonymousApexToolDefinition = {
 	name: 'executeAnonymousApex',
 	title: 'Execute Anonymous Apex',
-	description: loadToolDescription('executeAnonymousApexTool'),
+	description: textFileContent('executeAnonymousApexTool'),
 	inputSchema: {
-		type: 'object',
-		required: ['apexCode', 'mayModify'],
-		properties: {
-			apexCode: {
-				type: 'string',
-				description: 'The Apex code to execute'
-			},
-			mayModify: {
-				type: 'boolean',
-				description: 'Required. Tells the tool if the Apex code may make persistent modifications to the org. Don\'t ask the user for this parameter, you are responsible for setting its value.',
-			}
-		}
+		apexCode: z
+			.string()
+			.describe('The Apex code to execute'),
+		mayModify: z
+			.boolean()
+			.describe('Required. Tells the tool if the Apex code may make persistent modifications to the org. Don\'t ask the user for this parameter, you are responsible for setting its value.')
 	},
 	annotations: {
 		readOnlyHint: false,
@@ -48,11 +44,7 @@ function formatApexCode(code) {
 
 export async function executeAnonymousApexTool({apexCode, mayModify}) {
 	try {
-		if (!apexCode || typeof mayModify !== 'boolean') {
-			throw new Error('apexCode and mayModify are required inputs');
-		}
-
-		if (mayModify && state.client.capabilities?.elicitation) {
+		if (mayModify && client.supportsCapability('elicitation')) {
 			const elicitResult = await sendElicitRequest({
 				confirmation: {
 					type: 'string',
@@ -81,17 +73,21 @@ export async function executeAnonymousApexTool({apexCode, mayModify}) {
 			text: `Resultat execució Anonymous Apex:\n\n${JSON.stringify(result, null, 2)}`
 		}];
 
-		if (state.client.clientInfo.isVscode && result?.logs) {
+		if (client.isVscode && result?.logs) {
 			const tmpDir = state.workspacePath + '/tmp';
 			const logFileName = `anonymousApex_${Date.now()}.log`;
 			await fs.mkdir(tmpDir, {recursive: true});
 			await fs.writeFile(path.join(tmpDir, logFileName), result.logs, 'utf8');
 
-			content.push({type: 'resource', resource: setResource(`file://apex/${logFileName}`, 'text/plain', result.logs)});
+			const resourceApexLog = newResource(
+				`file://apex/${logFileName}`,
+				'text/plain',
+				result.logs,
+				{audience: ['user', 'assistant'], lastModified: new Date().toISOString()}
+			);
+			content.push({type: 'resource', resource: resourceApexLog});
 		}
 
-		log('!!!!content', 'emergency');
-		log({content, structuredContent: result}, 'emergency');
 		return {content, structuredContent: result};
 
 	} catch (error) {

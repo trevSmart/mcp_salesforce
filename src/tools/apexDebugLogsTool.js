@@ -1,24 +1,20 @@
 import state from '../state.js';
-import {executeSoqlQuery} from '../salesforceServices/executeSoqlQuery.js';
-import {createRecord} from '../salesforceServices/createRecord.js';
-import {updateRecord} from '../salesforceServices/updateRecord.js';
-import {log, loadToolDescription} from '../utils.js';
-import {runCliCommand} from '../salesforceServices/runCliCommand.js';
-import {deleteRecord} from '../salesforceServices/deleteRecord.js';
+import {log, textFileContent} from '../utils.js';
+import {executeSoqlQuery, createRecord, updateRecord, deleteRecord, runCliCommand} from '../salesforceServices.js';
+import {z} from 'zod';
 
 export const apexDebugLogsToolDefinition = {
 	name: 'apexDebugLogs',
 	title: 'Apex Debug Logs',
-	description: loadToolDescription('apexDebugLogs'),
+	description: textFileContent('apexDebugLogsTool'),
 	inputSchema: {
-		type: 'object',
-		required: ['action'],
-		properties: {
-			action: {
-				type: 'string',
-				description: 'The action to perform. Possible values: "status", "on", "off", "list", "get".'
-			}
-		}
+		action: z
+			.enum(['status', 'on', 'off', 'list', 'get'])
+			.describe('The action to perform. Possible values: "status", "on", "off", "list", "get".'),
+		logId: z
+			.string()
+			.optional()
+			.describe('The ID of the log to retrieve (only required for "get" action)')
 	},
 	annotations: {
 		readOnlyHint: false,
