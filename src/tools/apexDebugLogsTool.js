@@ -138,7 +138,7 @@ export async function apexDebugLogsTool({action, logId}) {
 				content: [
 					{
 						type: 'text',
-						text: JSON.stringify(logs, null, '\t')
+						text: JSON.stringify(logs, null, '3')
 					}
 				],
 				structuredContent: logs
@@ -151,7 +151,7 @@ export async function apexDebugLogsTool({action, logId}) {
 				content: [
 					{
 						type: 'text',
-						text: JSON.stringify(apexLog, null, '\t')
+						text: JSON.stringify(apexLog, null, '3')
 					}
 				],
 				structuredContent: apexLog

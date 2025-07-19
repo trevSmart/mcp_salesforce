@@ -54,7 +54,7 @@ export async function getOrgAndUserDetails() {
 			throw new Error('Error: No se pudo obtener la información del usuario de Salesforce');
 		}
 
-		log(`Org and user details successfully retrieved: \n${JSON.stringify(org, null, '\t')}`, 'debug');
+		log(`Org and user details successfully retrieved: \n${JSON.stringify(org, null, '3')}`, 'debug');
 		return org;
 
 	} catch (error) {

@@ -1,27 +1,34 @@
 # Generate SOQL Query
-
-Allows you to generate a SOQL query from a description and a list of involved objects.
+Allows you to generate a well-formed, valid SOQL query instruction from a description provided by the user.
 
 ---
 ## Agent Instructions
-- Use the description and the list of objects to build the most appropriate SOQL query.
-- Return the generated query as text.
+- Use the description and the list of involved fields to build the most appropriate SOQL query.
+- Return the generated query as a markdown fenced block, for example:
 
+```soql
+SELECT Name, Account.Name, Account.Estado__c
+FROM Contact
+WHERE Account.Name = 'Acme'
+```
 ---
 ## Usage
+You must provide:
+- the description
+- the list of involved fields
 
 ### Example 1: Generate query to get active accounts
 ```json
 {
   "soqlQueryDescription": "Get active accounts with their Id and Name",
-  "involvedSObjects": ["Account"]
+  "involvedFields": ["Account.Id", "Account.Name", "Account.Active__c"]
 }
 ```
 
 ### Example 2: Query with relationship
 ```json
 {
-  "soqlQueryDescription": "Get contacts and their account name",
-  "involvedSObjects": ["Contact", "Account"]
+  "soqlQueryDescription": "Get contacts created by a specific user and their account name",
+  "involvedFields": ["Contact.Id", "Contact.Name", "Contact.Account.Name", "Contact.CreatedById", "Contact.CreatedBy.Name"]
 }
 ```

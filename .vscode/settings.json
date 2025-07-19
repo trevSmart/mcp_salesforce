@@ -84,8 +84,11 @@
         "*.js": "${capture}.md"
     },
     "notebook.outline.showCodeCells": false,
-    "cursorStats.currency": "EUR",
     "todohighlight.keywords": [
         "PENDENT"
-    ]
+    ],
+    "editor.codeActionsOnSave": {
+        // "source.fixAll.eslint": "explicit",
+        // "source.organizeImports": "explicit"
+    }
 }

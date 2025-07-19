@@ -11,14 +11,9 @@ export const generateSoqlQueryToolDefinition = {
 		soqlQueryDescription: z
 			.string()
 			.describe('The description of the SOQL query to generate'),
-		/*
 		involvedSObjects: z
 			.array(z.string())
 			.describe('The SObjects involved in the query (e.g. ["Account", "Contact"])')
-		*/
-		involvedFields: z
-			.array(z.string())
-			.describe('The fields involved in the query (e.g. ["Case.AccountId", "Case.Account.Birthdate", "Contact.CreatedBy.Name"])')
 	},
 	annotations: {
 		readOnlyHint: true,
@@ -82,73 +77,29 @@ export async function generateSoqlQueryTool({soqlQueryDescription, involvedSObje
 		);
 
 		//Demana  al LLM que generi la SOQL basant-se en soqlQueryDescription + els describeObjectResults
-		let samplingPrompt = '';
+		let samplingPrompt = 'Write a SOQL query sentence.\n\n';
+		samplingPrompt += `Description:\n${soqlQueryDescription}`;
+
 		descObjResults.forEach((describeResult, index) => {
 			const sObjectName = involvedSObjects[index];
-
-			//Start building the samplingPrompt with the new agreed format
-			samplingPrompt += `## ${sObjectName} schema ##`;
-
-			samplingPrompt += '\n\n### Child Relationships ###';
-			describeResult.childRelationships.forEach(child => {
-				samplingPrompt += `\n  - \`${child.field}\`: "${child.field}" → \`${child.childSObject}\``;
-			});
-
-			samplingPrompt += '\n\n### Fields ###';
-
-			const fieldGroups = {
-				'Lookup': [],
-				'Text': [],
-				'Numeric': [],
-				'Picklist': [],
-				'Boolean': [],
-				'Date/Time': []
-			};
-
-			//Group fields by type
+			samplingPrompt += `\n\n--- ${sObjectName} Schema ---`;
+			samplingPrompt += '\nFields:';
 			describeResult.fields.forEach(field => {
-				const fieldLineBase = `    - \`${field.name}\`: "${field.label}"`;
-				if (field.type === 'reference') {
-					fieldGroups.Lookup.push(`${fieldLineBase} → \`${field.referenceTo.join(' / ')}\``);
-				} else if (['string', 'textarea', 'email', 'phone', 'url'].includes(field.type)) {
-					fieldGroups.Text.push(`${fieldLineBase} [${field.type}]`);
-				} else if (['int', 'double', 'currency', 'percent'].includes(field.type)) {
-					fieldGroups.Numeric.push(`${fieldLineBase}`);
-				} else if (field.type === 'picklist') {
-					let picklistValues = '';
-					if (field.picklistValues) {
-						const values = field.picklistValues.map(v => `"${v.value}"`).join(', ');
-						picklistValues = `\n        Values: ${values}`;
-					}
-					fieldGroups.Picklist.push(`${fieldLineBase}${picklistValues}`);
-				} else if (field.type === 'boolean') {
-					fieldGroups.Boolean.push(`${fieldLineBase}`);
-				} else if (['date', 'datetime'].includes(field.type)) {
-					fieldGroups['Date/Time'].push(`${fieldLineBase}`);
-				}
+				samplingPrompt += `\n  - ${field.name} (${field.type})${field.referenceTo ? ` -> ${field.referenceTo.join(', ')}` : ''}${field.relationshipName ? ` [${field.relationshipName}]` : ''}`;
 			});
-
-			//Append grouped fields
-			Object.entries(fieldGroups).forEach(([groupName, fields]) => {
-				if (fields.length > 0) {
-					samplingPrompt += `\n- #### ${groupName} ####`;
-					fields.forEach(line => {
-						samplingPrompt += `\n${line}`;
-					});
-				}
-			});
-
-			samplingPrompt += '\n\n### Record Types ###';
-			describeResult.recordTypeInfos.forEach(recordType => {
-				samplingPrompt += `\n  - \`${recordType.developerName}\`: "${recordType.name}"`;
-			});
+			if (describeResult.recordTypeInfos && describeResult.recordTypeInfos.length > 0) {
+				samplingPrompt += '\nRecord Types:';
+				describeResult.recordTypeInfos.forEach(recordType => {
+					samplingPrompt += `\n  - ${recordType.name} (${recordType.developerName})`;
+				});
+			}
 		});
 
 		const samplingResponse = await mcpServer.server.createMessage({
 			messages: [{role: 'user', content: {type: 'text', text: samplingPrompt}}],
 			systemPrompt: getSystemPrompt('generateSoqlQueryToolSampling'),
 			modelPreferences: {speedPriority: 0, intelligencePriority: 1},
-			maxTokens: 3000
+			maxTokens: 500
 		});
 
 		return {
