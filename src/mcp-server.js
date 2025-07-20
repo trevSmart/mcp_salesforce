@@ -33,7 +33,7 @@ import {getSetupAuditTrailToolDefinition, getSetupAuditTrailTool} from './tools/
 import {executeSoqlQueryToolDefinition, executeSoqlQueryTool} from './tools/executeSoqlQueryTool.js';
 import {runApexTestToolDefinition, runApexTestTool} from './tools/runApexTestTool.js';
 import {apexDebugLogsToolDefinition, apexDebugLogsTool} from './tools/apexDebugLogsTool.js';
-import {generateSoqlQueryToolDefinition, generateSoqlQueryTool} from './tools/generateSoqlQueryTool.js';
+//import {generateSoqlQueryToolDefinition, generateSoqlQueryTool} from './tools/generateSoqlQueryTool.js';
 
 const SERVER_CONSTANTS = {
 	protocolVersion: '2025-06-18',
@@ -107,15 +107,24 @@ export async function setupServer() {
 			log(`Connecting with client: "${client.clientInfo.name} (v${client.clientInfo.version})"`, 'notice');
 			log(`Client capabilities: ${JSON.stringify(client.capabilities, null, '3')}`, 'debug');
 
+			/*
 			if (client.supportsCapability('sampling')) {
 				mcpServer.registerTool('generateSoqlQuery', generateSoqlQueryToolDefinition, generateSoqlQueryTool);
 			}
+			*/
 
-			await execPromise(`${os.platform() === 'win32' ? 'set' : 'export'} HOME=${process.env.HOME}`);
-			const org = await getOrgAndUserDetails();
-			state.org = org;
-			log(`Server initialized and running. Target org: ${org.alias}`, 'debug');
-			validateUserPermissions(org.user.id);
+			//Execute org setup and validation asynchronously
+			(async () => {
+				try {
+					await execPromise(`${os.platform() === 'win32' ? 'set' : 'export'} HOME=${process.env.HOME}`);
+					const org = await getOrgAndUserDetails();
+					state.org = org;
+					log(`Server initialized and running. Target org: ${org.alias}`, 'debug');
+					await validateUserPermissions(org.user.id);
+				} catch (error) {
+					log(`Error during async org setup: ${error.message}`, 'error');
+				}
+			})();
 
 			return {protocolVersion, serverInfo, capabilities};
 
