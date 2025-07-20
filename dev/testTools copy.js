@@ -1,4 +1,4 @@
-import {mcpServer} from	'../src/mcp-server.js';
+import state from '../src/state.js';
 
 //Import all tool functions
 import {salesforceMcpUtilsTool} from '../src/tools/salesforceMcpUtilsTool.js';
@@ -17,12 +17,13 @@ import {apexDebugLogsTool} from '../src/tools/apexDebugLogsTool.js';
 const GREEN = '\x1b[32m';
 const RED = '\x1b[31m';
 const RESET = '\x1b[0m';
+const PURPLE = '\x1b[35m';
 const CYAN = '\x1b[36m';
 const GRAY = '\x1b[90m';
 
 const LOG_LEVEL_PRIORITY = {emergency: 0, alert: 1, critical: 2, error: 3, warning: 4, notice: 5, info: 6, debug: 7};
 
-//Tool mapping - all tools
+//Tool mapping
 const toolFunctions = {
 	salesforceMcpUtils: salesforceMcpUtilsTool,
 	getOrgAndUserDetails: getOrgAndUserDetailsTool,
@@ -92,17 +93,17 @@ async function testTool(name, args, displayName, expectError = false) {
 		const toolFunction = toolFunctions[name];
 		if (!toolFunction) {
 			process.stdout.write(`   ${CYAN}${shownName}${RESET}... ${RED}KO${RESET} (tool not found)\n`);
-			return {success: false, result: null};
+			return false;
 		}
 
 		const result = await toolFunction(args);
 		if (result && result.content && result.content[0] && result.content[0].type === 'text' && result.content[0].text) {
 			if (expectError && result.isError) {
 				process.stdout.write(`   ${CYAN}${shownName}${RESET}... ${GREEN}OK${RESET} (expected error)\n`);
-				return {success: true, result};
+				return true;
 			} else if (!expectError && !result.isError) {
 				process.stdout.write(`   ${CYAN}${shownName}${RESET}... ${GREEN}OK${RESET}\n`);
-				return {success: true, result};
+				return true;
 			}
 		}
 		//Si no és cap dels casos anteriors, és KO
@@ -110,19 +111,19 @@ async function testTool(name, args, displayName, expectError = false) {
 		if (result) {
 			process.stdout.write(JSON.stringify(result, null, 2) + '\n');
 		}
-		return {success: false, result};
+		return false;
 	} catch (e) {
 		process.stdout.write(`   ${CYAN}${shownName}${RESET}... ${RED}KO${RESET}\n`);
 		process.stdout.write((e && e.stack ? e.stack : JSON.stringify(e, null, 2)) + '\n');
-		return {success: false, result: null, error: e};
+		return null;
 	}
 }
 
 async function runSequentialTests() {
 	let createdAccountId = null;
-	const createTest = await testTool('dmlOperation', {operation: 'create', sObjectName: 'Account', fields: {Name: 'Test Account MCP Script'}}, 'Tool dmlOperation (create)');
-	if (createTest.success && createTest.result && createTest.result.structuredContent && createTest.result.structuredContent.result) {
-		createdAccountId = createTest.result.structuredContent.result.id || createTest.result.structuredContent.result.Id;
+	const createResult = await testTool('dmlOperation', {operation: 'create', sObjectName: 'Account', fields: {Name: 'Test Account MCP Script'}}, 'Tool dmlOperation (create)');
+	if (createResult && createResult.structuredContent && createResult.structuredContent.result) {
+		createdAccountId = createResult.structuredContent.result.id || createResult.structuredContent.result.Id;
 	}
 	if (createdAccountId) {
 		await testTool('getRecord', {sObjectName: 'Account', recordId: createdAccountId}, 'Tool getRecord');
@@ -133,11 +134,10 @@ async function runSequentialTests() {
 
 async function main() {
 	process.stdout.write(GRAY + 'Waiting for MCP server initialization... ');
-	if (mcpServer?.readyPromise) {
-		await mcpServer.readyPromise;
+	if (state.server?.readyPromise) {
+		await state.server.readyPromise;
 	}
 	process.stdout.write('done. Running tests...\n' + RESET);
-
 	//Llista de proves paral·leles
 	const parallelTestsList = [
 		['runApexTest', {classNames: [], methodNames: ['CSBD_Utils_Test.hexToDec']}, 'Tool runApexTest'],
@@ -145,16 +145,13 @@ async function main() {
 		['executeSoqlQuery', {query: 'SELECT Id, Name FROM Account LIMIT 3', useToolingApi: false}, 'Tool executeSoqlQuery'],
 		['describeObject', {sObjectName: 'Account', include: 'all'}, 'Tool describeObject (all)'],
 		['describeObject', {sObjectName: 'Account', include: 'fields'}, 'Tool describeObject (fields)'],
-		['executeAnonymousApex', {apexCode: 'System.debug(\'Hello World!\');', mayModify: true}, 'Tool executeAnonymousApex'],
+		['executeAnonymousApex', {apexCode: 'System.debug(\'Hello World!\');', mayModify: false}, 'Tool executeAnonymousApex'],
 		['getRecentlyViewedRecords', {}, 'Tool getRecentlyViewedRecords'],
 		['getSetupAuditTrail', {lastDays: 7, createdByName: ''}, 'Tool getSetupAuditTrail'],
 		['getRecord', {sObjectName: 'Account', recordId: '001XXXXXXXXXXXXXXX'}, 'Tool getRecord (recordId inexistent)', true] //Prova d'id inexistent
 	];
 
-	const parallelTests = Promise.all(parallelTestsList.map(async ([name, args, displayName, expectError]) => {
-		const result = await testTool(name, args, displayName, expectError);
-		return result.success;
-	}));
+	const parallelTests = Promise.all(parallelTestsList.map(([name, args, displayName, expectError]) => testTool(name, args, displayName, expectError)));
 	const sequentialTests = runSequentialTests();
 
 	await Promise.all([parallelTests, sequentialTests]);

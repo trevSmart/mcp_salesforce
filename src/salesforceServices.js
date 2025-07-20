@@ -3,7 +3,7 @@ import {CONFIG} from './config.js';
 import {exec as execCallback} from 'child_process';
 import {promisify} from 'util';
 const execPromise = promisify(execCallback);
-import fs from 'fs';
+import fs from 'fs/promises';
 import path from 'path';
 import {randomUUID} from 'crypto';
 import state from './state.js';
@@ -95,7 +95,7 @@ export async function updateRecord(sObjectName, recordId, fields, useToolingApi 
 			.map(([key, value]) => `${key}='${String(value).replace(/'/g, '\\\'')}'`)
 			.join(' ');
 		const command = `sf data update record --sobject ${sObjectName} --record-id ${recordId} --values "${valuesString}" ${useToolingApi ? '--use-tooling-api' : ''} --json`;
-		log(`Executing update record command: ${command}`);
+		log(`Executing update record command: ${command}`, 'debug');
 		const response = await JSON.parse(await runCliCommand(command));
 		if (response.status !== 0) {
 			throw new Error(response.message || 'Error actualitzant el registre');
@@ -115,7 +115,7 @@ export async function deleteRecord(sObjectName, recordId, useToolingApi = false)
 		}
 
 		const command = `sf data delete record --sobject ${sObjectName} --record-id ${recordId} ${useToolingApi ? '--use-tooling-api' : ''} --json`;
-		log(`Executing delete record command: ${command}`);
+		log(`Executing delete record command: ${command}`, 'debug');
 		const response = await JSON.parse(await runCliCommand(command));
 		if (response.status !== 0) {
 			throw new Error(response.message || 'Error eliminant el registre');
