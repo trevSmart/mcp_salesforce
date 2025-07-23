@@ -106,7 +106,7 @@ async function sendMessage(message) {
 		return response;
 	} catch (error) {
 		log('Error sending message:', error);
-		log('Error sending message:', JSON.stringify(error, null, 2));
+		log('Error sending message:', JSON.stringify(error, null, 3));
 		return {
 			isError: true,
 			content: [{

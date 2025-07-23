@@ -1,4 +1,4 @@
-import {mcpServer} from	'../src/mcp-server.js';
+import {readyPromise, setupServer} from	'../src/mcp-server.js';
 
 //Import all tool functions
 import {salesforceMcpUtilsTool} from '../src/tools/salesforceMcpUtilsTool.js';
@@ -108,12 +108,12 @@ async function testTool(name, args, displayName, expectError = false) {
 		//Si no és cap dels casos anteriors, és KO
 		process.stdout.write(`   ${CYAN}${shownName}${RESET}... ${RED}KO${RESET}\n`);
 		if (result) {
-			process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+			process.stdout.write(JSON.stringify(result, null, 3) + '\n');
 		}
 		return {success: false, result};
 	} catch (e) {
 		process.stdout.write(`   ${CYAN}${shownName}${RESET}... ${RED}KO${RESET}\n`);
-		process.stdout.write((e && e.stack ? e.stack : JSON.stringify(e, null, 2)) + '\n');
+		process.stdout.write((e && e.stack ? e.stack : JSON.stringify(e, null, 3)) + '\n');
 		return {success: false, result: null, error: e};
 	}
 }
@@ -132,10 +132,12 @@ async function runSequentialTests() {
 }
 
 async function main() {
+	process.stdout.write(GRAY + 'Initializing MCP server... ');
+	await setupServer();
+	process.stdout.write('done.\n');
+
 	process.stdout.write(GRAY + 'Waiting for MCP server initialization... ');
-	if (mcpServer?.readyPromise) {
-		await mcpServer.readyPromise;
-	}
+	await readyPromise;
 	process.stdout.write('done. Running tests...\n' + RESET);
 
 	//Llista de proves paral·leles

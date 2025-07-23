@@ -1,17 +1,19 @@
-import {CONFIG} from './config.js';
+import {config} from './config.js';
 //import {globalCache} from './cache.js';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import {fileURLToPath} from 'url';
 import {mcpServer} from './mcp-server.js';
+import client from './client.js';
 import {executeSoqlQuery} from './salesforceServices.js';
+import state from './state.js';
 
 export function log(data, logLevel = 'info') {
 	const LOG_LEVEL_PRIORITY = {emergency: 0, alert: 1, critical: 2, error: 3, warning: 4, notice: 5, info: 6, debug: 7};
 
 	const logLevelPriority = LOG_LEVEL_PRIORITY[logLevel];
-	const currentLogLevelPriority = LOG_LEVEL_PRIORITY[CONFIG.currentLogLevel];
+	const currentLogLevelPriority = LOG_LEVEL_PRIORITY[config.currentLogLevel];
 	if (logLevelPriority > currentLogLevelPriority) {
 		return;
 	}
@@ -26,18 +28,18 @@ export function log(data, logLevel = 'info') {
 		data = '\n' + data + '\n';
 	}
 
-	if (mcpServer.isConnected()) {
-		const logger = `${CONFIG.logPrefix ? CONFIG.logPrefix + ' ' : ''}MCP server`;
+	if (client?.isVsCode && mcpServer?.isConnected()) {
+		const logger = `${config.logPrefix ? config.logPrefix + ' ' : ''}MCP server`;
 		mcpServer.server.sendLoggingMessage({level: logLevel, logger, data});
 	} else {
-		console.error(CONFIG.logPrefix + data);
+		console.error(config.logPrefix + data);
 	}
 }
 
 export async function validateUserPermissions(userId) {
 	const query = await executeSoqlQuery(`SELECT Id FROM PermissionSetAssignment WHERE AssigneeId = '${userId}' AND PermissionSet.Name = 'IBM_SalesforceMcpUser'`);
 	if (!query?.records?.length) {
-		log(`${userId}, permisos insuficientes`, 'error');
+		log(`Insuficient permissions in org "${state.org.alias}"`, 'error');
 		mcpServer.server.close();
 		process.exit(1);
 	}
@@ -82,15 +84,18 @@ export function textFileContent(toolName) {
 
 export function saveToFile(object, filename) {
 	const filePath = path.join(os.tmpdir(), `${filename}_${Date.now()}.json`);
-	fs.writeFileSync(filePath, JSON.stringify(object, null, 2), 'utf8');
+	fs.writeFileSync(filePath, JSON.stringify(object, null, 3), 'utf8');
 	log(`Object written to temporary file: ${filePath}`, 'debug');
 }
 
 
-export function getSystemPrompt(name) {
+export function getAgentInstructions(name) {
 	switch (name) {
+		case 'mcpServer':
+			return 'You are an expert **Salesforce MCP server** developer.';
+
 		case 'generateSoqlQueryToolSampling':
-			let systemPrompt = `
+			return `
 You are an expert **Salesforce SOQL** developer.
 
 ## Context
@@ -122,9 +127,24 @@ No additional text before or after the block.
 ## Mandatory self-check
 Before replying, verify that **every selected field, relationship and record type** exists in the schema **and** that pick-list comparisons use valid values.
 If any check fails, respond with **ERROR_INVALID_FIELD** instead of a query.
-`;
-			return systemPrompt.trim();
+`.trim();
+
 		default:
 			return '';
+	}
+}
+
+export function getTimestamp(long = false) {
+	const now = new Date();
+	const year = String(now.getFullYear()).slice(-2); //Get last 2 digits of year
+	const month = String(now.getMonth() + 1).padStart(2, '0');
+	const day = String(now.getDate()).padStart(2, '0');
+	const hours = String(now.getHours()).padStart(2, '0');
+	const minutes = String(now.getMinutes()).padStart(2, '0');
+	const seconds = String(now.getSeconds()).padStart(2, '0');
+	if (long) {
+		return `${day}-${month}-${year}, ${hours}:${minutes}:${seconds}`;
+	} else {
+		return `${year}${month}${day}${hours}${minutes}${seconds}`;
 	}
 }

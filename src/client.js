@@ -7,6 +7,8 @@ class Client {
 
 	protocolVersion;
 
+	roots = {};
+
 	constructor() {
 		this.clientInfo = {name: 'unknown'};
 		this.capabilities = {};
@@ -19,7 +21,7 @@ class Client {
 		this.protocolVersion = params?.protocolVersion || '';
 	}
 
-	get isVscode() {
+	get isVsCode() {
 		return this.clientInfo?.name?.toLowerCase().includes('visual studio code');
 	}
 
@@ -27,8 +29,11 @@ class Client {
 	//que declara el client. Per tant, les deduim de la resta de informació que ens proporcion.
 	supportsCapability(capabilityName) {
 		switch (capabilityName) {
+			case 'resources':
+				return this.isVsCode;
+
 			case 'embeddedResources':
-				return this.clientInfo.isVscode;
+				return this.isVsCode;
 
 			case 'resourceLinks':
 				return false;

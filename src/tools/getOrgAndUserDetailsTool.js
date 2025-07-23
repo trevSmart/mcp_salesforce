@@ -1,7 +1,7 @@
 import {getOrgAndUserDetails} from '../salesforceServices.js';
-import state from '../state.js';
+import {newResource} from '../mcp-server.js';
+import client from '../client.js';
 import {log, textFileContent} from '../utils.js';
-import {z} from 'zod';
 
 export const getOrgAndUserDetailsToolDefinition = {
 	name: 'getOrgAndUserDetails',
@@ -24,19 +24,17 @@ export async function getOrgAndUserDetailsTool() {
 			text: JSON.stringify(result, null, 2)
 		}];
 
-		if (state.client?.isVscode) {
-			state.server.registerResource(
-				'Org and user details',
+		if (client.isVsCode) {
+			const resourceOrgAndUserDetails = newResource(
 				'mcp://org/org-and-user-details.json',
-				{
-					title: 'Application Config',
-					description: 'Org and user details',
-					mimeType: 'application/json'
-				},
-				async uri => ({contents: [{uri: uri.href, text: JSON.stringify(result, null, 2)}]})
+				'Salesforce org and user details',
+				'Details for the current target Salesforce org and the user logged in.',
+				'application/json',
+				JSON.stringify(result, null, 3),
+				{audience: ['user', 'assistant']}
 			);
+			content.push({type: 'resource', resource: resourceOrgAndUserDetails});
 		}
-
 		return {content, structuredContent: result};
 
 	} catch (error) {

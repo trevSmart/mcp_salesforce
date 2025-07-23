@@ -30,7 +30,7 @@ export async function executeSoqlQueryTool({query, useToolingApi = false}) {
 		return {
 			content: [{
 				type: 'text',
-				text: `SOQL query returned the following ${result.totalSize} records: ${JSON.stringify(result.records, null, '3')}`
+				text: `SOQL query returned the following ${result.totalSize} records: ${JSON.stringify(result.records, null, 3)}`
 			}],
 			structuredContent: result
 		};
