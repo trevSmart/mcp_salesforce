@@ -1,8 +1,13 @@
 import {executeSoqlQuery} from '../salesforceServices.js';
-import {log, textFileContent} from '../utils.js';
+import {log, textFileContent, getTimestamp} from '../utils.js';
+import {newResource} from '../mcp-server.js';
+import fs from 'fs/promises';
+import path from 'path';
 import {z} from 'zod';
+import state from '../state.js';
+import client from '../client.js';
 
-const SOQL_LIMIT = 1000;
+const SOQL_LIMIT = 50000;
 
 export const getSetupAuditTrailToolDefinition = {
 	name: 'getSetupAuditTrail',
@@ -11,13 +16,19 @@ export const getSetupAuditTrailToolDefinition = {
 	inputSchema: {
 		lastDays: z
 			.number()
+			.int()
+			.min(1)
+			.max(90)
+			.optional()
 			.describe('Number of days to query (between 1 and 90)'),
 		createdByName: z
 			.string()
 			.nullable()
-			.describe('Only the changes performed by this user will be returned (null to return changes from all users)'),
+			.optional()
+			.describe('Only the changes performed by this user will be returned (if not set, the changes from all users will be returned)'),
 		metadataName: z
 			.string()
+			.nullable()
 			.optional()
 			.describe('Name of the file or folder to get the changes of (e.g. "FOO_AlertMessages_Controller", "FOO_AlertMessage__c", "FOO_AlertNessageList_LWC", etc.)')
 	},
@@ -29,27 +40,20 @@ export const getSetupAuditTrailToolDefinition = {
 	}
 };
 
-export async function getSetupAuditTrailTool({lastDays, createdByName, metadataName}) {
+export async function getSetupAuditTrailTool({lastDays = 90, createdByName = null, metadataName = null}) {
 	try {
-		if (!lastDays) {
-			throw new Error('Last days is required');
-		}
-
 		let soqlQuery = 'SELECT Section, CreatedDate, CreatedBy.Name, Display FROM SetupAuditTrail';
 		let shouldFilterByMetadataName = metadataName && metadataName.trim() !== '';
-		let conditions = ['CreatedById != NULL'];
+		let conditions = [];
 
 		if (lastDays) {
-			conditions.push(`CreatedDate >= LAST_N_DAYS:${lastDays}`);
+			conditions.push(`CreatedDate = LAST_N_DAYS:${lastDays}`);
 		}
 		if (createdByName) {
 			conditions.push(`CreatedBy.Name = '${createdByName.replace(/'/g, '\\\'')}'`);
 		}
 		if (conditions.length) {
 			soqlQuery += ' WHERE ' + conditions.join(' AND ');
-		}
-		if (metadataName) {
-			soqlQuery += ` AND Display LIKE '%${metadataName}%'`;
 		}
 		soqlQuery += ` ORDER BY CreatedDate DESC LIMIT ${SOQL_LIMIT}`;
 
@@ -93,7 +97,7 @@ export async function getSetupAuditTrailTool({lastDays, createdByName, metadataN
 				return acc;
 			}
 
-			const userName = record.CreatedBy && record.CreatedBy.Name ? record.CreatedBy.Name : 'Unknown User';
+			const userName = record.CreatedBy.Name || 'Unknown';
 			if (!acc[userName]) {
 				acc[userName] = [];
 			}
@@ -127,14 +131,35 @@ export async function getSetupAuditTrailTool({lastDays, createdByName, metadataN
 		if (sizeBeforeFilters === SOQL_LIMIT) {
 			formattedResult.warning = `The number of query results is equal to the set limit (${SOQL_LIMIT}), so there might be additional records that were not returned.`;
 		}
+		const formattedResultString = JSON.stringify(formattedResult, null, 3);
 
-		return {
-			content: [{
-				type: 'text',
-				text: `✅ Setup audit trail history: ${JSON.stringify(formattedResult, null, '3')}`
-			}],
-			structuredContent: formattedResult
-		};
+		const tmpDir = path.join(state.workspacePath, 'tmp');
+		const fileName = `SetupAuditTrail_${getTimestamp()}.json`;
+		const fullPath = path.join(tmpDir, fileName);
+		try {
+			await fs.writeFile(fullPath, formattedResultString, 'utf8');
+		} catch (err) {
+			log(`Failed to write formattedResult to ${tmpDir}: ${err.message}`, 'error');
+		}
+
+		const content = [{
+			type: 'text',
+			text: formattedResultString
+		}];
+
+		if (client.isVsCode) {
+			const resource = newResource(
+				`file://setup-audit-trail/${fileName}`,
+				fileName,
+				'Setup audit trail history',
+				'application/json',
+				formattedResultString,
+				{audience: ['user', 'assistant']}
+			);
+			content.push({type: 'resource', resource});
+		}
+
+		return {content, structuredContent: formattedResult};
 
 	} catch (error) {
 		log(error, 'error');

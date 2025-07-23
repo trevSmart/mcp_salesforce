@@ -45,18 +45,16 @@ async function classNameElicitation() {
 		contents: [{uri: 'mcp://org/apex-test-classes-list.txt', text: testClassNames.join('\n')}]
 	};
 
-	if (client.supportsCapability('resources')) {
-		mcpServer.server.registerResource(
-			'Apex test classes list',
-			'mcp://org/apex-test-classes-list.txt',
-			{
-				title: 'Apex test classes list',
-				description: 'Apex test classes list',
-				mimeType: 'text/plain'
-			},
-			async uri => ({contents: [{uri: uri.href, text: testClassNames.join('\n')}]})
-		);
-	}
+	mcpServer.server.registerResource(
+		'Apex test classes list',
+		'mcp://org/apex-test-classes-list.txt',
+		{
+			title: 'Apex test classes list',
+			description: 'Apex test classes list',
+			mimeType: 'text/plain'
+		},
+		async uri => ({contents: [{uri: uri.href, text: testClassNames.join('\n')}]})
+	);
 
 	const elicitResult = await sendElicitRequest({
 		confirmation: {
@@ -79,7 +77,11 @@ async function classNameElicitation() {
 export async function runApexTestTool({classNames = [], methodNames = []}, _meta) {
 	try {
 		if (!classNames.length && !methodNames.length) {
-			classNames = [await classNameElicitation()];
+			if (client.supportsCapability('elicitation')) {
+				classNames = [await classNameElicitation()];
+			} else {
+				throw new Error('Test class or method name required');
+			}
 		}
 
 		let testRunId;
@@ -140,12 +142,11 @@ export async function runApexTestTool({classNames = [], methodNames = []}, _meta
 
 	} catch (error) {
 		log(error, 'error');
-
 		return {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: error.message
+				text: error
 			}]
 		};
 	}

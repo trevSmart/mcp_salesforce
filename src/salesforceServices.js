@@ -1,17 +1,53 @@
 import {log} from './utils.js';
-import {CONFIG} from './config.js';
+import {config} from './config.js';
 import {exec as execCallback} from 'child_process';
 import {promisify} from 'util';
 const execPromise = promisify(execCallback);
 import fs from 'fs/promises';
 import path from 'path';
-import {randomUUID} from 'crypto';
 import state from './state.js';
+import os from 'os';
+
+//Helper function to generate timestamp in YYMMDDHHMMSS format
+function generateTimestamp() {
+	const now = new Date();
+	const year = String(now.getFullYear()).slice(-2); //Get last 2 digits of year
+	const month = String(now.getMonth() + 1).padStart(2, '0');
+	const day = String(now.getDate()).padStart(2, '0');
+	const hours = String(now.getHours()).padStart(2, '0');
+	const minutes = String(now.getMinutes()).padStart(2, '0');
+	const seconds = String(now.getSeconds()).padStart(2, '0');
+
+	return `${year}${month}${day}${hours}${minutes}${seconds}`;
+}
+
+//Helper function to convert username to camelCase
+function toCamelCase(username) {
+	return username
+		.toLowerCase()
+		.replace(/[^a-z0-9\s]/g, '') //Remove special characters
+		.split(/\s+/)
+		.map((word, index) => {
+			if (index === 0) {
+				return word; //First word stays lowercase
+			}
+			return word.charAt(0).toUpperCase() + word.slice(1);
+		})
+		.join('');
+}
+
+//Helper function to generate filename with username and timestamp
+function generateApexFileName(username = 'unknown') {
+	const timestamp = generateTimestamp();
+	const camelCaseUsername = toCamelCase(username);
+	return `apexRun_${camelCaseUsername}${timestamp}`;
+}
 
 export async function runCliCommand(command) {
 	try {
 		log(`Running SF CLI command: ${command}`, 'debug');
-		const {stdout} = await execPromise(command, {maxBuffer: 100 * 1024 * 1024, cwd: CONFIG.workspacePath});
+		log(`Running SF CLI command - Workspace path: ${config.workspacePath}`, 'debug');
+		const {stdout} = await execPromise(command, {maxBuffer: 100 * 1024 * 1024, cwd: config.workspacePath});
 		log(`SF CLI command output: ${stdout}`, 'debug');
 
 		return stdout;
@@ -28,7 +64,7 @@ export async function executeSoqlQuery(query, useToolingApi = false) {
 			throw new Error('La consulta SOQL (query) és obligatòria i ha de ser una string');
 		}
 
-		const command = `sf data query --query "${query}"  ${useToolingApi ? '--use-tooling-api' : ''} --json`;
+		const command = `sf data query --query "${query}" ${useToolingApi ? '--use-tooling-api' : ''} --json`;
 		log(`Executing SOQL query command: ${command}`, 'debug');
 		const response = await JSON.parse(await runCliCommand(command));
 		if (response.status !== 0) {
@@ -54,7 +90,7 @@ export async function getOrgAndUserDetails() {
 			throw new Error('Error: No se pudo obtener la información del usuario de Salesforce');
 		}
 
-		log(`Org and user details successfully retrieved: \n${JSON.stringify(org, null, '3')}`, 'debug');
+		log(`Org and user details successfully retrieved: \n${JSON.stringify(org, null, 3)}`, 'debug');
 		return org;
 
 	} catch (error) {
@@ -81,7 +117,7 @@ export async function createRecord(sObjectName, fields, useToolingApi = false) {
 		return response.result;
 
 	} catch (error) {
-		log(`Error creating record in object ${sObjectName}: ${JSON.stringify(error, null, 2)}`, 'error');
+		log(`Error creating record in object ${sObjectName}: ${JSON.stringify(error, null, 3)}`, 'error');
 		throw error;
 	}
 }
@@ -103,7 +139,7 @@ export async function updateRecord(sObjectName, recordId, fields, useToolingApi 
 		return response.result;
 
 	} catch (error) {
-		log(`Error updating record ${recordId} in object ${sObjectName}: ${JSON.stringify(error, null, 2)}`, 'error');
+		log(`Error updating record ${recordId} in object ${sObjectName}: ${JSON.stringify(error, null, 3)}`, 'error');
 		throw error;
 	}
 }
@@ -123,7 +159,7 @@ export async function deleteRecord(sObjectName, recordId, useToolingApi = false)
 		return response.result;
 
 	} catch (error) {
-		log(`Error deleting record ${recordId} from object ${sObjectName}: ${JSON.stringify(error, null, 2)}`, 'error');
+		log(`Error deleting record ${recordId} from object ${sObjectName}: ${JSON.stringify(error, null, 3)}`, 'error');
 		throw error;
 	}
 }
@@ -203,14 +239,22 @@ export async function executeAnonymousApex(apexCode) {
 	if (!apexCode || typeof apexCode !== 'string') {
 		throw new Error('apexCode és obligatori i ha de ser una string');
 	}
-	const tmpDir = path.join(process.cwd(), 'tmp');
+	const tmpDir = os.tmpdir() || path.join(process.cwd(), 'tmp');
+
 	let tmpFile;
 	let tmpOutFile;
 	try {
 		//Assegura que la carpeta tmp existeix
 		await fs.mkdir(tmpDir, {recursive: true});
-		tmpFile = path.join(tmpDir, `anonymousApex_${randomUUID()}.apex`);
-		tmpOutFile = path.join(tmpDir, `anonymousApex_${randomUUID()}.json`);
+
+		//Get username from state or use 'unknown' as fallback
+		const username = state.org?.user?.name || 'unknown';
+
+		const baseFileName = generateApexFileName(username);
+		tmpFile = path.join(tmpDir, `${baseFileName}.apex`);
+		tmpOutFile = path.join(tmpDir, `${baseFileName}.log`);
+		log(`ÑÑÑÑTmp out file: ${tmpOutFile}`, 'debug');
+
 		//Escriu el codi Apex al fitxer temporal
 		await fs.writeFile(tmpFile, apexCode, 'utf8');
 		const command = `sf apex run --file "${tmpFile}" --json > "${tmpOutFile}"`;
@@ -258,11 +302,12 @@ export async function executeAnonymousApex(apexCode) {
 		return response.result;
 
 	} catch (error) {
-		log(`Error executing anonymous Apex: ${JSON.stringify(error, null, 2)}`, 'error');
+		log(`Error executing anonymous Apex: ${JSON.stringify(error, null, 3)}`, 'error');
 		throw error;
 
 	} finally {
-		//Elimina els fitxers temporals
+		//Elimina els fitxers temporals (comentat per mantenir els fitxers)
+		/*
 		if (tmpFile) {
 			try {
 				await fs.unlink(tmpFile);
@@ -277,6 +322,7 @@ export async function executeAnonymousApex(apexCode) {
 				//No passa res si no es pot eliminar
 			}
 		}
+		*/
 	}
 }
 
@@ -286,7 +332,7 @@ export async function deployMetadata(sourceDir) {
 		const response = JSON.parse(await runCliCommand(command));
 
 		if (response.status !== 0 || (response.exitCode ?? 0) !== 0) {
-			throw new Error(JSON.stringify(response));
+			throw new Error(JSON.stringify(response, null, 3));
 		}
 		return response;
 
@@ -316,7 +362,7 @@ export async function callSalesforceApi(operation, apiPath, body = null, baseUrl
 		let command = `curl -X ${operation} -H "Authorization: Bearer ${state.currentAccessToken}" -H "Content-Type: application/json"`;
 
 		if (body && (operation === 'POST' || operation === 'PATCH' || operation === 'PUT')) {
-			command += ` -d '${JSON.stringify(body)}'`;
+			command += ` -d '${JSON.stringify(body, null, 3)}'`;
 		}
 
 		command += ` "${endpoint}"`;

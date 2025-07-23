@@ -109,12 +109,12 @@ async function testTool(name, args, displayName, expectError = false) {
 		//Si no és cap dels casos anteriors, és KO
 		process.stdout.write(`   ${CYAN}${shownName}${RESET}... ${RED}KO${RESET}\n`);
 		if (result) {
-			process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+			process.stdout.write(JSON.stringify(result, null, 3) + '\n');
 		}
 		return false;
 	} catch (e) {
 		process.stdout.write(`   ${CYAN}${shownName}${RESET}... ${RED}KO${RESET}\n`);
-		process.stdout.write((e && e.stack ? e.stack : JSON.stringify(e, null, 2)) + '\n');
+		process.stdout.write((e && e.stack ? e.stack : JSON.stringify(e, null, 3)) + '\n');
 		return null;
 	}
 }

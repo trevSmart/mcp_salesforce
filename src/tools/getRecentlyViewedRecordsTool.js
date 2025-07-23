@@ -1,5 +1,5 @@
 import {executeSoqlQuery} from '../salesforceServices.js';
-import {textFileContent} from '../utils.js';
+import {textFileContent, log} from '../utils.js';
 
 export const getRecentlyViewedRecordsToolDefinition = {
 	name: 'getRecentlyViewedRecords',
@@ -18,6 +18,16 @@ export async function getRecentlyViewedRecordsTool() {
 	try {
 		const query = 'SELECT Id, Name, Type, LastViewedDate FROM RecentlyViewed ORDER BY LastViewedDate DESC LIMIT 100';
 		const response = await executeSoqlQuery(query);
+
+		if (response.records.length === 0) {
+			return {
+				content: [{
+					type: 'text',
+					text: JSON.stringify({records: []})
+				}],
+				structuredContent: {records: []}
+			};
+		}
 
 		const structuredContent = {
 			records: response.records
@@ -38,8 +48,7 @@ export async function getRecentlyViewedRecordsTool() {
 			content: [{
 				type: 'text',
 				text: JSON.stringify(errorContent)
-			}],
-			structuredContent: errorContent
+			}]
 		};
 	}
 }

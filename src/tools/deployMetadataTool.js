@@ -1,4 +1,5 @@
 import state from '../state.js';
+import {mcpServer, sendElicitRequest} from '../mcp-server.js';
 import client from '../client.js';
 import {deployMetadata} from '../salesforceServices.js';
 import {log, textFileContent} from '../utils.js';
@@ -10,7 +11,7 @@ export const deployMetadataToolDefinition = {
 	description: textFileContent('deployMetadataTool'),
 	inputSchema: {
 		sourceDir: z
-			.string()
+				.string()
 			.describe('The path to the local metadata file to deploy.')
 	},
 	annotations: {
@@ -25,7 +26,7 @@ export const deployMetadataToolDefinition = {
 export async function deployMetadataTool({sourceDir}) {
 	try {
 		if (client.supportsCapability('elicitation')) {
-			const elicitResult = await server.sendElicitRequest({
+			const elicitResult = await sendElicitRequest({
 				confirmation: {
 					type: 'string',
 					title: 'Deploy metadata confirmation',

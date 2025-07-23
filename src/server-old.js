@@ -16,7 +16,7 @@ import {
 
 import {log, validateUserPermissions} from './utils.js';
 import {getOrgAndUserDetails} from './salesforceServices.js';
-import {CONFIG} from './config.js';
+import {config} from './config.js';
 import state from './state.js';
 import client from './client.js';
 
@@ -79,24 +79,6 @@ class Server {
 	async init() {
 		/*
 
-		const listRootsResultHandler = async listRootsResult => {
-			try {
-				if (listRootsResult && 'roots' in listRootsResult) {
-					//Si la variable d'entorn estava buida, actualitzem la ruta del workspace
-					if (!process.env.WORKSPACE_FOLDER_PATHS && listRootsResult.roots.length) {
-						CONFIG.setWorkspacePath(listRootsResult.roots[0].uri);
-						log(`Workspace path set from roots: "${CONFIG.workspacePath}"`, 'debug');
-					}
-				}
-			} catch (error) {
-				const errorMessage = error instanceof Error ? error.message : String(error);
-				log(`Failed to request roots from client: ${errorMessage}`, 'error');
-			}
-		};
-
-		server.setNotificationHandler(RootsListChangedNotificationSchema, async () => listRootsResultHandler(await server.listRoots()));
-		*/
-
 
 		/*
 		//Register resources
@@ -108,14 +90,6 @@ class Server {
 		*/
 
 		/*
-		//Registre de tpols (a baox nivell, sense usar el SDK)
-		const toolNames = [
-			'apexDebugLogs', 'salesforceMcpUtils', 'getOrgAndUserDetails', 'dmlOperation', 'deployMetadata',
-			'describeObject', 'executeAnonymousApex', 'getRecentlyViewedRecords', 'getRecord',
-			'getSetupAuditTrail', 'executeSoqlQuery', 'runApexTest'
-		];
-
-		server.setRequestHandler(ListToolsRequestSchema, async () => ({tools: toolNames.map(name => eval(name + 'ToolDefinition'))}));
 
 		const callToolRequestHandler = async request => {
 			const {name, arguments: args, _meta = {}} = request.params;
@@ -152,7 +126,7 @@ class Server {
 		this.server.registerTool('apexDebugLogs', apexDebugLogsToolDefinition, apexDebugLogsTool);
 
 		this.serverLowLevel.setRequestHandler(SetLevelRequestSchema, async ({params}) => {
-			CONFIG.setLogLevel(params.level);
+			config.setLogLevel(params.level);
 			return {};
 		});
 		this.serverLowLevel.setRequestHandler(InitializeRequestSchema, async ({params}) => {
@@ -178,7 +152,7 @@ class Server {
 
 		await this.server.connect(new StdioServerTransport()).then(() => new Promise(r => setTimeout(r, 400)));
 
-		CONFIG.workspacePath && log(`Working directory: "${CONFIG.workspacePath}"`, 'debug');
+		config.workspacePath && log(`Working directory: "${config.workspacePath}"`, 'debug');
 
 		return {
 			protocolVersion: SERVER_CONSTANTS.protocolVersion,

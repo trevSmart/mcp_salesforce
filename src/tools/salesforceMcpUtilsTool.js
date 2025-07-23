@@ -1,4 +1,5 @@
 import {globalCache} from '../cache.js';
+import client from '../client.js';
 import state from '../state.js';
 import {log} from '../utils.js';
 import {textFileContent} from '../utils.js';
@@ -53,12 +54,13 @@ export async function salesforceMcpUtilsTool({action}) {
 			};
 
 		} else if (action === 'getState') {
+			const output = {state, client};
 			return {
 				content: [{
 					type: 'text',
-					text: JSON.stringify(state, null, 2)
+					text: JSON.stringify(output, null, 3)
 				}],
-				structuredContent: state
+				structuredContent: output
 			};
 
 		} else {

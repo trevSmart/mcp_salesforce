@@ -1,9 +1,11 @@
 import state from '../state.js';
-import {log, textFileContent} from '../utils.js';
+import {log, textFileContent, getTimestamp} from '../utils.js';
 import {executeAnonymousApex} from '../salesforceServices.js';
-import {sendElicitRequest, newResource} from '../mcp-server.js';
+import {mcpServer, sendElicitRequest, newResource} from '../mcp-server.js';
 import client from '../client.js';
 import {z} from 'zod';
+import fs from 'fs/promises';
+import path from 'path';
 
 export const executeAnonymousApexToolDefinition = {
 	name: 'executeAnonymousApex',
@@ -64,42 +66,41 @@ export async function executeAnonymousApexTool({apexCode, mayModify}) {
 		const formattedCode = formatApexCode(apexCode);
 		const result = await executeAnonymousApex(formattedCode);
 
-		//Create a temporary file with the content of result.logs
-		const fs = await import('fs/promises');
-		const path = await import('path');
-
 		const content = [{
 			type: 'text',
-			text: `Resultat execució Anonymous Apex:\n\n${JSON.stringify(result, null, 2)}`
+			text: `Resultat execució Anonymous Apex:\n\n${JSON.stringify(result.logs)}`
 		}];
 
-		if (client.isVscode && result?.logs) {
-			const tmpDir = state.workspacePath + '/tmp';
-			const logFileName = `anonymousApex_${Date.now()}.log`;
-			await fs.mkdir(tmpDir, {recursive: true});
-			await fs.writeFile(path.join(tmpDir, logFileName), result.logs, 'utf8');
+		const tmpDir = path.join(state.workspacePath, 'tmp');
+		//Use the same naming format as the main execution
+		const username = state.org?.user?.name || 'unknown';
 
+		const logFileName = `ApexRun_${getTimestamp()}.log`;
+		await fs.mkdir(tmpDir, {recursive: true});
+		await fs.writeFile(path.join(tmpDir, logFileName), result.logs, 'utf8');
+		const logSize = (Buffer.byteLength(result.logs, 'utf8') / 1024).toFixed(1);
+		if (client.isVsCode && result?.logs) {
 			const resourceApexLog = newResource(
 				`file://apex/${logFileName}`,
+				logFileName,
+				`${getTimestamp(true)} - ${username} - ${logSize}KB`,
 				'text/plain',
 				result.logs,
-				{audience: ['user', 'assistant'], lastModified: new Date().toISOString()}
+				{audience: ['user', 'assistant']}
 			);
 			content.push({type: 'resource', resource: resourceApexLog});
 		}
-
+		mcpServer.server.sendResourceListChanged();
 		return {content, structuredContent: result};
 
 	} catch (error) {
 		log(error, 'error');
-		const errorContent = {error: true, message: error.message};
 		return {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: JSON.stringify(errorContent)
-			}],
-			structuredContent: errorContent
+				text: `Error: ${error.message}`
+			}]
 		};
 	}
 }

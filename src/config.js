@@ -1,3 +1,28 @@
+import {createRequire} from 'module';
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json');
+
+import {log, getAgentInstructions} from './utils.js';
+
+export const SERVER_CONSTANTS = {
+	protocolVersion: '2025-06-18',
+	serverInfo: {
+		name: 'salesforce-mcp',
+		version: pkg.version
+	},
+	capabilities: {
+		logging: {},
+		resources: {
+			//subscribe: true,
+			listChanged: true
+		},
+		prompts: {},
+		tools: {}
+		//elicitation: {}
+	},
+	instructions: getAgentInstructions('mcpServer')
+};
+
 class Config {
 	constructor() {
 		this.currentLogLevel = 'info'; //7: debug, 6: info, 5: notice, 4: warning, 3: error, 2: critical, 1: alert, 0: emergency
@@ -17,7 +42,8 @@ class Config {
 		} else {
 			this.workspacePath = path;
 		}
+		log(`Workspace path: "${this.workspacePath}"`, 'info');
 	}
 }
 
-export const CONFIG = new Config();
+export const config = new Config();

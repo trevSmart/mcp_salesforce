@@ -1,21 +1,18 @@
-import {createRequire} from 'module';
-const require = createRequire(import.meta.url);
-const pkg = require('../package.json');
+
 import os from 'os';
-import {exec} from 'child_process';
-import {promisify} from 'util';
-const execPromise = promisify(exec);
 
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
 import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
 	SetLevelRequestSchema,
 	InitializeRequestSchema,
-	ListResourcesRequestSchema
+	RootsListChangedNotificationSchema,
+	ListResourcesRequestSchema,
+	ReadResourceRequestSchema
 } from '@modelcontextprotocol/sdk/types.js';
 
 import {log, validateUserPermissions} from './utils.js';
-import {CONFIG} from './config.js';
+import {config, SERVER_CONSTANTS} from './config.js';
 import client from './client.js';
 import {getOrgAndUserDetails} from './salesforceServices.js';
 import state from './state.js';
@@ -33,29 +30,8 @@ import {getSetupAuditTrailToolDefinition, getSetupAuditTrailTool} from './tools/
 import {executeSoqlQueryToolDefinition, executeSoqlQueryTool} from './tools/executeSoqlQueryTool.js';
 import {runApexTestToolDefinition, runApexTestTool} from './tools/runApexTestTool.js';
 import {apexDebugLogsToolDefinition, apexDebugLogsTool} from './tools/apexDebugLogsTool.js';
-//import {generateSoqlQueryToolDefinition, generateSoqlQueryTool} from './tools/generateSoqlQueryTool.js';
+import {generateSoqlQueryToolDefinition, generateSoqlQueryTool} from './tools/generateSoqlQueryTool.js';
 
-const SERVER_CONSTANTS = {
-	protocolVersion: '2025-06-18',
-	serverInfo: {
-		name: 'salesforce-mcp',
-		version: pkg.version
-	},
-	capabilities: {
-		logging: {},
-		resources: {
-			subscribe: true,
-			listChanged: true
-		},
-		prompts: {},
-		tools: {},
-		completions: {},
-		elicitation: {}
-	},
-	instructions: 'This is a Salesforce MCP server. It is used to interact with Salesforce.'
-};
-
-//Global resources storage
 export const resources = {};
 
 //Create the MCP server instance
@@ -70,15 +46,34 @@ const mcpServer = new McpServer(serverInfo, {
 	]
 });
 
+//Ready promise mechanism for external waiting
+let resolveServerReady;
+const readyPromise = new Promise(resolve => resolveServerReady = resolve);
+
 //Server initialization function
 export async function setupServer() {
-	//Set up resource handling
+
+	mcpServer.server.setNotificationHandler(RootsListChangedNotificationSchema, async listRootsResult => {
+		try {
+			listRootsResult = await mcpServer.server.listRoots();
+
+			//Alguns clients fan servir el primer root per establir el directori del workspace
+			if (!config.workspacePath
+			&& listRootsResult.roots?.[0]?.uri.startsWith('file://')) {
+				config.setWorkspacePath(listRootsResult.roots[0].uri);
+			}
+
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			log(`Failed to request roots from client: ${errorMessage}`, 'error');
+		}
+	});
+
 	mcpServer.server.setRequestHandler(ListResourcesRequestSchema, async () => ({resources: Object.values(resources)}));
+	mcpServer.server.setRequestHandler(ReadResourceRequestSchema, async ({params: {uri}}) => ({contents: [{uri, ...resources[uri]}]}));
 
-	//Register prompts
+	//Register prompts, resources and tools
 	mcpServer.registerPrompt('code-modification', codeModificationPromptDefinition, codeModificationPrompt);
-
-	//Register tools
 	mcpServer.registerTool('salesforceMcpUtils', salesforceMcpUtilsToolDefinition, salesforceMcpUtilsTool);
 	mcpServer.registerTool('getOrgAndUserDetails', getOrgAndUserDetailsToolDefinition, getOrgAndUserDetailsTool);
 	mcpServer.registerTool('dmlOperation', dmlOperationToolDefinition, dmlOperationTool);
@@ -94,7 +89,7 @@ export async function setupServer() {
 
 	//Set up request handlers
 	mcpServer.server.setRequestHandler(SetLevelRequestSchema, async ({params}) => {
-		CONFIG.setLogLevel(params.level);
+		config.setLogLevel(params.level);
 		return {};
 	});
 
@@ -102,27 +97,41 @@ export async function setupServer() {
 		try {
 			const {clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion} = params;
 			client.initialize({clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion});
-
 			log(`IBM Salesforce MCP server (v${SERVER_CONSTANTS.serverInfo.version})`, 'notice');
-			log(`Connecting with client: "${client.clientInfo.name} (v${client.clientInfo.version})"`, 'notice');
-			log(`Client capabilities: ${JSON.stringify(client.capabilities, null, '3')}`, 'debug');
+			log(`Connecting with client "${client.clientInfo.name} (v${client.clientInfo.version})"`, 'notice');
+			log(`Client capabilities: ${JSON.stringify(client.capabilities, null, 3)}`, 'info');
 
-			/*
+			if (process.env.WORKSPACE_FOLDER_PATHS) {
+				config.setWorkspacePath(process.env.WORKSPACE_FOLDER_PATHS);
+			}
+
+			//if (client.supportsCapability('roots')) {
+			await mcpServer.server.listRoots();
+			//}
 			if (client.supportsCapability('sampling')) {
 				mcpServer.registerTool('generateSoqlQuery', generateSoqlQueryToolDefinition, generateSoqlQueryTool);
 			}
-			*/
 
 			//Execute org setup and validation asynchronously
 			(async () => {
 				try {
-					await execPromise(`${os.platform() === 'win32' ? 'set' : 'export'} HOME=${process.env.HOME}`);
+					process.env.HOME = process.env.HOME || os.homedir();
 					const org = await getOrgAndUserDetails();
 					state.org = org;
 					log(`Server initialized and running. Target org: ${org.alias}`, 'debug');
 					await validateUserPermissions(org.user.id);
+					//setInterval(() => validateUserPermissions(org.user.id), 1200000);
+
+					//Mark server as ready after org setup is complete
+					if (typeof resolveServerReady === 'function') {
+						resolveServerReady();
+					}
 				} catch (error) {
 					log(`Error during async org setup: ${error.message}`, 'error');
+					//Even if there's an error, mark server as ready to prevent hanging
+					if (typeof resolveServerReady === 'function') {
+						resolveServerReady();
+					}
 				}
 			})();
 
@@ -134,9 +143,7 @@ export async function setupServer() {
 		}
 	});
 
-	//Connect to transport
 	await mcpServer.connect(new StdioServerTransport()).then(() => new Promise(r => setTimeout(r, 400)));
-	CONFIG.workspacePath && log(`Working directory: "${CONFIG.workspacePath}"`, 'debug');
 
 	return {protocolVersion, serverInfo, capabilities};
 }
@@ -156,13 +163,13 @@ export async function sendElicitRequest(elicitationProperties) {
 	}
 }
 
-export function newResource(uri, mimeType = 'text/plain', content, annotations = {}) {
+export function newResource(uri, name, description, mimeType = 'text/plain', content, annotations = {}) {
 	annotations = {...annotations, lastModified: new Date().toISOString()};
 	try {
 		const resource = {
 			uri,
-			name: uri,
-			description: uri,
+			name,
+			description,
 			mimeType,
 			text: content,
 			annotations
@@ -179,5 +186,5 @@ export function newResource(uri, mimeType = 'text/plain', content, annotations =
 	}
 }
 
-//Export the server instance for direct access when needed
-export {mcpServer};
+//Export the ready promise for external use
+export {readyPromise, mcpServer};

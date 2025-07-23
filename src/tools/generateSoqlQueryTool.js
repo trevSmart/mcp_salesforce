@@ -1,6 +1,6 @@
 import {z} from 'zod';
 import {describeObject} from '../salesforceServices.js';
-import {log, textFileContent, getSystemPrompt} from '../utils.js';
+import {log, textFileContent, getAgentInstructions} from '../utils.js';
 import {mcpServer} from '../mcp-server.js';
 
 export const generateSoqlQueryToolDefinition = {
@@ -146,7 +146,7 @@ export async function generateSoqlQueryTool({soqlQueryDescription, involvedSObje
 
 		const samplingResponse = await mcpServer.server.createMessage({
 			messages: [{role: 'user', content: {type: 'text', text: samplingPrompt}}],
-			systemPrompt: getSystemPrompt('generateSoqlQueryToolSampling'),
+			systemPrompt: getAgentInstructions('generateSoqlQueryToolSampling'),
 			modelPreferences: {speedPriority: 0, intelligencePriority: 1},
 			maxTokens: 3000
 		});
