@@ -1,4 +1,4 @@
-import {mcpServer, resources, sendElicitRequest} from '../mcp-server.js';
+import {mcpServer, resources, sendElicitRequest, newResource} from '../mcp-server.js';
 import client from '../client.js';
 import {runApexTest, executeSoqlQuery} from '../salesforceServices.js';
 import {log, textFileContent, notifyProgressChange} from '../utils.js';
@@ -29,31 +29,24 @@ export const runApexTestToolDefinition = {
 };
 
 async function classNameElicitation() {
-	if ('Apex test classes list' in resources) {
-		return resources['Apex test classes list'].contents[0].text; //PENDENT
-	}
+	//if ('Apex test classes list' in resources) {
+	//return resources['Apex test classes list'].contents[0].text; //PENDENT
+	//}
 
-	const soqlQuery = 'SELECT Name, Body FROM ApexClass WHERE NamespacePrefix = NULL AND Status = \'Active\' ORDER BY Name';
+	const soqlQuery = 'SELECT Name, Body, FORMAT(LastModifiedDate), LastModifiedBy.Name FROM ApexClass WHERE NamespacePrefix = NULL AND Status = \'Active\' ORDER BY Name';
 	const classes = (await executeSoqlQuery(soqlQuery)).records;
-	const testClasses = classes.filter(r => r.Body.toLowerCase().includes('@istest'));
-	const testClassNames = testClasses.map(r => r.Name);
+	const testClasses = classes.filter(r => r.Body.toLowerCase().includes('@istest')).map(r => ({
+		name: r.Name,
+		description: `${r.LastModifiedBy.Name} · ${r.LastModifiedDate}`
+	}));
 
-	resources['Apex test classes list'] = {
-		title: 'Apex test classes list',
-		description: 'Apex test classes list',
-		mimeType: 'text/plain',
-		contents: [{uri: 'mcp://org/apex-test-classes-list.txt', text: testClassNames.join('\n')}]
-	};
-
-	mcpServer.server.registerResource(
+	newResource(
 		'Apex test classes list',
-		'mcp://org/apex-test-classes-list.txt',
-		{
-			title: 'Apex test classes list',
-			description: 'Apex test classes list',
-			mimeType: 'text/plain'
-		},
-		async uri => ({contents: [{uri: uri.href, text: testClassNames.join('\n')}]})
+		'mcp://mcp/apex-test-classes-list.txt',
+		'Apex test classes list',
+		'text/plain',
+		JSON.stringify(testClasses, null, 3),
+		{audience: ['assistant']}
 	);
 
 	const elicitResult = await sendElicitRequest({
@@ -61,8 +54,8 @@ async function classNameElicitation() {
 			type: 'string',
 			title: 'Select the Apex test class to run (all its methods will be evaluated).',
 			description: 'Select the Apex class to test.',
-			enum: testClassNames,
-			enumNames: testClassNames
+			enum: testClasses.map(r => r.name),
+			enumNames: testClasses.map(r => r.description)
 		}
 	});
 	if (elicitResult.action !== 'accept' || !elicitResult.content?.confirmation) {
@@ -80,6 +73,7 @@ export async function runApexTestTool({classNames = [], methodNames = []}, _meta
 			if (client.supportsCapability('elicitation')) {
 				classNames = [await classNameElicitation()];
 			} else {
+				console.error('NO SUPPORT ELICITATION');
 				throw new Error('Test class or method name required');
 			}
 		}
@@ -141,6 +135,8 @@ export async function runApexTestTool({classNames = [], methodNames = []}, _meta
 		};
 
 	} catch (error) {
+		console.error('!!!!runApexTestTool error');
+		console.error(error);
 		log(error, 'error');
 		return {
 			isError: true,

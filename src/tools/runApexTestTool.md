@@ -1,6 +1,8 @@
 # Run Apex Test
 
-Allows you to run all the tests in a Apex test class or specific test methods.
+Allows you to run Apex text classes or specific Apex test classes methods.
+
+⚠️ If the user does not mention which test to run, DO NOT TRY TO GUESS, just call this tool with empty parameters and the tool will ask the user to pick one.
 
 ---
 ## Agent Instructions

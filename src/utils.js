@@ -92,7 +92,10 @@ export function saveToFile(object, filename) {
 export function getAgentInstructions(name) {
 	switch (name) {
 		case 'mcpServer':
-			return 'You are an expert **Salesforce MCP server** developer.';
+			return `You are an expert **Salesforce MCP server** developer.
+
+USAGE:
+Always follow the instructions in the tool description, specially the IMPORTANT instructions.`;
 
 		case 'generateSoqlQueryToolSampling':
 			return `

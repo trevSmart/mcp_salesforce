@@ -45,13 +45,34 @@ const expectedErrorPatterns = [
 	{
 		tool: 'getRecord',
 		pattern: /Error getting record 001XXXXXXXXXXXXXXX from object Account/
+	},
+	{
+		tool: 'getRecord',
+		pattern: /Command failed: sf data get record --sobject Account --record-id 001XXXXXXXXXXXXXXX --json/
+	},
+	{
+		tool: 'getRecord',
+		pattern: /Provided external ID field does not exist or is not accessible: 001XXXXXXXXXXXXXXX/
 	}
 	//Si cal, afegeix més patrons aquí
 ];
 
+//Variable global per controlar si estem en una prova amb error esperat
+let currentTestExpectsError = false;
+
 process.stdout.write = function(chunk, encoding, callback) {
 	let text = chunk instanceof Buffer ? chunk.toString('utf8') : chunk;
 	let printed = false;
+
+	//Si estem esperant un error, comprova si aquest text conté un error esperat
+	if (currentTestExpectsError) {
+		const isExpectedError = expectedErrorPatterns.some(({pattern}) => pattern.test(text));
+		if (isExpectedError) {
+			//No imprimir l'error esperat
+			return false;
+		}
+	}
+
 	try {
 		const json = JSON.parse(text);
 		if (json && json.method === 'notifications/message' && json.params && json.params.level) {
@@ -88,6 +109,10 @@ process.stdout.write = function(chunk, encoding, callback) {
 
 async function testTool(name, args, displayName, expectError = false) {
 	const shownName = displayName || name;
+
+	//Activa el flag per errors esperats
+	currentTestExpectsError = expectError;
+
 	try {
 		const toolFunction = toolFunctions[name];
 		if (!toolFunction) {
@@ -115,6 +140,9 @@ async function testTool(name, args, displayName, expectError = false) {
 		process.stdout.write(`   ${CYAN}${shownName}${RESET}... ${RED}KO${RESET}\n`);
 		process.stdout.write((e && e.stack ? e.stack : JSON.stringify(e, null, 3)) + '\n');
 		return {success: false, result: null, error: e};
+	} finally {
+		//Desactiva el flag després de la prova
+		currentTestExpectsError = false;
 	}
 }
 
@@ -132,11 +160,8 @@ async function runSequentialTests() {
 }
 
 async function main() {
-	process.stdout.write(GRAY + 'Initializing MCP server... ');
-	await setupServer();
-	process.stdout.write('done.\n');
-
 	process.stdout.write(GRAY + 'Waiting for MCP server initialization... ');
+	await setupServer();
 	await readyPromise;
 	process.stdout.write('done. Running tests...\n' + RESET);
 
@@ -145,12 +170,16 @@ async function main() {
 		['runApexTest', {classNames: [], methodNames: ['CSBD_Utils_Test.hexToDec']}, 'Tool runApexTest'],
 		['getOrgAndUserDetails', {}, 'Tool getOrgAndUserDetails'],
 		['executeSoqlQuery', {query: 'SELECT Id, Name FROM Account LIMIT 3', useToolingApi: false}, 'Tool executeSoqlQuery'],
+		['executeSoqlQuery', {query: 'SELECT Id FROM TraceFlag LIMIT 3', useToolingApi: true}, 'Tool executeSoqlQuery (with tooling API)'],
 		['describeObject', {sObjectName: 'Account', include: 'all'}, 'Tool describeObject (all)'],
 		['describeObject', {sObjectName: 'Account', include: 'fields'}, 'Tool describeObject (fields)'],
 		['executeAnonymousApex', {apexCode: 'System.debug(\'Hello World!\');', mayModify: true}, 'Tool executeAnonymousApex'],
 		['getRecentlyViewedRecords', {}, 'Tool getRecentlyViewedRecords'],
-		['getSetupAuditTrail', {lastDays: 7, createdByName: ''}, 'Tool getSetupAuditTrail'],
-		['getRecord', {sObjectName: 'Account', recordId: '001XXXXXXXXXXXXXXX'}, 'Tool getRecord (recordId inexistent)', true] //Prova d'id inexistent
+		['getSetupAuditTrail', {lastDays: 1}, 'Tool getSetupAuditTrail (last day)'],
+		['getSetupAuditTrail', {lastDays: 7, createdByName: 'Marc Pla'}, 'Tool getSetupAuditTrail (last week, filter by user)'],
+		['getSetupAuditTrail', {lastDays: 7, metadataName: 'CSBD_Utils'}, 'Tool getSetupAuditTrail (last week, filter by metadata)'],
+		['getRecord', {sObjectName: 'Account', recordId: '001XXXXXXXXXXXXXXX'}, 'Tool getRecord (recordId inexistent)', true], //Prova d'id inexistent
+		['salesforceMcpUtils', {action: 'getState'}, 'Tool salesforceMcpUtils (getState)']
 	];
 
 	const parallelTests = Promise.all(parallelTestsList.map(async ([name, args, displayName, expectError]) => {

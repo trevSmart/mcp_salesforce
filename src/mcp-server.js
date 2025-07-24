@@ -30,9 +30,11 @@ import {getSetupAuditTrailToolDefinition, getSetupAuditTrailTool} from './tools/
 import {executeSoqlQueryToolDefinition, executeSoqlQueryTool} from './tools/executeSoqlQueryTool.js';
 import {runApexTestToolDefinition, runApexTestTool} from './tools/runApexTestTool.js';
 import {apexDebugLogsToolDefinition, apexDebugLogsTool} from './tools/apexDebugLogsTool.js';
-import {generateSoqlQueryToolDefinition, generateSoqlQueryTool} from './tools/generateSoqlQueryTool.js';
+//import {generateSoqlQueryToolDefinition, generateSoqlQueryTool} from './tools/generateSoqlQueryTool.js';
 
 export const resources = {};
+
+
 
 //Create the MCP server instance
 const {protocolVersion, serverInfo, capabilities, instructions} = SERVER_CONSTANTS;
@@ -45,6 +47,27 @@ const mcpServer = new McpServer(serverInfo, {
 		'notifications/prompts/list_changed'
 	]
 });
+
+export function newResource(uri, name, description, mimeType = 'text/plain', content, annotations = {}) {
+	annotations = {...annotations, lastModified: new Date().toISOString()};
+	try {
+		const resource = {
+			uri,
+			name,
+			description,
+			mimeType,
+			text: content,
+			annotations
+		};
+		resources[uri] = resource;
+
+		mcpServer.server.sendResourceListChanged();
+		return resource;
+
+	} catch (error) {
+		log(`Error setting resource ${uri}: ${error.message}`, 'error');
+	}
+}
 
 //Ready promise mechanism for external waiting
 let resolveServerReady;
@@ -105,12 +128,12 @@ export async function setupServer() {
 				config.setWorkspacePath(process.env.WORKSPACE_FOLDER_PATHS);
 			}
 
-			//if (client.supportsCapability('roots')) {
 			await mcpServer.server.listRoots();
-			//}
+			/*
 			if (client.supportsCapability('sampling')) {
 				mcpServer.registerTool('generateSoqlQuery', generateSoqlQueryToolDefinition, generateSoqlQueryTool);
 			}
+			*/
 
 			//Execute org setup and validation asynchronously
 			(async () => {
@@ -118,17 +141,22 @@ export async function setupServer() {
 					process.env.HOME = process.env.HOME || os.homedir();
 					const org = await getOrgAndUserDetails();
 					state.org = org;
+
+					newResource(
+						'mcp://mcp/orgAndUserDetail.json',
+						'Org and user details',
+						'Org and user details',
+						'application/json',
+						JSON.stringify(org, null, 3)
+					);
+
 					log(`Server initialized and running. Target org: ${org.alias}`, 'debug');
 					await validateUserPermissions(org.user.id);
 					//setInterval(() => validateUserPermissions(org.user.id), 1200000);
-
-					//Mark server as ready after org setup is complete
-					if (typeof resolveServerReady === 'function') {
-						resolveServerReady();
-					}
 				} catch (error) {
 					log(`Error during async org setup: ${error.message}`, 'error');
-					//Even if there's an error, mark server as ready to prevent hanging
+				} finally {
+					//Mark server as ready after org setup is complete (or failed)
 					if (typeof resolveServerReady === 'function') {
 						resolveServerReady();
 					}
@@ -150,7 +178,9 @@ export async function setupServer() {
 
 //Utility functions
 export async function sendElicitRequest(elicitationProperties) {
+	console.error('!!!! sendElicitRequest');
 	if (client.supportsCapability('elicitation')) {
+		console.error('!!!! sendElicitRequest 2');
 		const elicitationResult = await mcpServer.server.elicitInput({
 			message: elicitationProperties.description,
 			requestedSchema: {
@@ -160,29 +190,6 @@ export async function sendElicitRequest(elicitationProperties) {
 			}
 		});
 		return elicitationResult;
-	}
-}
-
-export function newResource(uri, name, description, mimeType = 'text/plain', content, annotations = {}) {
-	annotations = {...annotations, lastModified: new Date().toISOString()};
-	try {
-		const resource = {
-			uri,
-			name,
-			description,
-			mimeType,
-			text: content,
-			annotations
-		};
-		resources[uri] = resource;
-
-		if (client.supportsCapability('resources')) {
-			mcpServer.server.sendResourceListChanged();
-		}
-		return resource;
-
-	} catch (error) {
-		log(`Error setting resource ${uri}: ${error.message}`, 'error');
 	}
 }
 
