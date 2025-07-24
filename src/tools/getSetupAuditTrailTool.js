@@ -59,7 +59,6 @@ export async function getSetupAuditTrailTool({lastDays = 90, createdByName = nul
 
 		//Clean the query by replacing line breaks and tabs with spaces
 		const cleanQuery = soqlQuery.replace(/[\n\t\r]+/g, ' ').trim();
-
 		const response = await executeSoqlQuery(cleanQuery);
 
 		if (!response || !Array.isArray(response.records)) {
