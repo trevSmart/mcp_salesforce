@@ -1,27 +1,18 @@
+import {z} from 'zod';
+import {completable} from '@modelcontextprotocol/sdk/server/completable.js';
+
 export const codeModificationPromptDefinition = {
-	title: 'code-modification',
+	title: 'Code modification',
 	description: 'Code modification',
-	arguments: [
-		{
-			name: 'current-behavior',
-			description: 'Current behavior of the code before the modification',
-			required: true
-		},
-		{
-			name: 'desired-behavior',
-			description: 'Desired behavior of the code after the modification',
-			required: true
-		},
-		{
-			name: 'update-tests',
-			description: 'Update tests to reflect the new behavior of the code',
-			required: false,
-			completable: ['yes', 'no']
-		}
-	]
+	arguments: {
+		currentBehavior: {code: z.string().describe('Current behavior of the code')},
+		desiredBehavior: {code: z.string().describe('Desired behavior of the code after the modification')},
+		updateTests: z.enum(['yes', 'no']).describe('Should the tests be updated?'),
+		department: completable(z.string(), value => ['engineering', 'sales', 'marketing', 'support'].filter(d => d.startsWith(value)))
+	}
 };
 
-export async function codeModificationPrompt({currentBehavior, desiredBehavior, updateTests}) {
+export function codeModificationPrompt({currentBehavior, desiredBehavior, updateTests, department}) {
 	return {
 		messages: [
 			{
@@ -56,7 +47,7 @@ export async function codeModificationPrompt({currentBehavior, desiredBehavior, 
 				role: 'user',
 				content: {
 					type: 'text',
-					text: `Update tests: ${updateTests}`
+					text: `Update tests: ${updateTests} in ${department}`
 				}
 			}
 		]

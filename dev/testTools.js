@@ -53,6 +53,18 @@ const expectedErrorPatterns = [
 	{
 		tool: 'getRecord',
 		pattern: /Provided external ID field does not exist or is not accessible: 001XXXXXXXXXXXXXXX/
+	},
+	{
+		tool: 'getRecord',
+		pattern: /\(👁🐝Ⓜ️\)\s*Error running SF CLI command: Command failed: sf data get record --sobject Account --record-id 001XXXXXXXXXXXXXXX --json/
+	},
+	{
+		tool: 'getRecord',
+		pattern: /\(👁🐝Ⓜ️\)\s*Error getting record 001XXXXXXXXXXXXXXX from object Account: Command failed: sf data get record --sobject Account --record-id 001XXXXXXXXXXXXXXX --json/
+	},
+	{
+		tool: 'getRecord',
+		pattern: /\(👁🐝Ⓜ️\)\s*\{.*"name": "NOT_FOUND".*"Provided external ID field does not exist or is not accessible: 001XXXXXXXXXXXXXXX".*\}/
 	}
 	//Si cal, afegeix més patrons aquí
 ];

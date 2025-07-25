@@ -1,9 +1,9 @@
-import {globalCache} from '../cache.js';
 import client from '../client.js';
 import state from '../state.js';
 import {log} from '../utils.js';
 import {textFileContent} from '../utils.js';
 import {z} from 'zod';
+import {clearResources, resources} from '../mcp-server.js';
 
 export const salesforceMcpUtilsToolDefinition = {
 	name: 'salesforceMcpUtils',
@@ -25,12 +25,11 @@ export const salesforceMcpUtilsToolDefinition = {
 export async function salesforceMcpUtilsTool({action}) {
 	try {
 		if (action === 'clearCache') {
-			globalCache.clear(true);
-
+			clearResources();
 			return {
 				content: [{
 					type: 'text',
-					text: '✅ Cache cleared successfully'
+					text: '✅ Cached resources cleared successfully'
 				}],
 				structuredContent: {action, status: 'success'}
 			};
@@ -54,7 +53,7 @@ export async function salesforceMcpUtilsTool({action}) {
 			};
 
 		} else if (action === 'getState') {
-			const output = {state, client};
+			const output = {state, client, resources};
 			return {
 				content: [{
 					type: 'text',
