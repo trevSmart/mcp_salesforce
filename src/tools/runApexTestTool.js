@@ -1,7 +1,7 @@
-import {mcpServer, resources, sendElicitRequest, newResource} from '../mcp-server.js';
+import {resources, sendElicitRequest, newResource} from '../mcp-server.js';
 import client from '../client.js';
 import {runApexTest, executeSoqlQuery} from '../salesforceServices.js';
-import {log, textFileContent, notifyProgressChange} from '../utils.js';
+import {log, textFileContent} from '../utils.js';
 import {z} from 'zod';
 
 export const runApexTestToolDefinition = {
@@ -12,7 +12,7 @@ export const runApexTestToolDefinition = {
 		classNames: z
 			.array(z.string())
 			.optional()
-			.describe('Names of the Apex test classes to run (all tests in the classes will be run).'),
+			.describe('Case sensitive. Names of the Apex test classes to run (all tests in the classes will be run).'),
 		methodNames: z
 			.array(z.string())
 			.optional()
@@ -24,32 +24,32 @@ export const runApexTestToolDefinition = {
 		readOnlyHint: false,
 		idempotentHint: true,
 		openWorldHint: true,
-		title: 'Run Apex Tests'
+		title: 'Run Apex test classes or methods'
 	}
 };
 
 async function classNameElicitation() {
-	//if ('Apex test classes list' in resources) {
-	//return resources['Apex test classes list'].contents[0].text; //PENDENT
-	//}
+	let testClasses = [];
+	if ('mcp://mcp/apex-test-classes-list.txt' in resources) {
+		testClasses = JSON.parse(resources['mcp://mcp/apex-test-classes-list.txt'].text);
+	} else {
+		const soqlQuery = 'SELECT Name, Body, FORMAT(LastModifiedDate), LastModifiedBy.Name FROM ApexClass WHERE NamespacePrefix = NULL AND Status = \'Active\'';
+		const classes = (await executeSoqlQuery(soqlQuery)).records;
+		testClasses = classes.filter(r => r.Body.toLowerCase().includes('@istest')).map(r => ({
+			name: r.Name, description: `${r.LastModifiedBy.Name} · ${r.LastModifiedDate}`
+		}));
+		testClasses = testClasses.sort((a, b) => a.name.localeCompare(b.name));
+		newResource(
+			'mcp://mcp/apex-test-classes-list.txt',
+			'Apex test classes list',
+			'Apex test classes list',
+			'text/plain',
+			JSON.stringify(testClasses, null, 3),
+			{audience: ['assistant']}
+		);
+	}
 
-	const soqlQuery = 'SELECT Name, Body, FORMAT(LastModifiedDate), LastModifiedBy.Name FROM ApexClass WHERE NamespacePrefix = NULL AND Status = \'Active\' ORDER BY Name';
-	const classes = (await executeSoqlQuery(soqlQuery)).records;
-	const testClasses = classes.filter(r => r.Body.toLowerCase().includes('@istest')).map(r => ({
-		name: r.Name,
-		description: `${r.LastModifiedBy.Name} · ${r.LastModifiedDate}`
-	}));
-
-	newResource(
-		'Apex test classes list',
-		'mcp://mcp/apex-test-classes-list.txt',
-		'Apex test classes list',
-		'text/plain',
-		JSON.stringify(testClasses, null, 3),
-		{audience: ['assistant']}
-	);
-
-	const elicitResult = await sendElicitRequest({
+	return await sendElicitRequest({
 		confirmation: {
 			type: 'string',
 			title: 'Select the Apex test class to run (all its methods will be evaluated).',
@@ -58,24 +58,29 @@ async function classNameElicitation() {
 			enumNames: testClasses.map(r => r.description)
 		}
 	});
-	if (elicitResult.action !== 'accept' || !elicitResult.content?.confirmation) {
-		return {
-			content: [{type: 'text', text: 'Script execution cancelled by user'}]
-		};
-	} else {
-		return elicitResult.content.confirmation;
-	}
 }
 
-export async function runApexTestTool({classNames = [], methodNames = []}, _meta) {
+export async function runApexTestTool({classNames = [], methodNames = []}) {
 	try {
 		if (!classNames.length && !methodNames.length) {
 			if (client.supportsCapability('elicitation')) {
-				classNames = [await classNameElicitation()];
+				const elicitResult = await classNameElicitation();
+				const selectedClassName = elicitResult.content?.confirmation;
+				if (elicitResult.action !== 'accept' || !selectedClassName) {
+					return {
+						content: [{
+							type: 'text',
+							text: 'Process cancelled by user'
+						}]
+					};
+				}
+				classNames = [selectedClassName];
 			} else {
-				console.error('NO SUPPORT ELICITATION');
-				throw new Error('Test class or method name required');
+				throw new Error('Test class/method name required');
 			}
+		} else {
+			classNames = classNames.filter(className => typeof className === 'string');
+			methodNames = methodNames.filter(methodName => typeof methodName === 'string');
 		}
 
 		let testRunId;
@@ -95,18 +100,19 @@ export async function runApexTestTool({classNames = [], methodNames = []}, _meta
 			throw new Error('No s\'ha obtingut testRunId del salesforceService');
 		}
 
-		const progressToken = classNames?.length > 1 ? _meta?.progressToken : null;
+		//const progressToken = classNames?.length > 1 ? _meta?.progressToken : null;
 		//Polling per esperar que el test acabi
 		let testRunResult;
 		while (true) {
 			const testRunResults = await executeSoqlQuery(`SELECT Id, Status, StartTime, TestTime, TestSetupTime, ClassesEnqueued, ClassesCompleted, MethodsEnqueued, MethodsCompleted, MethodsFailed FROM ApexTestRunResult WHERE AsyncApexJobId = '${testRunId}'`);
 			testRunResult = testRunResults.records[0];
+
 			if (!testRunResult || testRunResult.Status !== 'Processing' && testRunResult.Status !== 'Queued') {
-				notifyProgressChange(progressToken, testRunResult.MethodsEnqueued, testRunResult.MethodsEnqueued, 'Test finalitzat');
+				//notifyProgressChange(progressToken, testRunResult.MethodsEnqueued, testRunResult.MethodsEnqueued, 'Test finalitzat');
 				break;
 			}
-			const progress = testRunResult.MethodsCompleted + testRunResult.MethodsFailed;
-			notifyProgressChange(progressToken, testRunResult.MethodsEnqueued, progress, 'Executant el test...');
+			//const progress = testRunResult.MethodsCompleted + testRunResult.MethodsFailed;
+			//notifyProgressChange(progressToken, testRunResult.MethodsEnqueued, progress, 'Executant el test...');
 			await new Promise(resolve => setTimeout(resolve, 8000)); //Polling cada 8 segons
 		}
 
@@ -135,14 +141,12 @@ export async function runApexTestTool({classNames = [], methodNames = []}, _meta
 		};
 
 	} catch (error) {
-		console.error('!!!!runApexTestTool error');
-		console.error(error);
 		log(error, 'error');
 		return {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: error
+				text: error.message || error
 			}]
 		};
 	}

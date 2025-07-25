@@ -1,5 +1,4 @@
 import {config} from './config.js';
-//import {globalCache} from './cache.js';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -45,6 +44,7 @@ export async function validateUserPermissions(userId) {
 	}
 }
 
+/*
 export function notifyProgressChange(progressToken, total, progress, message) {
 	if (!progressToken) {
 		return;
@@ -54,6 +54,7 @@ export function notifyProgressChange(progressToken, total, progress, message) {
 		params: {progressToken, progress, total, message}
 	});
 }
+*/
 
 export function textFileContent(toolName) {
 	try {

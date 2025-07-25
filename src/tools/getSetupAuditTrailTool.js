@@ -143,7 +143,7 @@ export async function getSetupAuditTrailTool({lastDays = 90, createdByName = nul
 
 		const content = [{
 			type: 'text',
-			text: formattedResultString
+			text: `Display this data in a Markdown table with "Date", "User" and "Change description" columns, sorted by date in descending order: ${formattedResultString}`
 		}];
 
 		if (client.isVsCode) {

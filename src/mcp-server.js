@@ -34,8 +34,6 @@ import {apexDebugLogsToolDefinition, apexDebugLogsTool} from './tools/apexDebugL
 
 export const resources = {};
 
-
-
 //Create the MCP server instance
 const {protocolVersion, serverInfo, capabilities, instructions} = SERVER_CONSTANTS;
 const mcpServer = new McpServer(serverInfo, {
@@ -60,13 +58,17 @@ export function newResource(uri, name, description, mimeType = 'text/plain', con
 			annotations
 		};
 		resources[uri] = resource;
-
 		mcpServer.server.sendResourceListChanged();
 		return resource;
 
 	} catch (error) {
 		log(`Error setting resource ${uri}: ${error.message}`, 'error');
 	}
+}
+
+export function clearResources() {
+	resources = {};
+	mcpServer.server.sendResourceListChanged();
 }
 
 //Ready promise mechanism for external waiting
@@ -157,9 +159,9 @@ export async function setupServer() {
 					log(`Error during async org setup: ${error.message}`, 'error');
 				} finally {
 					//Mark server as ready after org setup is complete (or failed)
-					if (typeof resolveServerReady === 'function') {
+					/*if (typeof resolveServerReady === 'function') {
 						resolveServerReady();
-					}
+					} */
 				}
 			})();
 
@@ -172,15 +174,15 @@ export async function setupServer() {
 	});
 
 	await mcpServer.connect(new StdioServerTransport()).then(() => new Promise(r => setTimeout(r, 400)));
-
+	if (typeof resolveServerReady === 'function') {
+		resolveServerReady();
+	}
 	return {protocolVersion, serverInfo, capabilities};
 }
 
 //Utility functions
 export async function sendElicitRequest(elicitationProperties) {
-	console.error('!!!! sendElicitRequest');
 	if (client.supportsCapability('elicitation')) {
-		console.error('!!!! sendElicitRequest 2');
 		const elicitationResult = await mcpServer.server.elicitInput({
 			message: elicitationProperties.description,
 			requestedSchema: {
@@ -194,4 +196,6 @@ export async function sendElicitRequest(elicitationProperties) {
 }
 
 //Export the ready promise for external use
-export {readyPromise, mcpServer};
+export {readyPromise};
+
+export {mcpServer};

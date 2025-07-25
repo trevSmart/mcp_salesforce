@@ -17,8 +17,8 @@ export const SERVER_CONSTANTS = {
 			listChanged: true
 		},
 		prompts: {},
-		tools: {}
-		//elicitation: {}
+		tools: {},
+		completions: {}
 	},
 	instructions: getAgentInstructions('mcpServer')
 };

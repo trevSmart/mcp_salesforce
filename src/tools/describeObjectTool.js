@@ -1,7 +1,7 @@
 import {log, textFileContent} from '../utils.js';
-//import {globalCache} from '../cache.js';
 import {describeObject} from '../salesforceServices.js';
 import {z} from 'zod';
+import {newResource, resources} from '../mcp-server.js';
 
 export const describeObjectToolDefinition = {
 	name: 'describeObject',
@@ -25,11 +25,17 @@ export const describeObjectToolDefinition = {
 
 export async function describeObjectTool({sObjectName, include = 'all'}) {
 	try {
-		/*const cached = globalCache.get('describeObject', sObjectName);
-		if (cached) {
-			return cached;
-		} */
-
+		const resourceName = 'mcp://mcp/sobject-schema-' + sObjectName.toLowerCase() + '.json';
+		if (resources[resourceName]) {
+			const filtered = JSON.parse(resources[resourceName].text);
+			return {
+				content: [{
+					type: 'text',
+					text: 'Successfully retrieved the SObject schema for ' + sObjectName + ' with the following data: ' + JSON.stringify(filtered)
+				}],
+				structuredContent: filtered
+			};
+		}
 		const response = await describeObject(sObjectName);
 
 		if (response.status !== 0) {
@@ -78,18 +84,35 @@ export async function describeObjectTool({sObjectName, include = 'all'}) {
 					}
 				}
 			}
-			//Desa la resposta al cache centralitzat
 			//Assegura que sempre hi ha les claus requerides per l'outputSchema
-			if (!('name' in filtered)) {filtered.name = sObjectName}
-			if (!('label' in filtered)) {filtered.label = ''}
-			if (!('fields' in filtered)) {filtered.fields = []}
-			if (!('recordTypeInfos' in filtered)) {filtered.recordTypeInfos = []}
-			//globalCache.set('describeObject', sObjectName, filtered);
+			if (!('name' in filtered)) {
+				filtered.name = sObjectName;
+			}
+			if (!('label' in filtered)) {
+				filtered.label = '';
+			}
+			if (!('fields' in filtered)) {
+				filtered.fields = [];
+			}
+			if (!('recordTypeInfos' in filtered)) {
+				filtered.recordTypeInfos = [];
+			}
+
+			if (include === 'all') {
+				newResource(
+					resourceName,
+					`${sObjectName} SObject schema`,
+					`${sObjectName} SObject schema`,
+					'application/json',
+					JSON.stringify(filtered, null, 3),
+					{audience: ['assistant', 'user']}
+				);
+			}
 
 			return {
 				content: [{
 					type: 'text',
-					text: 'Successfully retrieved the SObject schema for ' + sObjectName + ' with the following data: ' + JSON.stringify(filtered)
+					text: 'Successfully retrieved the SObject schema for ' + sObjectName + ' with the following data: ' + JSON.stringify(filtered, null, 3)
 				}],
 				structuredContent: filtered
 			};
