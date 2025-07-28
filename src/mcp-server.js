@@ -32,7 +32,7 @@ import {runApexTestToolDefinition, runApexTestTool} from './tools/runApexTestToo
 import {apexDebugLogsToolDefinition, apexDebugLogsTool} from './tools/apexDebugLogsTool.js';
 //import {generateSoqlQueryToolDefinition, generateSoqlQueryTool} from './tools/generateSoqlQueryTool.js';
 
-export const resources = {};
+export let resources = {};
 
 //Create the MCP server instance
 const {protocolVersion, serverInfo, capabilities, instructions} = SERVER_CONSTANTS;
@@ -84,7 +84,7 @@ export async function setupServer() {
 
 			//Alguns clients fan servir el primer root per establir el directori del workspace
 			if (!config.workspacePath
-			&& listRootsResult.roots?.[0]?.uri.startsWith('file://')) {
+				&& listRootsResult.roots?.[0]?.uri.startsWith('file://')) {
 				config.setWorkspacePath(listRootsResult.roots[0].uri);
 			}
 
@@ -96,8 +96,6 @@ export async function setupServer() {
 
 	mcpServer.server.setRequestHandler(ListResourcesRequestSchema, async () => ({resources: Object.values(resources)}));
 	mcpServer.server.setRequestHandler(ReadResourceRequestSchema, async ({params: {uri}}) => ({contents: [{uri, ...resources[uri]}]}));
-
-	//Register prompts, resources and tools
 	mcpServer.registerPrompt('code-modification', codeModificationPromptDefinition, codeModificationPrompt);
 	mcpServer.registerTool('salesforceMcpUtils', salesforceMcpUtilsToolDefinition, salesforceMcpUtilsTool);
 	mcpServer.registerTool('getOrgAndUserDetails', getOrgAndUserDetailsToolDefinition, getOrgAndUserDetailsTool);
@@ -186,7 +184,7 @@ export async function sendElicitRequest(elicitationProperties) {
 		const elicitationResult = await mcpServer.server.elicitInput({
 			message: elicitationProperties.description,
 			requestedSchema: {
-				type: 'object',
+				type: 'object' ,
 				properties: elicitationProperties,
 				required: ['confirmation']
 			}

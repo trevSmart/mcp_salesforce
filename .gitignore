@@ -23,7 +23,9 @@ pids
 Thumbs.db
 
 dist/
-.cursor/rules/
+.vscode/
 tmp/
 mcp_salesforce.code-workspace
 *.old*
+.cursor/
+.nvmrc

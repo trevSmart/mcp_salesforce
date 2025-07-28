@@ -1,4 +1,4 @@
-import {runCliCommand} from '../salesforceServices/runCliCommand.js';
+import {runCliCommand} from '../salesforceServices.js';
 import {textFileContent} from '../utils.js';
 import {z} from 'zod';
 

@@ -3,7 +3,7 @@ import state from '../state.js';
 import {log} from '../utils.js';
 import {textFileContent} from '../utils.js';
 import {z} from 'zod';
-import {clearResources, resources} from '../mcp-server.js';
+import {clearResources, resources, sendElicitRequest} from '../mcp-server.js';
 
 export const salesforceMcpUtilsToolDefinition = {
 	name: 'salesforceMcpUtils',
@@ -12,7 +12,7 @@ export const salesforceMcpUtilsToolDefinition = {
 	inputSchema: {
 		action: z
 			.enum(['clearCache', 'getCurrentDatetime', 'getState'])
-			.describe('The action to perform: "clearCache", "getCurrentDatetime" or "getState"')
+			.describe('The action to perform: "clearCache", "getCurrentDatetime", "getState"')
 	},
 	annotations: {
 		readOnlyHint: false,

@@ -1,6 +1,8 @@
 import state from '../state.js';
 import {log, textFileContent} from '../utils.js';
 import {createRecord, updateRecord, deleteRecord} from '../salesforceServices.js';
+import {sendElicitRequest} from '../mcp-server.js';
+import client from '../client.js';
 import {z} from 'zod';
 
 export const dmlOperationToolDefinition = {
@@ -84,33 +86,42 @@ export async function dmlOperationTool({operation, sObjectName, recordId, fields
 				if (!recordId) {
 					throw new Error('Record ID is required for delete operation');
 				}
+				if (client.supportsCapability('elicitation')) {
+					const elicitResult = await sendElicitRequest({confirmation: {
+						type: 'string',
+						title: 'Confirmation',
+						description: `Are you sure you want to delete the "${sObjectName}" record with id "${recordId}"?`,
+						enum: ['Delete record', 'Cancel'],
+						enumNames: ['Delete record', 'Cancel']
+					}});
+					if (elicitResult.action !== 'accept' || elicitResult.content?.confirmation !== 'Delete record') {
+						return {
+							content: [{type: 'text', text: 'Delete operation cancelled by user'}],
+							structuredContent: elicitResult
+						};
+					}
+				}
 				const result = await deleteRecord(sObjectName, recordId);
-				const structuredContent = {
-					operation,
-					sObject: sObjectName,
-					result
-				};
 				return {
 					content: [{
 						type: 'text',
-						text: `✅ Record with id "${recordId}" deleted successfully.`
+						text: `${sObjectName} record with id "${recordId}" deleted successfully.`
 					}],
-					structuredContent
+					structuredContent: result
 				};
 			}
 			default:
 				throw new Error(`Invalid operation: "${operation}". Must be "create", "update", or "delete".`);
 		}
+
 	} catch (error) {
-		log(`Error during DML operation "${operation}" on ${sObjectName}: ${error.message}`, 'error');
-		const errorContent = {error: true, message: error.message};
+		log(error, 'error');
 		return {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: JSON.stringify(errorContent)
-			}],
-			structuredContent: errorContent
+				text: JSON.stringify(error.message)
+			}]
 		};
 	}
 }

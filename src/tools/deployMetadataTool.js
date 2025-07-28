@@ -1,5 +1,5 @@
 import state from '../state.js';
-import {mcpServer, sendElicitRequest} from '../mcp-server.js';
+import {sendElicitRequest} from '../mcp-server.js';
 import client from '../client.js';
 import {deployMetadata} from '../salesforceServices.js';
 import {log, textFileContent} from '../utils.js';
@@ -10,16 +10,14 @@ export const deployMetadataToolDefinition = {
 	title: 'Deploy Metadata',
 	description: textFileContent('deployMetadataTool'),
 	inputSchema: {
-		sourceDir: z
-				.string()
-			.describe('The path to the local metadata file to deploy.')
+		sourceDir: z.string().describe('The path to the local metadata file to deploy.')
 	},
 	annotations: {
 		readOnlyHint: false,
 		destructiveHint: true,
 		idempotentHint: false,
 		openWorldHint: true,
-		title: 'Deploy Metadata'
+		title: 'Deploy metadata to org'
 	}
 };
 
@@ -37,9 +35,7 @@ export async function deployMetadataTool({sourceDir}) {
 			});
 
 			if (elicitResult.action !== 'accept' || elicitResult.content?.confirmation !== 'Yes') {
-				return {
-					content: [{type: 'text', text: 'Deployment cancelled by user'}]
-				};
+				return {content: [{type: 'text', text: '❌ Deployment cancelled by user'}]};
 			}
 		}
 
@@ -57,8 +53,8 @@ export async function deployMetadataTool({sourceDir}) {
 		return {
 			isError: true,
 			content: [{
-				type: 'Error deploying metadata: ' + error.message,
-				text: JSON.stringify(error, null, '3')
+				type: 'text',
+				text: '❌ Error deploying metadata: ' + error.message
 			}]
 		};
 	}

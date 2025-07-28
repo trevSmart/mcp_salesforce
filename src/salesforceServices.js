@@ -1,7 +1,7 @@
-import {log} from './utils.js';
-import {config} from './config.js';
-import {exec as execCallback} from 'child_process';
-import {promisify} from 'util';
+import { log } from './utils.js';
+import { config } from './config.js';
+import { exec as execCallback } from 'child_process';
+import { promisify } from 'util';
 const execPromise = promisify(execCallback);
 import fs from 'fs/promises';
 import path from 'path';
@@ -47,7 +47,7 @@ export async function runCliCommand(command) {
 	try {
 		log(`Running SF CLI command: ${command}`, 'debug');
 		log(`Running SF CLI command - Workspace path: ${config.workspacePath}`, 'debug');
-		const {stdout} = await execPromise(command, {maxBuffer: 100 * 1024 * 1024, cwd: config.workspacePath});
+		const { stdout } = await execPromise(command, { maxBuffer: 100 * 1024 * 1024, cwd: config.workspacePath });
 		log(`SF CLI command output: ${stdout}`, 'debug');
 
 		return stdout;
@@ -81,10 +81,13 @@ export async function executeSoqlQuery(query, useToolingApi = false) {
 export async function getOrgAndUserDetails() {
 	try {
 		const orgResult = JSON.parse(await runCliCommand('sf org display user --json'))?.result;
+		if (!orgResult?.id || orgResult.id === 'unknown') {
+			throw new Error('Error: Could not retrieve Salesforce org and user details.');
+		}
 		const soqlUserResult = await executeSoqlQuery(`SELECT Name FROM User WHERE Id = '${orgResult.id}'`);
 		const userFullName = soqlUserResult?.records?.[0]?.Name;
-		const {id, username, profileName, ...orgResultWithoutUserFields} = orgResult;
-		const org = {...orgResultWithoutUserFields, user: {id, username, profileName, name: userFullName}};
+		const { id, username, profileName, ...orgResultWithoutUserFields } = orgResult;
+		const org = { ...orgResultWithoutUserFields, user: { id, username, profileName, name: userFullName } };
 
 		if (!org?.user?.id) {
 			throw new Error('Error: No se pudo obtener la información del usuario de Salesforce');
@@ -245,7 +248,7 @@ export async function executeAnonymousApex(apexCode) {
 	let tmpOutFile;
 	try {
 		//Assegura que la carpeta tmp existeix
-		await fs.mkdir(tmpDir, {recursive: true});
+		await fs.mkdir(tmpDir, { recursive: true });
 
 		//Get username from state or use 'unknown' as fallback
 		const username = state.org?.user?.name || 'unknown';
