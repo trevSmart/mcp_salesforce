@@ -4,15 +4,14 @@ import {completable} from '@modelcontextprotocol/sdk/server/completable.js';
 export const codeModificationPromptDefinition = {
 	title: 'Code modification',
 	description: 'Code modification',
-	arguments: {
-		currentBehavior: {code: z.string().describe('Current behavior of the code')},
-		desiredBehavior: {code: z.string().describe('Desired behavior of the code after the modification')},
-		updateTests: z.enum(['yes', 'no']).describe('Should the tests be updated?'),
-		department: completable(z.string(), value => ['engineering', 'sales', 'marketing', 'support'].filter(d => d.startsWith(value)))
+	argsSchema: {
+		currentBehavior: z.string().describe('Current behavior of the code'),
+		desiredBehavior: z.string().describe('Desired behavior of the code after the modification'),
+		updateTests: completable(z.enum(['Yes', 'No']), value => ['Yes', 'No'].filter(d => d.toLowerCase().startsWith(value.toLowerCase())))
 	}
 };
 
-export function codeModificationPrompt({currentBehavior, desiredBehavior, updateTests, department}) {
+export function codeModificationPrompt({currentBehavior, desiredBehavior, updateTests}) {
 	return {
 		messages: [
 			{
@@ -47,7 +46,7 @@ export function codeModificationPrompt({currentBehavior, desiredBehavior, update
 				role: 'user',
 				content: {
 					type: 'text',
-					text: `Update tests: ${updateTests} in ${department}`
+					text: `Update tests: ${updateTests}`
 				}
 			}
 		]

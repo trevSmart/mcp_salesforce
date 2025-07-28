@@ -77,7 +77,7 @@ export async function describeObjectTool({sObjectName, include = 'all'}) {
 						filtered[k] = response.result[k].map(rel => ({
 							childSObject: rel.childSObject,
 							field: rel.field,
-							relationshipName: rel.relationshipNamem || ''
+							relationshipName: rel.relationshipName || ''
 						}));
 					} else {
 						filtered[k] = response.result[k];
