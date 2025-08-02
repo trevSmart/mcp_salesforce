@@ -332,10 +332,98 @@ export async function executeAnonymousApex(apexCode) {
 export async function deployMetadata(sourceDir) {
 	try {
 		const command = `sf project deploy start --source-dir "${sourceDir}" --ignore-conflicts --json`;
-		const response = JSON.parse(await runCliCommand(command));
+
+		// Determine the working directory based on the sourceDir path
+		// If sourceDir is an absolute path, use its parent directory
+		let workingDir = config.workspacePath;
+		if (path.isAbsolute(sourceDir)) {
+			workingDir = path.dirname(sourceDir);
+		}
+
+		// Execute command and capture both stdout and stderr
+		log(`Running SF CLI command: ${command}`, 'debug');
+		log(`Running SF CLI command - Working directory: ${workingDir}`, 'debug');
+
+		let stdout, stderr;
+		try {
+			const result = await execPromise(command, {
+				maxBuffer: 100 * 1024 * 1024,
+				cwd: workingDir
+			});
+			stdout = result.stdout;
+			stderr = result.stderr;
+		} catch (error) {
+			// Even if the process fails, try to capture stdout if available
+			stdout = error.stdout || '';
+			stderr = error.stderr || '';
+			log(`CLI command failed but captured output: ${stdout}`, 'debug');
+			if (stderr) {
+				log(`CLI command stderr: ${stderr}`, 'debug');
+			}
+		}
+
+		log(`SF CLI command output: ${stdout}`, 'debug');
+		if (stderr) {
+			log(`SF CLI command stderr: ${stderr}`, 'debug');
+		}
+
+		// Try to parse the response
+		let response;
+		try {
+			response = JSON.parse(stdout);
+		} catch (parseError) {
+			throw new Error(`Failed to parse CLI response: ${parseError.message}\nOutput: ${stdout}\nStderr: ${stderr || 'None'}`);
+		}
 
 		if (response.status !== 0 || (response.exitCode ?? 0) !== 0) {
-			throw new Error(JSON.stringify(response, null, 3));
+			// Extract specific error details from the CLI response
+			let errorMessage = 'Deployment failed';
+
+			if (response.result) {
+				const result = response.result;
+
+				// Check for component failures
+				if (result.details && result.details.componentFailures) {
+					const failures = result.details.componentFailures;
+					errorMessage += `:\n\n`;
+
+					failures.forEach((failure, index) => {
+						errorMessage += `${index + 1}. Component: ${failure.fullName || failure.fileName || 'Unknown'}\n`;
+						errorMessage += `   Type: ${failure.componentType || 'Unknown'}\n`;
+						errorMessage += `   Problem: ${failure.problem || 'Unknown error'}\n`;
+						errorMessage += `   Problem Type: ${failure.problemType || 'Unknown'}\n\n`;
+					});
+				}
+
+				// Check for files with errors
+				if (result.files) {
+					const failedFiles = result.files.filter(file => file.state === 'Failed');
+					if (failedFiles.length > 0) {
+						errorMessage += `Files with errors:\n`;
+						failedFiles.forEach((file, index) => {
+							errorMessage += `${index + 1}. File: ${file.fullName || 'Unknown'}\n`;
+							errorMessage += `   Type: ${file.type || 'Unknown'}\n`;
+							errorMessage += `   Error: ${file.error || 'Unknown error'}\n\n`;
+						});
+					}
+				}
+
+				// Add deployment status info
+				if (result.status) {
+					errorMessage += `Deployment Status: ${result.status}\n`;
+				}
+				if (result.numberComponentErrors !== undefined) {
+					errorMessage += `Component Errors: ${result.numberComponentErrors}\n`;
+				}
+				if (result.numberComponentsDeployed !== undefined) {
+					errorMessage += `Components Deployed: ${result.numberComponentsDeployed}\n`;
+				}
+			} else {
+				// Fallback to original error if no structured result
+				errorMessage += `: ${response.message || 'Unknown error'}`;
+			}
+
+			throw new Error(errorMessage);
 		}
 		return response;
 

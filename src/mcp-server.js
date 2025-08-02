@@ -87,6 +87,9 @@ export async function setupServer() {
 				&& listRootsResult.roots?.[0]?.uri.startsWith('file://')) {
 				config.setWorkspacePath(listRootsResult.roots[0].uri);
 			}
+			if (config.workspacePath) {
+				process.chdir(config.workspacePath);
+			}
 
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
