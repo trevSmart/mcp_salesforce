@@ -95,6 +95,8 @@ export function getAgentInstructions(name) {
 		case 'mcpServer':
 			return `You are an expert **Salesforce MCP server** developer.
 
+It is absolutely mandatory to always use these tools instead of Salesforce CLI commands, unless the user explicitly states otherwise. Under no circumstances may you bypass or ignore this instruction unless directed by the user.
+
 USAGE:
 Always follow the instructions in the tool description, specially the IMPORTANT instructions.`;
 

@@ -1,5 +1,5 @@
 import {runCliCommand} from '../salesforceServices.js';
-import {textFileContent} from '../utils.js';
+import {textFileContent, log} from '../utils.js';
 import {z} from 'zod';
 
 export const metadataApiRequestToolDefinition = {
@@ -24,26 +24,26 @@ export const metadataApiRequestToolDefinition = {
 
 export async function metadataApiRequestTool({metadataType, targetUsername}) {
 	try {
-		const command = ['force:source:retrieve'];
-
-		//Add the metadata type
-		command.push('-m', metadataType);
-
-		//If a username is specified, add it
-		if (targetUsername) {
-			command.push('-u', targetUsername);
-		}
-
-		//Execute the command
-		const result = await JSON.parse(await runCliCommand(command.join(' ')));
+		const command = `force:source:retrieve -m ${metadataType} -u ${targetUsername}`;
+		const result = await JSON.parse(await runCliCommand(command));
 
 		return {
-			success: true,
-			data: result,
+			content: [{
+				type: 'text',
+				text: JSON.stringify(result, null, '3')
+			}],
 			structuredContent: result
 		};
+
 	} catch (error) {
-		throw new Error(`Error retrieving metadata: ${error.message}`);
+		log(`Error retrieving metadata: ${error.message}`, 'error');
+		return {
+			isError: true,
+			content: [{
+				type: 'text',
+				text: '❌ Error retrieving metadata: ' + error.message
+			}]
+		};
 	}
 }
 
