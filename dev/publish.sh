@@ -11,7 +11,8 @@ echo "\033[38;2;255;140;0mMarc Pla, 2025\033[0m"
 echo
 
 # Executa el script de testTools.js i comprova si hi ha algun KO
-echo "\033[95mComprovació bàsica de funcionament de les tools...\033[0m"
+echo "\033[95mExecutant tests bàsics de funcionament del servidor...\033[0m"
+echo
 TEST_OUTPUT=$(mktemp)
 node dev/testTools.js | tee "$TEST_OUTPUT"
 if grep -q 'KO' "$TEST_OUTPUT"; then

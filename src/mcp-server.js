@@ -75,6 +75,10 @@ export function clearResources() {
 let resolveServerReady;
 const readyPromise = new Promise(resolve => resolveServerReady = resolve);
 
+//Add a promise to track directory change completion
+let resolveDirectoryChange;
+const directoryChangePromise = new Promise(resolve => resolveDirectoryChange = resolve);
+
 //Server initialization function
 export async function setupServer() {
 
@@ -88,7 +92,17 @@ export async function setupServer() {
 				config.setWorkspacePath(listRootsResult.roots[0].uri);
 			}
 			if (config.workspacePath) {
-				process.chdir(config.workspacePath);
+				try {
+					process.chdir(config.workspacePath);
+					log(`Successfully changed directory to workspace path: ${config.workspacePath}`, 'debug');
+				} catch (error) {
+					log(`Failed to change working directory from ${process.cwd()} to ${config.workspacePath}: ${error.message}`, 'error');
+				}
+			}
+
+			//Signal that directory change is complete
+			if (typeof resolveDirectoryChange === 'function') {
+				resolveDirectoryChange();
 			}
 
 		} catch (error) {
@@ -138,9 +152,12 @@ export async function setupServer() {
 			}
 			*/
 
-			//Execute org setup and validation asynchronously
+			//Execute org setup and validation after directory change is complete
 			(async () => {
 				try {
+					//Wait for directory change to complete before proceeding with org setup
+					await directoryChangePromise;
+
 					process.env.HOME = process.env.HOME || os.homedir();
 					const org = await getOrgAndUserDetails();
 					state.org = org;
