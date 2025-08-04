@@ -25,7 +25,7 @@ export const SERVER_CONSTANTS = {
 
 class Config {
 	constructor() {
-		this.currentLogLevel = 'debug'; //7: debug, 6: info, 5: notice, 4: warning, 3: error, 2: critical, 1: alert, 0: emergency
+		this.currentLogLevel = 'info'; //7: debug, 6: info, 5: notice, 4: warning, 3: error, 2: critical, 1: alert, 0: emergency
 		this.logPrefix = '(👁🐝Ⓜ️)';
 
 		this.workspacePath = process.env.WORKSPACE_FOLDER_PATHS || '';
@@ -52,7 +52,7 @@ class Config {
 			}
 		}
 
-		log(`Workspace path: "${this.workspacePath}"`, 'info');
+		log(`Workspace path: "${this.workspacePath}"`, 'debug');
 	}
 }
 
