@@ -25,7 +25,7 @@ export const SERVER_CONSTANTS = {
 
 class Config {
 	constructor() {
-		this.currentLogLevel = 'info'; //7: debug, 6: info, 5: notice, 4: warning, 3: error, 2: critical, 1: alert, 0: emergency
+		this.currentLogLevel = 'debug'; //7: debug, 6: info, 5: notice, 4: warning, 3: error, 2: critical, 1: alert, 0: emergency
 		this.logPrefix = '(👁🐝Ⓜ️)';
 
 		this.workspacePath = process.env.WORKSPACE_FOLDER_PATHS || '';
@@ -42,6 +42,16 @@ class Config {
 		} else {
 			this.workspacePath = path;
 		}
+
+		//Decode URL-encoded characters
+		if (this.workspacePath) {
+			try {
+				this.workspacePath = decodeURIComponent(this.workspacePath);
+			} catch (error) {
+				log(`Failed to decode workspace path: ${error.message}`, 'warning');
+			}
+		}
+
 		log(`Workspace path: "${this.workspacePath}"`, 'info');
 	}
 }
