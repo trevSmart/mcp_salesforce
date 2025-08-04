@@ -207,11 +207,11 @@ export async function runApexTest(classNames = [], methodNames = [], codeCoverag
 		let command = 'sf apex run test';
 
 		for (const className of classNames) {
-			command += ` --class-names ${className}`;
+			command += ` --class-names "${className}"`;
 		}
 
 		for (const methodName of methodNames) {
-			command += ` --tests ${methodName}`;
+			command += ` --tests "${methodName}"`;
 		}
 		if (codeCoverage) {
 			command += ' --code-coverage';
