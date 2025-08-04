@@ -13,14 +13,80 @@ import {getSetupAuditTrailTool} from '../src/tools/getSetupAuditTrailTool.js';
 import {executeSoqlQueryTool} from '../src/tools/executeSoqlQueryTool.js';
 import {runApexTestTool} from '../src/tools/runApexTestTool.js';
 import {apexDebugLogsTool} from '../src/tools/apexDebugLogsTool.js';
+import {exec} from 'child_process';
+import {promisify} from 'util';
+
+const execAsync = promisify(exec);
+
+//Constants for Salesforce org management
+const REQUIRED_ORG_ALIAS = 'DEVSERVICE';
+let originalOrgAlias = null;
 
 const GREEN = '\x1b[32m';
 const RED = '\x1b[31m';
 const RESET = '\x1b[0m';
 const CYAN = '\x1b[36m';
 const GRAY = '\x1b[90m';
+const YELLOW = '\x1b[33m';
 
 const LOG_LEVEL_PRIORITY = {emergency: 0, alert: 1, critical: 2, error: 3, warning: 4, notice: 5, info: 6, debug: 7};
+
+//Salesforce org management functions
+async function getCurrentOrgAlias() {
+	try {
+		const {stdout} = await execAsync('sf config get target-org --json');
+		const config = JSON.parse(stdout);
+		return config.result[0]?.value || null;
+	} catch (error) {
+		console.error(`${RED}Error getting current org:${RESET}`, error.message);
+		return null;
+	}
+}
+
+async function setTargetOrg(orgAlias) {
+	try {
+		await execAsync(`sf config set target-org "${orgAlias}" --global --json`);
+		process.stdout.write(`${YELLOW}Switched to org: ${orgAlias}${RESET}\n`);
+		return true;
+	} catch (error) {
+		console.error(`${RED}Error setting target org:${RESET}`, error.message);
+		return false;
+	}
+}
+
+async function setupSalesforceOrg() {
+	const currentOrg = await getCurrentOrgAlias();
+
+	if (currentOrg === REQUIRED_ORG_ALIAS) {
+		process.stdout.write(`${GREEN}Already connected to required org: ${REQUIRED_ORG_ALIAS}${RESET}\n`);
+		originalOrgAlias = null; //No need to restore
+		return true;
+	}
+
+	process.stdout.write(`${YELLOW}Current org: ${currentOrg || 'none'}${RESET}\n`);
+	process.stdout.write(`${YELLOW}Switching to required org: ${REQUIRED_ORG_ALIAS}${RESET}\n`);
+
+	//Save original org
+	originalOrgAlias = currentOrg;
+
+	//Switch to required org
+	const success = await setTargetOrg(REQUIRED_ORG_ALIAS);
+	if (!success) {
+		process.stdout.write(`${RED}Failed to switch to required org. Tests may fail.${RESET}\n`);
+		return false;
+	}
+
+	return true;
+}
+
+async function restoreOriginalOrg() {
+	if (originalOrgAlias === null) {
+		return; //No need to restore
+	}
+
+	process.stdout.write(`${YELLOW}Restoring original org: ${originalOrgAlias}${RESET}\n`);
+	await setTargetOrg(originalOrgAlias);
+}
 
 //Tool mapping - all tools
 const toolFunctions = {
@@ -172,6 +238,17 @@ async function runSequentialTests() {
 }
 
 async function main() {
+	process.stdout.write(GRAY + 'Setting up Salesforce org... ');
+
+	//Setup Salesforce org before running tests
+	const orgSetupSuccess = await setupSalesforceOrg();
+	if (!orgSetupSuccess) {
+		process.stdout.write(`${RED}Failed to setup Salesforce org. Exiting.${RESET}\n`);
+		process.exit(1);
+	}
+
+	process.stdout.write('done.\n');
+
 	process.stdout.write(GRAY + 'Waiting for MCP server initialization... ');
 	await setupServer();
 	await readyPromise;
@@ -200,9 +277,25 @@ async function main() {
 	}));
 	const sequentialTests = runSequentialTests();
 
-	await Promise.all([parallelTests, sequentialTests]);
+		await Promise.all([parallelTests, sequentialTests]);
+
+	//Restore original org after tests (only if we changed it)
+	if (originalOrgAlias !== null) {
+		process.stdout.write(GRAY + 'Restoring original Salesforce org... ');
+		await restoreOriginalOrg();
+		process.stdout.write('done.\n' + RESET);
+	}
 }
 
 main()
 .then(() => process.stdout.write(GRAY + 'Finished running tests.\n\n' + RESET, () => process.exit(0)))
-.catch(error => process.stdout.write((error.stack || error.message || error) + '\n', () => process.exit(1)));
+.catch(async (error) => {
+	//Ensure we restore the original org even if tests fail (only if we changed it)
+	if (originalOrgAlias !== null) {
+		process.stdout.write(GRAY + 'Restoring original Salesforce org after error... ');
+		await restoreOriginalOrg();
+		process.stdout.write('done.\n' + RESET);
+	}
+
+	process.stdout.write((error.stack || error.message || error) + '\n', () => process.exit(1));
+});
