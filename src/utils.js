@@ -18,7 +18,8 @@ export function log(data, logLevel = 'info') {
 	}
 
 	if (typeof data === 'object') {
-		data = JSON.stringify(data);
+		// Don't stringify objects to avoid double escaping
+		data = data.toString();
 	}
 	if (typeof data === 'string') {
 		if (data.length > 4000) {
