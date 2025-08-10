@@ -1,7 +1,7 @@
 import state from '../state.js';
 import {log, textFileContent} from '../utils.js';
 import {createRecord, updateRecord, deleteRecord} from '../salesforceServices.js';
-import {sendElicitRequest} from '../mcp-server.js';
+import {mcpServer} from '../mcp-server.js';
 import client from '../client.js';
 import {z} from 'zod';
 
@@ -86,21 +86,37 @@ export async function dmlOperationTool({operation, sObjectName, recordId, fields
 				if (!recordId) {
 					throw new Error('Record ID is required for delete operation');
 				}
+
 				if (client.supportsCapability('elicitation')) {
-					const elicitResult = await sendElicitRequest({confirmation: {
-						type: 'string',
-						title: 'Confirmation',
-						description: `Are you sure you want to delete the "${sObjectName}" record with id "${recordId}"?`,
-						enum: ['Delete record', 'Cancel'],
-						enumNames: ['Delete record', 'Cancel']
-					}});
-					if (elicitResult.action !== 'accept' || elicitResult.content?.confirmation !== 'Delete record') {
+					const elicitResult = await mcpServer.server.elicitInput({
+						message: `Please confirm the deletion of the ${sObjectName} record with id "${recordId}" in ${state.org.alias}.`,
+						requestedSchema: {
+							type: "object",
+							title: `Delete ${sObjectName} record (Id: ${recordId}) in ${state.org.alias}?`,
+							properties: {
+								confirm: {
+									type: "string",
+									enum: ["Yes", "No"],
+									enumNames: ["Delete record now", "Cancel record deletion"],
+									description: `Delete ${sObjectName} record (Id: ${recordId}) in ${state.org.alias}?`,
+									default: "No"
+								}
+							},
+							required: ["confirm"]
+						}
+					});
+
+					if (elicitResult.action !== 'accept' || elicitResult.content?.confirm !== 'Yes') {
 						return {
-							content: [{type: 'text', text: 'Delete operation cancelled by user'}],
+							content: [{
+								type: 'text',
+								text: 'User has cancelled the record deletion'
+							}],
 							structuredContent: elicitResult
 						};
 					}
 				}
+
 				const result = await deleteRecord(sObjectName, recordId);
 				return {
 					content: [{

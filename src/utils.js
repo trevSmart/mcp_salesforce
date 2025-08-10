@@ -8,38 +8,62 @@ import client from './client.js';
 import {executeSoqlQuery} from './salesforceServices.js';
 import state from './state.js';
 
-export function log(data, logLevel = 'info') {
-	const LOG_LEVEL_PRIORITY = {emergency: 0, alert: 1, critical: 2, error: 3, warning: 4, notice: 5, info: 6, debug: 7};
+export function log(data, logLevel = 'info', context = null) {
+	try {
+		const LOG_LEVEL_PRIORITY = {emergency: 0, alert: 1, critical: 2, error: 3, warning: 4, notice: 5, info: 6, debug: 7};
 
-	const logLevelPriority = LOG_LEVEL_PRIORITY[logLevel];
-	const currentLogLevelPriority = LOG_LEVEL_PRIORITY[config.currentLogLevel];
-	if (logLevelPriority > currentLogLevelPriority) {
-		return;
-	}
-
-	if (typeof data === 'object') {
-		// Don't stringify objects to avoid double escaping
-		data = data.toString();
-	}
-	if (typeof data === 'string') {
-		if (data.length > 4000) {
-			data = data.slice(0, 3997) + '...';
+		const logLevelPriority = LOG_LEVEL_PRIORITY[logLevel];
+		const currentLogLevelPriority = LOG_LEVEL_PRIORITY[config.currentLogLevel];
+		if (logLevelPriority > currentLogLevelPriority) {
+			return;
 		}
-		data = '\n' + data + '\n';
-	}
 
-	if (client?.isVsCode && mcpServer?.isConnected()) {
-		const logger = `${config.logPrefix ? config.logPrefix + ' ' : ''}MCP server`;
-		mcpServer.server.sendLoggingMessage({level: logLevel, logger, data});
-	} else {
-		console.error(config.logPrefix + data);
+		let logData = data;
+
+		// Handle Error objects specially
+		if (data instanceof Error) {
+			const errorMessage = context ? `${context}: ${data.message}` : data.message;
+			logData = `${errorMessage}\nStack: ${data.stack}`;
+
+		} else if (typeof data === 'object') {
+			// For other objects, try to get meaningful string representation
+			try {
+				logData = JSON.stringify(data, null, 2);
+			} catch (err) {
+				logData = data.toString();
+			}
+
+		} else if (typeof data === 'string') {
+			logData = data;
+		}
+
+		// Truncate if too long
+		if (typeof logData === 'string' && logData.length > 5000) {
+			logData = logData.slice(0, 4997) + '...';
+		}
+
+		// Add newlines for string data
+		if (typeof logData === 'string') {
+			logData = '\n' + logData + '\n';
+		}
+
+		const logPrefix = getLogPrefix(logLevel);
+		if (client?.isVsCode && mcpServer?.isConnected()) {
+			const logger = `${logPrefix} MCP server`;
+			mcpServer.server.sendLoggingMessage({level: logLevel, logger, data: logData});
+		} else {
+			console.error(logPrefix + logData);
+		}
+
+	} catch (error) {
+		console.error(getLogPrefix('error') + JSON.stringify(error, null, 3));
 	}
 }
 
 export async function validateUserPermissions(userId) {
 	const query = await executeSoqlQuery(`SELECT Id FROM PermissionSetAssignment WHERE AssigneeId = '${userId}' AND PermissionSet.Name = 'IBM_SalesforceMcpUser'`);
 	if (!query?.records?.length) {
-		log(`Insuficient permissions in org "${state.org.alias}"`, 'error');
+		log(`Insuficient permissions in org "${state.org.alias}"`, 'critical');
 		mcpServer.server.close();
 		process.exit(1);
 	}
@@ -141,6 +165,40 @@ If any check fails, respond with **ERROR_INVALID_FIELD** instead of a query.
 	}
 }
 
+/**
+ * Read the Salesforce CLI current target org alias from `.sf/config.json`.
+ * Returns the alias string if available, otherwise returns null.
+ */
+export function getSfCliCurrentTargetOrg() {
+    try {
+        const configFilePath = path.join(config.workspacePath, '.sf', 'config.json');
+
+        let content;
+        try {
+            content = fs.readFileSync(configFilePath, 'utf8');
+        } catch (readErr) {
+            log(`Could not read SFDX project config file. Is this a SFDX project workspace? ${readErr.message}`, 'warning');
+            return null;
+        }
+
+        let parsed;
+        try {
+            parsed = JSON.parse(content);
+        } catch (parseErr) {
+            log(`Error parsing SFDX project config file: ${parseErr.message}`, 'warning');
+            return null;
+        }
+
+        const fileTargetOrg = parsed['target-org'] || null;
+		log(`Current target-org from SFDX project config file: ${fileTargetOrg}`, 'debug');
+        return fileTargetOrg || null;
+
+    } catch (error) {
+        log(error, 'warning', 'Error reading current target-org from SFDX project config file');
+        return null;
+    }
+}
+
 export function getTimestamp(long = false) {
 	const now = new Date();
 	const year = String(now.getFullYear()).slice(-2); //Get last 2 digits of year
@@ -154,4 +212,21 @@ export function getTimestamp(long = false) {
 	} else {
 		return `${year}${month}${day}${hours}${minutes}${seconds}`;
 	}
+}
+
+function getLogPrefix(logLevel) {
+	const logLevelPrefix = ({
+		emergency: '🔥', alert: '⛔️', critical: '❗️', error: '❌', warning: '⚠️', notice: '✉️', info: '💡', debug: '🐞'
+	}[logLevel].repeat(3));
+
+	if (config.logPrefix) {
+		return `(${config.logPrefix} · ${logLevelPrefix})`;
+	}
+	return `(${logLevelPrefix})`;
+}
+
+export function getFileNameFromPath(filePath) {
+    const trimmed = filePath.replace(/[\\\/]+$/, '');
+    const ext = path.extname(trimmed);
+    return ext ? path.basename(trimmed, ext) : path.basename(trimmed);
 }

@@ -138,7 +138,7 @@ export async function apexDebugLogsTool({action, logId}) {
 				content: [
 					{
 						type: 'text',
-						text: JSON.stringify(logs, null, 3)
+						text: logs
 					}
 				],
 				structuredContent: logs
@@ -151,7 +151,7 @@ export async function apexDebugLogsTool({action, logId}) {
 				content: [
 					{
 						type: 'text',
-						text: JSON.stringify(apexLog, null, 3)
+						text: apexLog
 					}
 				],
 				structuredContent: apexLog
@@ -159,7 +159,7 @@ export async function apexDebugLogsTool({action, logId}) {
 		}
 
 	} catch (error) {
-		log('Complete error:', error);
+		log(error, 'error');
 		return {
 			isError: true,
 			content: [{

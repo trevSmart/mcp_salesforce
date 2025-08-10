@@ -1,12 +1,13 @@
-import { log } from './utils.js';
+import { log, getSfCliCurrentTargetOrg } from './utils.js';
 import { config } from './config.js';
-import { exec as execCallback } from 'child_process';
-import { promisify } from 'util';
-const execPromise = promisify(execCallback);
+import { exec as execCb } from 'child_process';
+import { promisify } from 'node:util';
 import fs from 'fs/promises';
 import path from 'path';
 import state from './state.js';
 import os from 'os';
+import { resources } from './mcp-server.js';
+const exec = promisify(execCb);
 
 //Helper function to generate timestamp in YYMMDDHHMMSS format
 function generateTimestamp() {
@@ -43,17 +44,32 @@ function generateApexFileName(username = 'unknown') {
 	return `apexRun_${camelCaseUsername}${timestamp}`;
 }
 
+
 export async function runCliCommand(command) {
 	try {
 		log(`Running SF CLI command: ${command}`, 'debug');
-		log(`Running SF CLI command - Workspace path: ${config.workspacePath}`, 'debug');
-		const { stdout } = await execPromise(command, { maxBuffer: 100 * 1024 * 1024, cwd: config.workspacePath });
-		log(`SF CLI command output: ${stdout}`, 'debug');
 
+		let stdout = null;
+		try {
+			const response = await exec(command, {
+				maxBuffer: 100 * 1024 * 1024, cwd: config.workspacePath, windowsHide: true
+			});
+			stdout = response.stdout;
+		} catch (error) {
+			if (error.stdout) {
+				stdout = error.stdout;
+			} else {
+				throw error;
+			}
+		}
+
+		log(stdout, 'debug', 'SF CLI command output (stdout)');
 		return stdout;
 
 	} catch (error) {
-		log(`Error running SF CLI command: ${error.message}`, 'error');
+		error.stderr && (error.message += `\nSTDERR: ${error.stderr}`);
+		error.stdout && (error.message += `\nSTDOUT: ${error.stdout}`);
+		log(error, 'error', 'Error running SF CLI command');
 		throw error;
 	}
 }
@@ -66,38 +82,73 @@ export async function executeSoqlQuery(query, useToolingApi = false) {
 
 		const command = `sf data query --query "${query}" ${useToolingApi ? '--use-tooling-api' : ''} --json`;
 		log(`Executing SOQL query command: ${command}`, 'debug');
-		const response = await JSON.parse(await runCliCommand(command));
+		const responseString = await runCliCommand(command);
+
+		let response;
+		try {
+			response = JSON.parse(responseString);
+		} catch (error) {
+			throw new Error(`Error parsing JSON response: ${responseString}`);
+		}
+
 		if (response.status !== 0) {
 			throw new Error(response.message || 'Error executant la consulta SOQL');
 		}
 		return response.result;
 
 	} catch (error) {
-		log(`Error executing SOQL query: ${error.message}`, 'error');
+		log(error, 'error', 'Error executing SOQL query');
 		throw error;
 	}
 }
 
 export async function getOrgAndUserDetails() {
 	try {
-		const orgResult = JSON.parse(await runCliCommand('sf org display user --json'))?.result;
+		// Check current SF CLI target alias and reuse cached org if unchanged
+		const fileAlias = getSfCliCurrentTargetOrg();
+		if (fileAlias === state?.org?.alias) {
+			log(`Target org alias unchanged (${fileAlias}), using cached state.org`, 'debug');
+			return state.org;
+		}
+
+		const orgResultString = await runCliCommand('sf org display user --json');
+		let orgResult;
+		try {
+			orgResult = JSON.parse(orgResultString).result;
+		} catch (error) {
+			throw new Error(`Error parsing JSON response: ${orgResultString}`);
+		}
+
 		if (!orgResult?.id || orgResult.id === 'unknown') {
 			throw new Error('Error: Could not retrieve Salesforce org and user details.');
 		}
-		const soqlUserResult = await executeSoqlQuery(`SELECT Name FROM User WHERE Id = '${orgResult.id}'`);
-		const userFullName = soqlUserResult?.records?.[0]?.Name;
-		const { id, username, profileName, ...orgResultWithoutUserFields } = orgResult;
-		const org = { ...orgResultWithoutUserFields, user: { id, username, profileName, name: userFullName } };
 
-		if (!org?.user?.id) {
-			throw new Error('Error: No se pudo obtener la información del usuario de Salesforce');
-		}
+		const org = {
+			id: orgResult.orgId,
+			alias: orgResult.alias,
+			instanceUrl: orgResult.instanceUrl,
+			user: {
+				id: orgResult.id,
+				username: orgResult.username,
+				profileName: orgResult.profileName,
+				name: null
+			}
+		};
+		log( 'Org and user details successfully retrieved', 'debug');
+		state.org = org;
 
-		log(`Org and user details successfully retrieved: \n${JSON.stringify(org, null, 3)}`, 'debug');
+
+		const getUserFullName = async () => {
+			const soqlUserResult = await executeSoqlQuery(`SELECT Name FROM User WHERE Id = '${org.user.id}'`);
+			state.org.user.name = soqlUserResult?.records?.[0]?.Name;
+			resources['mcp://mcp/orgAndUserDetail.json'].text = JSON.stringify(state.org, null, 3);
+		};
+		getUserFullName();
+
 		return org;
 
 	} catch (error) {
-		log(`Error getting org and user details: ${error.message}`, 'error');
+		log(error, 'error', 'Error getting org and user details');
 		throw error;
 	}
 }
@@ -113,14 +164,22 @@ export async function createRecord(sObjectName, fields, useToolingApi = false) {
 			.join(' ');
 		const command = `sf data create record --sobject ${sObjectName} --values "${valuesString}" ${useToolingApi ? '--use-tooling-api' : ''} --json`;
 		log(`Executing create record command: ${command}`, 'debug');
-		const response = await JSON.parse(await runCliCommand(command));
+
+		const responseString = await runCliCommand(command);
+		let response;
+		try {
+			response = JSON.parse(responseString);
+		} catch (error) {
+			throw new Error(`Error parsing JSON response: ${responseString}`);
+		}
+
 		if (response.status !== 0) {
 			throw new Error(response.message || 'Error creant el registre');
 		}
 		return response.result;
 
 	} catch (error) {
-		log(`Error creating record in object ${sObjectName}: ${JSON.stringify(error, null, 3)}`, 'error');
+		log(error, 'error', `Error creating record in object ${sObjectName}`);
 		throw error;
 	}
 }
@@ -135,14 +194,22 @@ export async function updateRecord(sObjectName, recordId, fields, useToolingApi 
 			.join(' ');
 		const command = `sf data update record --sobject ${sObjectName} --record-id ${recordId} --values "${valuesString}" ${useToolingApi ? '--use-tooling-api' : ''} --json`;
 		log(`Executing update record command: ${command}`, 'debug');
-		const response = await JSON.parse(await runCliCommand(command));
+
+		const responseString = await runCliCommand(command);
+		let response;
+		try {
+			response = JSON.parse(responseString);
+		} catch (error) {
+			throw new Error(`Error parsing JSON response: ${responseString}`);
+		}
+
 		if (response.status !== 0) {
 			throw new Error(response.message || 'Error actualitzant el registre');
 		}
 		return response.result;
 
 	} catch (error) {
-		log(`Error updating record ${recordId} in object ${sObjectName}: ${JSON.stringify(error, null, 3)}`, 'error');
+		log(error, 'error', `Error updating record ${recordId} in object ${sObjectName}`);
 		throw error;
 	}
 }
@@ -155,14 +222,22 @@ export async function deleteRecord(sObjectName, recordId, useToolingApi = false)
 
 		const command = `sf data delete record --sobject ${sObjectName} --record-id ${recordId} ${useToolingApi ? '--use-tooling-api' : ''} --json`;
 		log(`Executing delete record command: ${command}`, 'debug');
-		const response = await JSON.parse(await runCliCommand(command));
+
+		const responseString = await runCliCommand(command);
+		let response;
+		try {
+			response = JSON.parse(responseString);
+		} catch (error) {
+			throw new Error(`Error parsing JSON response: ${responseString}`);
+		}
+
 		if (response.status !== 0) {
 			throw new Error(response.message || 'Error eliminant el registre');
 		}
 		return response.result;
 
 	} catch (error) {
-		log(`Error deleting record ${recordId} from object ${sObjectName}: ${JSON.stringify(error, null, 3)}`, 'error');
+		log(error, 'error', `Error deleting record ${recordId} from object ${sObjectName}`);
 		throw error;
 	}
 }
@@ -174,14 +249,22 @@ export async function getRecord(sObjectName, recordId) {
 		}
 		const command = `sf data get record --sobject ${sObjectName} --record-id ${recordId} --json`;
 		log(`Executing get record command: ${command}`, 'debug');
-		const response = await JSON.parse(await runCliCommand(command));
+
+		const responseString = await runCliCommand(command);
+		let response;
+		try {
+			response = JSON.parse(responseString);
+		} catch (error) {
+			throw new Error(`Error parsing JSON response: ${responseString}`);
+		}
+
 		if (response.status !== 0) {
 			throw new Error(response.message || 'Error obtenint el registre');
 		}
 		return response.result;
 
 	} catch (error) {
-		log(`Error getting record ${recordId} from object ${sObjectName}: ${error.message}`, 'error');
+		log(error, 'error', `Error getting record ${recordId} from object ${sObjectName}`);
 		throw error;
 	}
 }
@@ -193,11 +276,19 @@ export async function describeObject(sObjectName) {
 		}
 		const command = `sf sobject describe --sobject ${sObjectName} --json`;
 		log(`Executing describe object command: ${command}`, 'debug');
-		const response = await JSON.parse(await runCliCommand(command));
+
+		const responseString = await runCliCommand(command);
+		let response;
+		try {
+			response = JSON.parse(responseString);
+		} catch (error) {
+			throw new Error(`Error parsing JSON response: ${responseString}`);
+		}
+
 		return response;
 
 	} catch (error) {
-		log(`Error describing object ${sObjectName}: ${error.message}`, 'error');
+		log(error, 'error', `Error describing object ${sObjectName}`);
 		throw error;
 	}
 }
@@ -221,8 +312,13 @@ export async function runApexTest(classNames = [], methodNames = [], codeCoverag
 		}
 		command += ' --test-level RunSpecifiedTests --json';
 
-		const response = await runCliCommand(command);
-		const responseObj = JSON.parse(response);
+		const responseString = await runCliCommand(command);
+		let responseObj;
+		try {
+			responseObj = JSON.parse(responseString);
+		} catch (error) {
+			throw new Error(`Error parsing JSON response: ${responseString}`);
+		}
 
 		if (responseObj.status !== 0) {
 			throw new Error(responseObj.message || 'Error executant el test d\'Apex');
@@ -231,9 +327,7 @@ export async function runApexTest(classNames = [], methodNames = [], codeCoverag
 		return responseObj.result.testRunId;
 
 	} catch (error) {
-		log('Error running Apex tests:', 'error');
-		log(error, 'error');
-
+		log(error, 'error', 'Error running Apex tests');
 		throw error;
 	}
 }
@@ -245,7 +339,6 @@ export async function executeAnonymousApex(apexCode) {
 	const tmpDir = os.tmpdir() || path.join(process.cwd(), 'tmp');
 
 	let tmpFile;
-	let tmpOutFile;
 	try {
 		//Assegura que la carpeta tmp existeix
 		await fs.mkdir(tmpDir, { recursive: true });
@@ -255,42 +348,33 @@ export async function executeAnonymousApex(apexCode) {
 
 		const baseFileName = generateApexFileName(username);
 		tmpFile = path.join(tmpDir, `${baseFileName}.apex`);
-		tmpOutFile = path.join(tmpDir, `${baseFileName}.log`);
-		log(`ÑÑÑÑTmp out file: ${tmpOutFile}`, 'debug');
 
 		//Escriu el codi Apex al fitxer temporal
 		await fs.writeFile(tmpFile, apexCode, 'utf8');
-		const command = `sf apex run --file "${tmpFile}" --json > "${tmpOutFile}"`;
+		const command = `sf apex run --file "${tmpFile}" --json`;
 		log(`Executing anonymous Apex: ${command}`, 'debug');
 		let cliError = null;
+		let output = null;
+		let response = null;
+
 		try {
-			await runCliCommand(command); //Ja no cal capturar la sortida aquí
+			output = await runCliCommand(command);
+			try {
+				response = JSON.parse(output);
+			} catch (parseError) {
+				throw new Error(`Error parsing JSON response: ${output}`);
+			}
 		} catch (cliErr) {
 			cliError = cliErr;
 		}
 
-		let output = null;
-		let response = null;
-		let outputReadError = null;
-
-		try {
-			output = await fs.readFile(tmpOutFile, 'utf8');
-			response = JSON.parse(output);
-
-		} catch (readErr) {
-			outputReadError = readErr;
-		}
-
 		let errorMsg = '';
-		if (cliError || outputReadError || !response || response.status !== 0) {
+		if (cliError || !response || response.status !== 0) {
 			if (cliError) {
 				errorMsg += `${cliError.message || cliError}`;
 				if (cliError.stderr) {
 					errorMsg += `\nCLI stderr: ${cliError.stderr}`;
 				}
-			}
-			if (outputReadError) {
-				errorMsg += `Error reading output file: ${outputReadError.message}`;
 			}
 			if (output) {
 				errorMsg += `Output file content: ${output}`;
@@ -305,7 +389,7 @@ export async function executeAnonymousApex(apexCode) {
 		return response.result;
 
 	} catch (error) {
-		log(`Error executing anonymous Apex: ${JSON.stringify(error, null, 3)}`, 'error');
+		log(error, 'error', 'Error executing anonymous Apex');
 		throw error;
 
 	} finally {
@@ -318,13 +402,6 @@ export async function executeAnonymousApex(apexCode) {
 				//No passa res si no es pot eliminar
 			}
 		}
-		if (tmpOutFile) {
-			try {
-				await fs.unlink(tmpOutFile);
-			} catch (e) {
-				//No passa res si no es pot eliminar
-			}
-		}
 		*/
 	}
 }
@@ -332,103 +409,20 @@ export async function executeAnonymousApex(apexCode) {
 export async function deployMetadata(sourceDir) {
 	try {
 		const command = `sf project deploy start --source-dir "${sourceDir}" --ignore-conflicts --json`;
+		log(`Executing deploy metadata command: ${command}`, 'debug');
 
-		// Determine the working directory based on the sourceDir path
-		// If sourceDir is an absolute path, use its parent directory
-		let workingDir = config.workspacePath;
-		if (path.isAbsolute(sourceDir)) {
-			workingDir = path.dirname(sourceDir);
-		}
-
-		// Execute command and capture both stdout and stderr
-		log(`Running SF CLI command: ${command}`, 'debug');
-		log(`Running SF CLI command - Working directory: ${workingDir}`, 'debug');
-
-		let stdout, stderr;
-		try {
-			const result = await execPromise(command, {
-				maxBuffer: 100 * 1024 * 1024,
-				cwd: workingDir
-			});
-			stdout = result.stdout;
-			stderr = result.stderr;
-		} catch (error) {
-			// Even if the process fails, try to capture stdout if available
-			stdout = error.stdout || '';
-			stderr = error.stderr || '';
-			log(`CLI command failed but captured output: ${stdout}`, 'debug');
-			if (stderr) {
-				log(`CLI command stderr: ${stderr}`, 'debug');
-			}
-		}
-
-		log(`SF CLI command output: ${stdout}`, 'debug');
-		if (stderr) {
-			log(`SF CLI command stderr: ${stderr}`, 'debug');
-		}
-
-		// Try to parse the response
+		const responseString = await runCliCommand(command);
 		let response;
 		try {
-			response = JSON.parse(stdout);
-		} catch (parseError) {
-			throw new Error(`Failed to parse CLI response: ${parseError.message}\nOutput: ${stdout}\nStderr: ${stderr || 'None'}`);
+			response = JSON.parse(responseString);
+		} catch (error) {
+			throw new Error(`Error parsing CLI response: ${responseString}`);
 		}
 
-		if (response.status !== 0 || (response.exitCode ?? 0) !== 0) {
-			// Extract specific error details from the CLI response
-			let errorMessage = 'Deployment failed';
-
-			if (response.result) {
-				const result = response.result;
-
-				// Check for component failures
-				if (result.details && result.details.componentFailures) {
-					const failures = result.details.componentFailures;
-					errorMessage += `:\n\n`;
-
-					failures.forEach((failure, index) => {
-						errorMessage += `${index + 1}. Component: ${failure.fullName || failure.fileName || 'Unknown'}\n`;
-						errorMessage += `   Type: ${failure.componentType || 'Unknown'}\n`;
-						errorMessage += `   Problem: ${failure.problem || 'Unknown error'}\n`;
-						errorMessage += `   Problem Type: ${failure.problemType || 'Unknown'}\n\n`;
-					});
-				}
-
-				// Check for files with errors
-				if (result.files) {
-					const failedFiles = result.files.filter(file => file.state === 'Failed');
-					if (failedFiles.length > 0) {
-						errorMessage += `Files with errors:\n`;
-						failedFiles.forEach((file, index) => {
-							errorMessage += `${index + 1}. File: ${file.fullName || 'Unknown'}\n`;
-							errorMessage += `   Type: ${file.type || 'Unknown'}\n`;
-							errorMessage += `   Error: ${file.error || 'Unknown error'}\n\n`;
-						});
-					}
-				}
-
-				// Add deployment status info
-				if (result.status) {
-					errorMessage += `Deployment Status: ${result.status}\n`;
-				}
-				if (result.numberComponentErrors !== undefined) {
-					errorMessage += `Component Errors: ${result.numberComponentErrors}\n`;
-				}
-				if (result.numberComponentsDeployed !== undefined) {
-					errorMessage += `Components Deployed: ${result.numberComponentsDeployed}\n`;
-				}
-			} else {
-				// Fallback to original error if no structured result
-				errorMessage += `: ${response.message || 'Unknown error'}`;
-			}
-
-			throw new Error(errorMessage);
-		}
-		return response;
+		return response.result;
 
 	} catch (error) {
-		log(`Error deploying metadata file ${sourceDir}: ${error}`, 'error');
+		log(error, 'error', `Error deploying metadata file ${sourceDir}`);
 		throw error;
 	}
 }
@@ -468,7 +462,7 @@ export async function callSalesforceApi(operation, apiPath, body = null, baseUrl
 			return result; //Return raw response if JSON parsing fails
 		}
 	} catch (error) {
-		log(`Error calling Salesforce API: ${error.message}`);
+		log(error, 'error', 'Error calling Salesforce API');
 		throw error;
 	}
 }

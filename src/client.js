@@ -1,3 +1,4 @@
+import semver from 'semver';
 
 class Client {
 
@@ -36,10 +37,10 @@ class Client {
 				return this.isVsCode;
 
 			case 'resourceLinks':
-				return false;
+				return this.isVsCode && semver.gte(this.clientInfo.version, '1.103.0');
 
 			default:
-				return capabilityName in this.capabilities;
+				return Boolean(this.capabilities?.[capabilityName]);
 		}
 	}
 }

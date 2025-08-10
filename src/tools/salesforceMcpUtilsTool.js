@@ -1,9 +1,9 @@
 import client from '../client.js';
 import state from '../state.js';
-import {log} from '../utils.js';
-import {textFileContent} from '../utils.js';
-import {z} from 'zod';
-import {clearResources, resources, sendElicitRequest} from '../mcp-server.js';
+import { log } from '../utils.js';
+import { textFileContent } from '../utils.js';
+import { z } from 'zod';
+import { clearResources, resources } from '../mcp-server.js';
 
 export const salesforceMcpUtilsToolDefinition = {
 	name: 'salesforceMcpUtils',
@@ -22,7 +22,7 @@ export const salesforceMcpUtilsToolDefinition = {
 	}
 };
 
-export async function salesforceMcpUtilsTool({action}) {
+export async function salesforceMcpUtilsTool({ action }) {
 	try {
 		if (action === 'clearCache') {
 			clearResources();
@@ -31,7 +31,7 @@ export async function salesforceMcpUtilsTool({action}) {
 					type: 'text',
 					text: '✅ Cached resources cleared successfully'
 				}],
-				structuredContent: {action, status: 'success'}
+				structuredContent: { action, status: 'success' }
 			};
 
 		} else if (action === 'getCurrentDatetime') {
@@ -53,7 +53,7 @@ export async function salesforceMcpUtilsTool({action}) {
 			};
 
 		} else if (action === 'getState') {
-			const output = {state, client, resources};
+			const output = { state, client, resources};
 			return {
 				content: [{
 					type: 'text',

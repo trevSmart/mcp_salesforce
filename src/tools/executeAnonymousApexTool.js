@@ -1,7 +1,7 @@
 import state from '../state.js';
 import {log, textFileContent, getTimestamp} from '../utils.js';
 import {executeAnonymousApex} from '../salesforceServices.js';
-import {mcpServer, sendElicitRequest, newResource} from '../mcp-server.js';
+import {mcpServer, newResource} from '../mcp-server.js';
 import client from '../client.js';
 import {z} from 'zod';
 import fs from 'fs/promises';
@@ -47,18 +47,28 @@ function formatApexCode(code) {
 export async function executeAnonymousApexTool({apexCode, mayModify}) {
 	try {
 		if (mayModify && client.supportsCapability('elicitation')) {
-			const elicitResult = await sendElicitRequest({
-				confirmation: {
-					type: 'string',
-					title: 'Execute anonymous apex confirmation',
-					description: `Are you sure you want to run this anonymous Apex code in ${state.org.alias}?`,
-					enum: ['Yes', 'No'],
-					enumNames: ['✅ Execute anonymous Apex code', '❌ Don\'t execute']
+			const elicitResult = await mcpServer.server.elicitInput({
+				message: `This script may modify data. Please confirm the execution of the Anonymous Apex script in ${state.org.alias}.`,
+				requestedSchema: {
+					type: "object",
+					title: `Execute Anonymous Apex script in ${state.org.alias}?`,
+					properties: {
+						confirm: {
+							type: "string",
+							enum: ["Yes", "No"],
+							enumNames: ["Execute Anonymous Apex script now", "Cancel Anonymous Apex script execution"],
+							description: `Execute Anonymous Apex script in ${state.org.alias}?`,
+							default: "No"
+						}
+					},
+					required: ["confirm"]
 				}
 			});
-			if (elicitResult.action !== 'accept' || elicitResult.content?.confirmation !== 'Yes') {
+
+			if (elicitResult.action !== 'accept' || elicitResult.content?.confirm !== 'Yes') {
 				return {
-					content: [{type: 'text', text: 'Script execution cancelled by user'}]
+					content: [{type: 'text', text: 'User has cancelled the Anonymous Apex script execution'}],
+					structuredContent: elicitResult
 				};
 			}
 		}

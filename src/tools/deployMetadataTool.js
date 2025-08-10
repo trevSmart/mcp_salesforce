@@ -1,8 +1,8 @@
 import state from '../state.js';
-import {sendElicitRequest} from '../mcp-server.js';
+import {mcpServer} from '../mcp-server.js';
 import client from '../client.js';
 import {deployMetadata} from '../salesforceServices.js';
-import {log, textFileContent} from '../utils.js';
+import {log, textFileContent, getFileNameFromPath} from '../utils.js';
 import {z} from 'zod';
 
 export const deployMetadataToolDefinition = {
@@ -24,38 +24,57 @@ export const deployMetadataToolDefinition = {
 export async function deployMetadataTool({sourceDir}) {
 	try {
 		if (client.supportsCapability('elicitation')) {
-			const elicitResult = await sendElicitRequest({
-				confirmation: {
-					type: 'string',
-					title: 'Deploy metadata confirmation',
-					description: `Are you sure you want to deploy this metadata to ${state.org.alias}?`,
-					enum: ['Yes', 'No'],
-					enumNames: [`✅ Deploy metadata to ${state.org.alias}`, '❌ Don\'t deploy']
+			const metadataName = getFileNameFromPath(sourceDir);
+			const elicitResult = await mcpServer.server.elicitInput({
+				message: `Please confirm the deployment of ${metadataName} to the org ${state.org.alias}.`,
+				requestedSchema: {
+					type: "object",
+					title: `Deploy ${metadataName} to ${state.org.alias}?`,
+					properties: {
+						confirm: {
+							type: "string",
+							enum: ["Yes", "No"],
+							enumNames: ["Deploy metadata now", "Cancel metadata deployment"],
+							description: `Deploy ${metadataName} to ${state.org.alias}?`,
+							default: "No"
+						},
+					},
+					required: ["confirm"]
 				}
 			});
 
-			if (elicitResult.action !== 'accept' || elicitResult.content?.confirmation !== 'Yes') {
-				return {content: [{type: 'text', text: '❌ Deployment cancelled by user'}]};
+			if (elicitResult.action !== 'accept' || elicitResult.content?.confirm !== 'Yes') {
+				return {
+					content: [{
+						type: 'text',
+						text: 'User has cancelled the metadata deployment'
+					}],
+					structuredContent: elicitResult
+				};
 			}
 		}
 
 		const result = await deployMetadata(sourceDir);
+
 		return {
+			isError: !result.success,
 			content: [{
 				type: 'text',
-				text: JSON.stringify(result, null, '3')
+				text: JSON.stringify(result, null, 3)
 			}],
 			structuredContent: result
 		};
 
 	} catch (error) {
-		log(`Error deploying metadata file "${sourceDir}": ${error.message}`, 'error');
+		log(error, 'error', 'Error deploying metadata');
+
 		return {
 			isError: true,
 			content: [{
 				type: 'text',
 				text: '❌ Error deploying metadata: ' + error.message
-			}]
+			}],
+			structuredContent: error
 		};
 	}
 

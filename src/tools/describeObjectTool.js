@@ -119,7 +119,7 @@ export async function describeObjectTool({sObjectName, include = 'all'}) {
 		}
 
 	} catch (error) {
-		log(`Error requesting describe for SObject ${sObjectName}: ${error.message}`, 'error');
+		log(error, 'error');
 		const errorContent = {error: true, message: error.message};
 		return {
 			isError: true,
