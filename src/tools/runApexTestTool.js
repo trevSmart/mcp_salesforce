@@ -1,4 +1,4 @@
-import {resources, sendElicitRequest, newResource} from '../mcp-server.js';
+import {mcpServer, resources, newResource} from '../mcp-server.js';
 import client from '../client.js';
 import {runApexTest, executeSoqlQuery} from '../salesforceServices.js';
 import {log, textFileContent} from '../utils.js';
@@ -49,13 +49,20 @@ async function classNameElicitation() {
 		);
 	}
 
-	return await sendElicitRequest({
-		confirmation: {
-			type: 'string',
-			title: 'Select the Apex test class to run (all its methods will be evaluated).',
-			description: 'Select the Apex class to test.',
-			enum: testClasses.map(r => r.name),
-			enumNames: testClasses.map(r => r.description)
+	return await mcpServer.server.elicitInput({
+		message: `Please select the Apex test class to run (all its methods will be executed).`,
+		requestedSchema: {
+			type: "object",
+			title: `Select the Apex test class to run (all its methods will be executed).`,
+			properties: {
+				confirm: {
+					type: "string",
+					enum: testClasses.map(r => r.name),
+					enumNames: testClasses.map(r => r.description),
+					description: 'Select the Apex class to run.'
+				}
+			},
+			required: ["confirm"]
 		}
 	});
 }
@@ -65,13 +72,14 @@ export async function runApexTestTool({classNames = [], methodNames = []}) {
 		if (!classNames.length && !methodNames.length) {
 			if (client.supportsCapability('elicitation')) {
 				const elicitResult = await classNameElicitation();
-				const selectedClassName = elicitResult.content?.confirmation;
+				const selectedClassName = elicitResult.content?.confirm;
 				if (elicitResult.action !== 'accept' || !selectedClassName) {
 					return {
 						content: [{
 							type: 'text',
-							text: 'Process cancelled by user'
-						}]
+							text: 'User has cancelled the Apex test run'
+						}],
+						structuredContent: elicitResult
 					};
 				}
 				classNames = [selectedClassName];

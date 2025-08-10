@@ -28,7 +28,7 @@ export async function getOrgAndUserDetailsTool() {
 			const resourceOrgAndUserDetails = newResource(
 				'mcp://org/org-and-user-details.json',
 				'Salesforce org and user details',
-				'Details for the current target Salesforce org and the user logged in.',
+				'Details of the current target Salesforce org and logged-in user. This resource can now be reused instead of making new calls to the getOrgAndUserDetails tool.',
 				'application/json',
 				JSON.stringify(result, null, 3),
 				{audience: ['user', 'assistant']}
@@ -38,7 +38,7 @@ export async function getOrgAndUserDetailsTool() {
 		return {content, structuredContent: result};
 
 	} catch (error) {
-		log(`Error getting org and user details: ${error.message}`, 'error');
+		log(error, 'error');
 		return {
 			isError: true,
 			content: [{

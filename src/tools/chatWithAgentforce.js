@@ -142,8 +142,9 @@ export async function chatWithAgentforce({message}) {
 			data: response,
 			structuredContent: response
 		};
+
 	} catch (error) {
-		log('Error sending message:', error);
+		log(error, 'error');
 		return {
 			isError: true,
 			content: [{

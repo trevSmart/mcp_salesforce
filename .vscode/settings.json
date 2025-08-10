@@ -54,6 +54,7 @@
     "actionButtons": {
 
 
+
         "commands": [
             {
                 "name": "$(test-view-icon) Inspect",
@@ -72,7 +73,7 @@
                 "name": "$(send) Publish",
                 "useVsCodeApi": true,
                 "command": "workbench.action.tasks.runTask",
-                "args": ["npm: publish"],
+                "args": ["npm: publish-package"],
                 "color": "#cc8888"
             },
         ],
@@ -95,8 +96,7 @@
         "editor.selectionBackground": "#e788ff7c",
         "editor.selectionHighlightBackground": "#ff00005b",
         "tab.activeForeground": "#ffffff",
-        "tab.activeBorder": "#006bc9",
-        "tab.activeModifiedBorder": "#f4a238",
-        "statusBar.background": "#158F8B"
-    }
+        "tab.activeModifiedBorder": "#f4a238"
+    },
+    "typescript.workspaceSymbols.excludeLibrarySymbols": false
 }

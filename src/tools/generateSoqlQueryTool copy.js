@@ -111,7 +111,7 @@ export async function generateSoqlQueryTool({soqlQueryDescription, involvedSObje
 		};
 
 	} catch (error) {
-		log(`Error in generateSoqlQuery: ${error.message}`, 'error');
+		log(error, 'error');
 		return {
 			isError: true,
 			content: [{

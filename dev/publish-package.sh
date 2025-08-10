@@ -66,7 +66,7 @@ echo
 # Clona el codi font a dist
 rm -rf dist
 mkdir dist
-rsync -a --exclude='node_modules' --exclude='logs' --exclude='*.log' --exclude='.idea' --exclude='.vscode' --exclude='.DS_Store' --exclude='Thumbs.db' --exclude='*.swp' --exclude='*.swo' --exclude='package*.json' --exclude='dist' --exclude='tmp' --exclude='.eslintrc.json' --exclude='.gitignore' --exclude='.npmignore' --exclude='.*' --exclude='*.bak' --exclude='*.tmp' --exclude='*.temp' --exclude='rules' --exclude='dev' --exclude='@/deva' ./ ./dist/
+rsync -a --exclude='node_modules' --exclude='logs' --exclude='*.log' --exclude='.idea' --exclude='.vscode' --exclude='.DS_Store' --exclude='Thumbs.db' --exclude='*.swp' --exclude='*.swo' --exclude='package*.json' --exclude='dist' --exclude='tmp' --exclude='.eslintrc.json' --exclude='.gitignore' --exclude='.npmignore' --exclude='.*' --exclude='*.bak' --exclude='*.tmp' --exclude='*.temp' --exclude='rules' --exclude='dev' --exclude='.src' --exclude='.git' --exclude='@/deva' ./ ./dist/
 
 echo "\033[95mOfuscant els fitxers JavaScript...\033[0m"
 find dist -name '*.js' | while read -r file; do
@@ -110,8 +110,8 @@ echo
 
 echo "\033[95mPublicant el paquet a NPM...\033[0m"
 PUBLISH_OUTPUT=$(mktemp)
-if ! (cd dist && npm publish --access public) > "$PUBLISH_OUTPUT" 2>&1; then
-  echo "\033[91m❌ Error publicant el paquet a NPM:\033[0m"
+if ! (npm publish --access public) > "$PUBLISH_OUTPUT" 2>&1; then
+  echo "\033[91m❌ Error publicant el paquet a NPM:\033[0m"ie
   cat "$PUBLISH_OUTPUT"
   rm -f "$PUBLISH_OUTPUT"
   exit 1

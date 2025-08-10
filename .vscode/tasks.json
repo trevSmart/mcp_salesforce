@@ -10,7 +10,7 @@
 			},
 			"problemMatcher": [],
 			"label": "npm: publish",
-			"detail": "sh dev/publish.sh",
+			"detail": "sh dev/publish-package.sh",
 			"presentation": {
 				"showReuseMessage": false,
 				"close": false,

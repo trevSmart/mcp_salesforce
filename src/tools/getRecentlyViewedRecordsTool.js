@@ -16,7 +16,7 @@ export const getRecentlyViewedRecordsToolDefinition = {
 
 export async function getRecentlyViewedRecordsTool() {
 	try {
-		const query = 'SELECT Id, Name, Type, LastViewedDate FROM RecentlyViewed ORDER BY LastViewedDate DESC LIMIT 100';
+		const query = 'SELECT Id, Name, Type, LastViewedDate FROM RecentlyViewed ORDER BY LastViewedDate DESC LIMIT 80';
 		const response = await executeSoqlQuery(query);
 
 		if (response.records.length === 0) {
@@ -41,13 +41,12 @@ export async function getRecentlyViewedRecordsTool() {
 		};
 
 	} catch (error) {
-		log(error, 'error');
-		const errorContent = {error: true, message: error.message};
+		log(error, 'error', 'Error getting recently viewed records');
 		return {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: JSON.stringify(errorContent)
+				text: error
 			}]
 		};
 	}

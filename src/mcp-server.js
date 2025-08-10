@@ -1,41 +1,42 @@
 
 import os from 'os';
 
-import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
-import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
 	SetLevelRequestSchema,
 	InitializeRequestSchema,
 	RootsListChangedNotificationSchema,
 	ListResourcesRequestSchema,
+	ListResourceTemplatesRequestSchema,
 	ReadResourceRequestSchema
 } from '@modelcontextprotocol/sdk/types.js';
 
-import {log, validateUserPermissions} from './utils.js';
-import {config, SERVER_CONSTANTS} from './config.js';
+import { log, validateUserPermissions } from './utils.js';
+import { config, SERVER_CONSTANTS } from './config.js';
 import client from './client.js';
-import {getOrgAndUserDetails} from './salesforceServices.js';
+import { getOrgAndUserDetails } from './salesforceServices.js';
 import state from './state.js';
 
-import {codeModificationPromptDefinition, codeModificationPrompt} from './prompts/codeModificationPrompt.js';
-import {salesforceMcpUtilsToolDefinition, salesforceMcpUtilsTool} from './tools/salesforceMcpUtilsTool.js';
-import {getOrgAndUserDetailsToolDefinition, getOrgAndUserDetailsTool} from './tools/getOrgAndUserDetailsTool.js';
-import {dmlOperationToolDefinition, dmlOperationTool} from './tools/dmlOperationTool.js';
-import {deployMetadataToolDefinition, deployMetadataTool} from './tools/deployMetadataTool.js';
-import {describeObjectToolDefinition, describeObjectTool} from './tools/describeObjectTool.js';
-import {executeAnonymousApexToolDefinition, executeAnonymousApexTool} from './tools/executeAnonymousApexTool.js';
-import {getRecentlyViewedRecordsToolDefinition, getRecentlyViewedRecordsTool} from './tools/getRecentlyViewedRecordsTool.js';
-import {getRecordToolDefinition, getRecordTool} from './tools/getRecordTool.js';
-import {getSetupAuditTrailToolDefinition, getSetupAuditTrailTool} from './tools/getSetupAuditTrailTool.js';
-import {executeSoqlQueryToolDefinition, executeSoqlQueryTool} from './tools/executeSoqlQueryTool.js';
-import {runApexTestToolDefinition, runApexTestTool} from './tools/runApexTestTool.js';
-import {apexDebugLogsToolDefinition, apexDebugLogsTool} from './tools/apexDebugLogsTool.js';
+import { codeModificationPromptDefinition, codeModificationPrompt } from './prompts/codeModificationPrompt.js';
+import { salesforceMcpUtilsToolDefinition, salesforceMcpUtilsTool } from './tools/salesforceMcpUtilsTool.js';
+import { getOrgAndUserDetailsToolDefinition, getOrgAndUserDetailsTool } from './tools/getOrgAndUserDetailsTool.js';
+import { dmlOperationToolDefinition, dmlOperationTool } from './tools/dmlOperationTool.js';
+import { deployMetadataToolDefinition, deployMetadataTool } from './tools/deployMetadataTool.js';
+import { describeObjectToolDefinition, describeObjectTool } from './tools/describeObjectTool.js';
+import { executeAnonymousApexToolDefinition, executeAnonymousApexTool } from './tools/executeAnonymousApexTool.js';
+import { getRecentlyViewedRecordsToolDefinition, getRecentlyViewedRecordsTool } from './tools/getRecentlyViewedRecordsTool.js';
+import { getRecordToolDefinition, getRecordTool } from './tools/getRecordTool.js';
+import { getSetupAuditTrailToolDefinition, getSetupAuditTrailTool } from './tools/getSetupAuditTrailTool.js';
+import { executeSoqlQueryToolDefinition, executeSoqlQueryTool } from './tools/executeSoqlQueryTool.js';
+import { runApexTestToolDefinition, runApexTestTool } from './tools/runApexTestTool.js';
+import { apexDebugLogsToolDefinition, apexDebugLogsTool } from './tools/apexDebugLogsTool.js';
 //import {generateSoqlQueryToolDefinition, generateSoqlQueryTool} from './tools/generateSoqlQueryTool.js';
 
 export let resources = {};
 
 //Create the MCP server instance
-const {protocolVersion, serverInfo, capabilities, instructions} = SERVER_CONSTANTS;
+const { protocolVersion, serverInfo, capabilities, instructions } = SERVER_CONSTANTS;
 const mcpServer = new McpServer(serverInfo, {
 	capabilities,
 	instructions,
@@ -47,7 +48,7 @@ const mcpServer = new McpServer(serverInfo, {
 });
 
 export function newResource(uri, name, description, mimeType = 'text/plain', content, annotations = {}) {
-	annotations = {...annotations, lastModified: new Date().toISOString()};
+	annotations = { ...annotations, lastModified: new Date().toISOString() };
 	try {
 		const resource = {
 			uri,
@@ -65,6 +66,7 @@ export function newResource(uri, name, description, mimeType = 'text/plain', con
 		log(`Error setting resource ${uri}: ${error.message}`, 'error');
 	}
 }
+
 
 export function clearResources() {
 	resources = {};
@@ -84,7 +86,13 @@ export async function setupServer() {
 
 	mcpServer.server.setNotificationHandler(RootsListChangedNotificationSchema, async listRootsResult => {
 		try {
-			listRootsResult = await mcpServer.server.listRoots();
+			if (client.supportsCapability('roots')) {
+				try {
+					listRootsResult = await mcpServer.server.listRoots();
+				} catch (error) {
+					log(`Requested roots list but client returned error: ${error.message}`, 'debug');
+				}
+			}
 
 			//Alguns clients fan servir el primer root per establir el directori del workspace
 			if (!config.workspacePath
@@ -100,7 +108,6 @@ export async function setupServer() {
 				}
 			}
 
-			//Signal that directory change is complete
 			if (typeof resolveDirectoryChange === 'function') {
 				resolveDirectoryChange();
 			}
@@ -111,8 +118,9 @@ export async function setupServer() {
 		}
 	});
 
-	mcpServer.server.setRequestHandler(ListResourcesRequestSchema, async () => ({resources: Object.values(resources)}));
-	mcpServer.server.setRequestHandler(ReadResourceRequestSchema, async ({params: {uri}}) => ({contents: [{uri, ...resources[uri]}]}));
+	mcpServer.server.setRequestHandler(ListResourcesRequestSchema, async () => ({ resources: Object.values(resources) }));
+	mcpServer.server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({ templates: [] }));
+	mcpServer.server.setRequestHandler(ReadResourceRequestSchema, async ({ params: { uri } }) => ({ contents: [{ uri, ...resources[uri] }] }));
 	mcpServer.registerPrompt('code-modification', codeModificationPromptDefinition, codeModificationPrompt);
 	mcpServer.registerTool('salesforceMcpUtils', salesforceMcpUtilsToolDefinition, salesforceMcpUtilsTool);
 	mcpServer.registerTool('getOrgAndUserDetails', getOrgAndUserDetailsToolDefinition, getOrgAndUserDetailsTool);
@@ -128,24 +136,31 @@ export async function setupServer() {
 	mcpServer.registerTool('apexDebugLogs', apexDebugLogsToolDefinition, apexDebugLogsTool);
 
 	//Set up request handlers
-	mcpServer.server.setRequestHandler(SetLevelRequestSchema, async ({params}) => {
+	mcpServer.server.setRequestHandler(SetLevelRequestSchema, async ({ params }) => {
 		config.setLogLevel(params.level);
 		return {};
 	});
 
-	mcpServer.server.setRequestHandler(InitializeRequestSchema, async ({params}) => {
+	mcpServer.server.setRequestHandler(InitializeRequestSchema, async ({ params }) => {
 		try {
-			const {clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion} = params;
-			client.initialize({clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion});
-			log(`IBM Salesforce MCP server (v${SERVER_CONSTANTS.serverInfo.version})`, 'notice');
-			log(`Connecting with client "${client.clientInfo.name} (v${client.clientInfo.version})"`, 'notice');
-			log(`Client capabilities: ${JSON.stringify(client.capabilities, null, 3)}`, 'info');
+			const { clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion } = params;
+			client.initialize({ clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion });
+			log(`IBM Salesforce MCP server (v${SERVER_CONSTANTS.serverInfo.version})`, 'info');
+			const clientCapabilitiesString = 'Capabilities: ' + Object.keys(client.capabilities).join(', ') + '.';
+			log(`Connecting with client "${client.clientInfo.name} (v${client.clientInfo.version})". ${clientCapabilitiesString}`, 'info');
 
 			if (process.env.WORKSPACE_FOLDER_PATHS) {
 				config.setWorkspacePath(process.env.WORKSPACE_FOLDER_PATHS);
 			}
 
-			await mcpServer.server.listRoots();
+			if (client.supportsCapability('roots')) {
+				try {
+					await mcpServer.server.listRoots();
+				} catch (error) {
+					log(`Requested roots list but client returned error: ${error.message}`, 'debug');
+				}
+			}
+
 			/*
 			if (client.supportsCapability('sampling')) {
 				mcpServer.registerTool('generateSoqlQuery', generateSoqlQueryToolDefinition, generateSoqlQueryTool);
@@ -173,6 +188,7 @@ export async function setupServer() {
 					log(`Server initialized and running. Target org: ${org.alias}`, 'debug');
 					await validateUserPermissions(org.user.id);
 					//setInterval(() => validateUserPermissions(org.user.id), 1200000);
+
 				} catch (error) {
 					log(`Error during async org setup: ${error.message}`, 'error');
 				} finally {
@@ -183,7 +199,7 @@ export async function setupServer() {
 				}
 			})();
 
-			return {protocolVersion, serverInfo, capabilities};
+			return { protocolVersion, serverInfo, capabilities };
 
 		} catch (error) {
 			log(`Error initializing server: ${error.message}`, 'error');
@@ -195,25 +211,10 @@ export async function setupServer() {
 	if (typeof resolveServerReady === 'function') {
 		resolveServerReady();
 	}
-	return {protocolVersion, serverInfo, capabilities};
-}
-
-//Utility functions
-export async function sendElicitRequest(elicitationProperties) {
-	if (client.supportsCapability('elicitation')) {
-		const elicitationResult = await mcpServer.server.elicitInput({
-			message: elicitationProperties.description,
-			requestedSchema: {
-				type: 'object' ,
-				properties: elicitationProperties,
-				required: ['confirmation']
-			}
-		});
-		return elicitationResult;
-	}
+	return { protocolVersion, serverInfo, capabilities };
 }
 
 //Export the ready promise for external use
-export {readyPromise};
+export { readyPromise };
 
-export {mcpServer};
+export { mcpServer };

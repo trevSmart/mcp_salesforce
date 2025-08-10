@@ -1,3 +1,7 @@
+import { exec as execCb } from 'child_process';
+import { promisify } from 'node:util';
+const exec = promisify(execCb);
+
 import {readyPromise, setupServer} from	'../src/mcp-server.js';
 
 //Import all tool functions
@@ -13,10 +17,6 @@ import {getSetupAuditTrailTool} from '../src/tools/getSetupAuditTrailTool.js';
 import {executeSoqlQueryTool} from '../src/tools/executeSoqlQueryTool.js';
 import {runApexTestTool} from '../src/tools/runApexTestTool.js';
 import {apexDebugLogsTool} from '../src/tools/apexDebugLogsTool.js';
-import {exec} from 'child_process';
-import {promisify} from 'util';
-
-const execAsync = promisify(exec);
 
 //Constants for Salesforce org management
 const REQUIRED_ORG_ALIAS = 'DEVSERVICE';
@@ -33,10 +33,15 @@ const LOG_LEVEL_PRIORITY = {emergency: 0, alert: 1, critical: 2, error: 3, warni
 
 //Salesforce org management functions
 async function getCurrentOrgAlias() {
+	let orgAlias = 'unknown';
 	try {
-		const {stdout} = await execAsync('sf config get target-org --json');
-		const config = JSON.parse(stdout);
-		return config.result[0]?.value || null;
+		const response = await exec('sf config get target-org --json');
+		orgAlias = (JSON.parse(response.stdout)?.result?.[0]?.value) || 'unknown';
+		if (orgAlias === 'unknown') {
+			throw new Error(`Error: Could not retrieve Salesforce org alias (${orgAlias}).`);
+		}
+		return orgAlias;
+
 	} catch (error) {
 		console.error(`${RED}Error getting current target org:${RESET}`, error.message);
 		return null;
@@ -45,7 +50,7 @@ async function getCurrentOrgAlias() {
 
 async function setTargetOrg(orgAlias) {
 	try {
-		await execAsync(`sf config set target-org "${orgAlias}" --global --json`);
+		await exec(`sf config set target-org "${orgAlias}" --global --json`);
 		return true;
 	} catch (error) {
 		console.error(`${RED}Error setting target org:${RESET}`, error.message);

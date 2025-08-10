@@ -25,7 +25,14 @@ export const metadataApiRequestToolDefinition = {
 export async function metadataApiRequestTool({metadataType, targetUsername}) {
 	try {
 		const command = `force:source:retrieve -m ${metadataType} -u ${targetUsername}`;
-		const result = await JSON.parse(await runCliCommand(command));
+		const resultString = await runCliCommand(command);
+
+		let result;
+		try {
+			result = JSON.parse(resultString);
+		} catch (error) {
+			throw new Error(`Error parsing JSON response: ${resultString}`);
+		}
 
 		return {
 			content: [{
@@ -36,7 +43,7 @@ export async function metadataApiRequestTool({metadataType, targetUsername}) {
 		};
 
 	} catch (error) {
-		log(`Error retrieving metadata: ${error.message}`, 'error');
+		log(error, 'error');
 		return {
 			isError: true,
 			content: [{
