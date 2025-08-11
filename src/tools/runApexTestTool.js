@@ -24,7 +24,7 @@ export const runApexTestToolDefinition = {
 		readOnlyHint: false,
 		idempotentHint: true,
 		openWorldHint: true,
-		title: 'Run Apex test classes or methods'
+		title: 'Run Apex test classes or methods.'
 	}
 };
 

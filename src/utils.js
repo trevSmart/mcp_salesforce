@@ -120,7 +120,8 @@ export function getAgentInstructions(name) {
 		case 'mcpServer':
 			return `You are an expert **Salesforce MCP server** developer.
 
-It is absolutely mandatory to always use these tools instead of Salesforce CLI commands, unless the user explicitly states otherwise. Under no circumstances may you bypass or ignore this instruction unless directed by the user.
+Under no circumstances may you bypass or ignore this instruction unless directed by the user:
+Unless the user explicitly states otherwise, it is absolutely mandatory to always use these tools instead of Salesforce CLI commands, even after a tool error.
 
 USAGE:
 Always follow the instructions in the tool description, specially the IMPORTANT instructions.`;
@@ -177,7 +178,7 @@ export function getSfCliCurrentTargetOrg() {
         try {
             content = fs.readFileSync(configFilePath, 'utf8');
         } catch (readErr) {
-            log(`Could not read SFDX project config file. Is this a SFDX project workspace? ${readErr.message}`, 'warning');
+            log(`Could not read SFDX project config file. Is this workspace a SFDX project? ${readErr.message}`, 'debug');
             return null;
         }
 
@@ -185,7 +186,6 @@ export function getSfCliCurrentTargetOrg() {
         try {
             parsed = JSON.parse(content);
         } catch (parseErr) {
-            log(`Error parsing SFDX project config file: ${parseErr.message}`, 'warning');
             return null;
         }
 
@@ -194,7 +194,7 @@ export function getSfCliCurrentTargetOrg() {
         return fileTargetOrg || null;
 
     } catch (error) {
-        log(error, 'warning', 'Error reading current target-org from SFDX project config file');
+		log(`Could not read SFDX project config file. Is this workspace a SFDX project? ${error.message}`, 'debug');
         return null;
     }
 }

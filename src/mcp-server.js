@@ -48,8 +48,9 @@ const mcpServer = new McpServer(serverInfo, {
 });
 
 export function newResource(uri, name, description, mimeType = 'text/plain', content, annotations = {}) {
-	annotations = { ...annotations, lastModified: new Date().toISOString() };
 	try {
+		log(`New resource: ${uri}`, 'debug');
+		annotations = { ...annotations, lastModified: new Date().toISOString() };
 		const resource = {
 			uri,
 			name,
@@ -90,7 +91,7 @@ export async function setupServer() {
 				try {
 					listRootsResult = await mcpServer.server.listRoots();
 				} catch (error) {
-					log(`Requested roots list but client returned error: ${error.message}`, 'debug');
+					log(`Requested roots list but client returned error: ${JSON.stringify(error, null, 3)}`, 'debug');
 				}
 			}
 
@@ -119,7 +120,7 @@ export async function setupServer() {
 	});
 
 	mcpServer.server.setRequestHandler(ListResourcesRequestSchema, async () => ({ resources: Object.values(resources) }));
-	mcpServer.server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({ templates: [] }));
+	mcpServer.server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({ resourceTemplates: [] }));
 	mcpServer.server.setRequestHandler(ReadResourceRequestSchema, async ({ params: { uri } }) => ({ contents: [{ uri, ...resources[uri] }] }));
 	mcpServer.registerPrompt('code-modification', codeModificationPromptDefinition, codeModificationPrompt);
 	mcpServer.registerTool('salesforceMcpUtils', salesforceMcpUtilsToolDefinition, salesforceMcpUtilsTool);
@@ -146,7 +147,7 @@ export async function setupServer() {
 			const { clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion } = params;
 			client.initialize({ clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion });
 			log(`IBM Salesforce MCP server (v${SERVER_CONSTANTS.serverInfo.version})`, 'info');
-			const clientCapabilitiesString = 'Capabilities: ' + Object.keys(client.capabilities).join(', ') + '.';
+			const clientCapabilitiesString = 'Capabilities: ' + JSON.stringify(client.capabilities, null, 3);
 			log(`Connecting with client "${client.clientInfo.name} (v${client.clientInfo.version})". ${clientCapabilitiesString}`, 'info');
 
 			if (process.env.WORKSPACE_FOLDER_PATHS) {
@@ -157,7 +158,7 @@ export async function setupServer() {
 				try {
 					await mcpServer.server.listRoots();
 				} catch (error) {
-					log(`Requested roots list but client returned error: ${error.message}`, 'debug');
+					log(`Requested roots list but client returned error: ${JSON.stringify(error, null, 3)}`, 'debug');
 				}
 			}
 
@@ -177,14 +178,14 @@ export async function setupServer() {
 					const org = await getOrgAndUserDetails();
 					state.org = org;
 
-					newResource(
+					/* newResource(
 						'mcp://mcp/orgAndUserDetail.json',
 						'Org and user details',
 						'Org and user details',
 						'application/json',
 						JSON.stringify(org, null, 3)
 					);
-
+ */
 					log(`Server initialized and running. Target org: ${org.alias}`, 'debug');
 					await validateUserPermissions(org.user.id);
 					//setInterval(() => validateUserPermissions(org.user.id), 1200000);

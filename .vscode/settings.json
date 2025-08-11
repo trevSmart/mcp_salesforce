@@ -29,12 +29,23 @@
             "type": "link",
             "groupId": "mcp",
             "iconName": "github-inverted"
+        },
+        {
+            "name": "Salesforce CLI Command Reference",
+            "path": "https://developer.salesforce.com/docs/atlas.en-us.sfdx_cli_reference.meta/sfdx_cli_reference/cli_reference_unified.htm",
+            "description": "",
+            "type": "link",
+            "groupId": "salesforce"
         }
     ],
     "squarl.groups": [
         {
             "id": "mcp",
-            "name": "Model Context Protocol",
+            "name": "Model Context Protocol"
+        },
+        {
+            "id": "salesforce",
+            "name": "Salesforce"
         }
     ],
     "workbench.editor.highlightModifiedTabs": true,

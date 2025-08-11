@@ -31,6 +31,9 @@ const YELLOW = '\x1b[2;33m';
 
 const LOG_LEVEL_PRIORITY = {emergency: 0, alert: 1, critical: 2, error: 3, warning: 4, notice: 5, info: 6, debug: 7};
 
+// Check for verbose flag
+const VERBOSE_OUTPUT = process.argv.includes('--verbose') || process.argv.includes('-v');
+
 //Salesforce org management functions
 async function getCurrentOrgAlias() {
 	let orgAlias = 'unknown';
@@ -204,9 +207,15 @@ async function testTool(name, args, displayName, expectError = false) {
 		if (result && result.content && result.content[0] && result.content[0].type === 'text' && result.content[0].text) {
 			if (expectError && result.isError) {
 				process.stdout.write(`   ${CYAN}${shownName}${RESET}... ${GREEN}OK${RESET} (expected error)\n`);
+				if (VERBOSE_OUTPUT) {
+					process.stdout.write(`${GRAY}Output:${RESET}\n${JSON.stringify(result, null, 2)}\n\n`);
+				}
 				return {success: true, result};
 			} else if (!expectError && !result.isError) {
 				process.stdout.write(`   ${CYAN}${shownName}${RESET}... ${GREEN}OK${RESET}\n`);
+				if (VERBOSE_OUTPUT) {
+					process.stdout.write(`${GRAY}Output:${RESET}\n${JSON.stringify(result, null, 2)}\n\n`);
+				}
 				return {success: true, result};
 			}
 		}
@@ -240,6 +249,30 @@ async function runSequentialTests() {
 }
 
 async function main() {
+	process.env.LOG_LEVEL = 'debug';
+
+	// Show help if requested
+	if (process.argv.includes('--help') || process.argv.includes('-h')) {
+		console.log(`
+${CYAN}MCP Salesforce Tools Test Script${RESET}
+
+Usage: node dev/testTools.js [options]
+
+Options:
+  --verbose, -v    Show detailed output for all tests (including successful ones)
+  --help, -h       Show this help message
+
+Examples:
+  node dev/testTools.js              # Run tests normally
+  node dev/testTools.js --verbose    # Run tests with detailed output
+`);
+		process.exit(0);
+	}
+
+	if (VERBOSE_OUTPUT) {
+		process.stdout.write(`${YELLOW}Running in verbose mode - will show all tool outputs${RESET}\n\n`);
+	}
+
 	process.stdout.write(GRAY + 'Checking current target org... ');
 
 	//Setup Salesforce org before running tests
