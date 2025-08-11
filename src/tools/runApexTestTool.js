@@ -16,7 +16,11 @@ export const runApexTestToolDefinition = {
 		methodNames: z
 			.array(z.string())
 			.optional()
-			.describe('Test methods to run with the format "testClassName.testMethodName" (only the specified methods will be run).')
+			.describe('Test methods to run with the format "testClassName.testMethodName" (only the specified methods will be run).'),
+		suiteNames: z
+			.array(z.string())
+			.optional()
+			.describe('Case sensitive. Names of the Apex test suites to run (all classes in the suites will be run).'),
 	},
 	annotations: {
 		testHint: true,
@@ -24,7 +28,7 @@ export const runApexTestToolDefinition = {
 		readOnlyHint: false,
 		idempotentHint: true,
 		openWorldHint: true,
-		title: 'Run Apex test classes or methods.'
+		title: 'Run Apex Tests'
 	}
 };
 
@@ -67,9 +71,9 @@ async function classNameElicitation() {
 	});
 }
 
-export async function runApexTestTool({classNames = [], methodNames = []}) {
+export async function runApexTestTool({classNames = [], methodNames = [], suiteNames = []}) {
 	try {
-		if (!classNames.length && !methodNames.length) {
+		if (!classNames.length && !methodNames.length && !suiteNames.length) {
 			if (client.supportsCapability('elicitation')) {
 				const elicitResult = await classNameElicitation();
 				const selectedClassName = elicitResult.content?.confirm;
@@ -89,23 +93,28 @@ export async function runApexTestTool({classNames = [], methodNames = []}) {
 		} else {
 			classNames = classNames.filter(className => typeof className === 'string');
 			methodNames = methodNames.filter(methodName => typeof methodName === 'string');
+			suiteNames = suiteNames.filter(suiteName => typeof suiteName === 'string');
 		}
 
 		let testRunId;
 		if (methodNames && methodNames.length) {
 			//Cas B: només mètodes concrets, ignora classNames
-			testRunId = await runApexTest([], methodNames);
+			testRunId = await runApexTest([], methodNames, []);
 
 		} else if (classNames && classNames.length) {
 			//Cas A: només classes senceres, ignora methodNames
-			testRunId = await runApexTest(classNames, []);
+			testRunId = await runApexTest(classNames, [], []);
+
+		} else if (suiteNames && suiteNames.length) {
+			//Cas C: només suites senceres, ignora classNames i methodNames
+			testRunId = await runApexTest([], [], suiteNames);
 
 		} else {
-			throw new Error('Cal especificar classNames o methodNames.');
+			throw new Error('You need to specify classNames, methodNames or suiteNames.');
 		}
 
 		if (!testRunId) {
-			throw new Error('No s\'ha obtingut testRunId del salesforceService');
+			throw new Error('No test run Id returned by Salesforce CLI');
 		}
 
 		//const progressToken = classNames?.length > 1 ? _meta?.progressToken : null;
@@ -121,14 +130,14 @@ export async function runApexTestTool({classNames = [], methodNames = []}) {
 			}
 			//const progress = testRunResult.MethodsCompleted + testRunResult.MethodsFailed;
 			//notifyProgressChange(progressToken, testRunResult.MethodsEnqueued, progress, 'Executant el test...');
-			await new Promise(resolve => setTimeout(resolve, 8000)); //Polling cada 8 segons
+			await new Promise(resolve => setTimeout(resolve, 8000)); //Polling every 8 seconds
 		}
 
 		//Obtenir els resultats finals dels tests
 		const testResults = await executeSoqlQuery(`SELECT ApexClass.Name, MethodName, Outcome, RunTime, Message, StackTrace FROM ApexTestResult WHERE ApexTestRunResultId = '${testRunResult.Id}'`);
 
 		if (!Array.isArray(testResults.records)) {
-			throw new Error('El resultado de executeSoqlQuery no contiene un array de records. Valor recibido: ' + JSON.stringify(testResults));
+			throw new Error('The result of executeSoqlQuery does not contain an array of records. Received value: ' + JSON.stringify(testResults));
 		}
 
 		let result = testResults.records.map(r => ({
@@ -143,7 +152,7 @@ export async function runApexTestTool({classNames = [], methodNames = []}) {
 		return {
 			content: [{
 				type: 'text',
-				text: 'Render in table: ' + JSON.stringify(result)
+				text: 'Render in table format: ' + JSON.stringify(result)
 			}],
 			structuredContent: result
 		};
@@ -154,7 +163,7 @@ export async function runApexTestTool({classNames = [], methodNames = []}) {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: error.message || error
+				text: JSON.stringify(error, null, 3)
 			}]
 		};
 	}

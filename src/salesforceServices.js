@@ -307,16 +307,17 @@ export async function describeObject(sObjectName) {
 	}
 }
 
-export async function runApexTest(classNames = [], methodNames = [], codeCoverage = false, synchronous = false) {
+export async function runApexTest(classNames = [], methodNames = [], suiteNames = [], codeCoverage = false, synchronous = false) {
 	try {
 		let command = 'sf apex run test';
-
 		for (const className of classNames) {
 			command += ` --class-names "${className}"`;
 		}
-
 		for (const methodName of methodNames) {
 			command += ` --tests "${methodName}"`;
+		}
+		for (const suiteName of suiteNames) {
+			command += ` --suite-names "${suiteName}"`;
 		}
 		if (codeCoverage) {
 			command += ' --code-coverage';
@@ -335,7 +336,7 @@ export async function runApexTest(classNames = [], methodNames = [], codeCoverag
 		}
 
 		if (responseObj.status !== 0) {
-			throw new Error(responseObj.message || 'Error executant el test d\'Apex');
+			throw new Error(responseObj.message || 'Error running Apex tests');
 		}
 
 		return responseObj.result.testRunId;
