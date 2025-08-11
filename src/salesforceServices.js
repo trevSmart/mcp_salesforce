@@ -6,7 +6,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import state from './state.js';
 import os from 'os';
-import { resources } from './mcp-server.js';
+import { newResource } from './mcp-server.js';
 const exec = promisify(execCb);
 
 //Helper function to generate timestamp in YYMMDDHHMMSS format
@@ -103,6 +103,7 @@ export async function executeSoqlQuery(query, useToolingApi = false) {
 }
 
 export async function getOrgAndUserDetails() {
+	log('getOrgAndUserDetails', 'debug');
 	try {
 		// Check current SF CLI target alias and reuse cached org if unchanged
 		const fileAlias = getSfCliCurrentTargetOrg();
@@ -141,7 +142,20 @@ export async function getOrgAndUserDetails() {
 		const getUserFullName = async () => {
 			const soqlUserResult = await executeSoqlQuery(`SELECT Name FROM User WHERE Id = '${org.user.id}'`);
 			state.org.user.name = soqlUserResult?.records?.[0]?.Name;
-			resources['mcp://mcp/orgAndUserDetail.json'].text = JSON.stringify(state.org, null, 3);
+
+			newResource(
+				'mcp://org/orgAndUserDetail.json',
+				'Org and user details',
+				'Org and user details',
+				'application/json',
+				JSON.stringify(state.org, null, 3)
+			);
+
+			/*
+			if ('mcp://mcp/orgAndUserDetail.json' in resources) {
+				resources['mcp://mcp/orgAndUserDetail.json'].text = JSON.stringify(state.org, null, 3);
+			}
+			*/
 		};
 		getUserFullName();
 

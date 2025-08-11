@@ -26,7 +26,7 @@ export async function getOrgAndUserDetailsTool() {
 
 		if (client.isVsCode) {
 			const resourceOrgAndUserDetails = newResource(
-				'mcp://org/org-and-user-details.json',
+				'mcp://org/orgAndUserDetail.json',
 				'Salesforce org and user details',
 				'Details of the current target Salesforce org and logged-in user. This resource can now be reused instead of making new calls to the getOrgAndUserDetails tool.',
 				'application/json',
