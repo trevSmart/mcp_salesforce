@@ -499,44 +499,125 @@ export async function runApexTest(classNames = [], methodNames = [], suiteNames 
 	}
 }
 
-export async function getApexClassCodeCoverage(className) {
+export async function getApexClassCodeCoverage(classNames = []) {
 	try {
-		let soqlCoverageAggregate = 'SELECT ApexClassOrTriggerId, NumLinesCovered, NumLinesUncovered FROM ApexCodeCoverageAggregate WHERE ApexClassOrTrigger.Name = \'' + className + '\'';
-		const responseCoverageAggregate = await executeSoqlQuery(soqlCoverageAggregate, true);
-		const coverageAggregate = responseCoverageAggregate?.records?.[0];
+		// Backward compatibility: accept a single string too
+		const requestedNames = Array.isArray(classNames) ? classNames : [classNames];
+		const filteredNames = requestedNames.filter(n => typeof n === 'string' && n.trim().length);
+		if (!filteredNames.length) {
+			return { success: true, classes: [] };
+		}
 
-		if (coverageAggregate) {
+		// Escape single quotes in names for SOQL
+		const escapedNames = filteredNames.map(n => `'${String(n).replace(/'/g, `\\'`)}'`).join(',');
 
-			const result = {
-				success: true,
-				className,
-				classId: coverageAggregate.ApexClassOrTriggerId,
-				numLinesCovered: coverageAggregate.NumLinesCovered || 0,
-				numLinesUncovered: coverageAggregate.NumLinesUncovered || 0,
-				percentage: Math.round((coverageAggregate.NumLinesCovered / (coverageAggregate.NumLinesCovered + coverageAggregate.NumLinesUncovered)) * 100)
+		// Ensure all requested classes exist in the org (use Tooling API ApexClass)
+		const soqlExistingClasses = `SELECT Id, Name FROM ApexClass WHERE Name IN (${escapedNames})`;
+		const existingClassesResult = await executeSoqlQuery(soqlExistingClasses, true);
+		const existingRecords = existingClassesResult?.records || [];
+		const existingNamesSet = new Set(existingRecords.map(r => r.Name));
+		const existingIdByName = {};
+		for (const rec of existingRecords) existingIdByName[rec.Name] = rec.Id;
+		const missingNames = filteredNames.filter(n => !existingNamesSet.has(n));
+		if (missingNames.length) {
+			throw new Error(`The following Apex classes do not exist in the org: ${missingNames.join(', ')}`);
+		}
+
+		// Include relationship Name explicitly in the SELECT
+		const soqlCoverageAggregates = `SELECT ApexClassOrTriggerId, ApexClassOrTrigger.Name, NumLinesCovered, NumLinesUncovered FROM ApexCodeCoverageAggregate WHERE ApexClassOrTrigger.Name IN (${escapedNames})`;
+		const responseCoverageAggregates = await executeSoqlQuery(soqlCoverageAggregates, true);
+		const coverageAggregates = responseCoverageAggregates?.records || [];
+		const aggregateByName = {};
+		for (const agg of coverageAggregates) {
+			const name = agg?.ApexClassOrTrigger?.Name;
+			if (name) aggregateByName[name] = agg;
+		}
+
+		// Build initial class entries for all requested names and collect ids that have aggregate
+		const classIdsForMethodQuery = [];
+		const classesById = {};
+		const classes = [];
+		for (const name of filteredNames) {
+			const agg = aggregateByName[name];
+			const covered = agg ? (agg.NumLinesCovered || 0) : 0;
+			const uncovered = agg ? (agg.NumLinesUncovered || 0) : 0;
+			const total = covered + uncovered;
+			const percentage = total > 0 ? Math.round((covered / total) * 100) : 0;
+			const coverageStatus = total === 0 ? 'none' : (percentage === 100 ? 'full' : 'partial');
+			const classId = agg?.ApexClassOrTriggerId || existingIdByName[name] || null;
+
+			const entry = {
+				className: name,
+				classId,
+				numLinesCovered: covered,
+				numLinesUncovered: uncovered,
+				percentage,
+				coveredLines: covered,
+				uncoveredLines: uncovered,
+				totalLines: total,
+				coverageStatus,
+				aggregateFound: Boolean(agg),
+				testMethods: []
+			};
+
+			classes.push(entry);
+			if (agg?.ApexClassOrTriggerId) {
+				classesById[agg.ApexClassOrTriggerId] = entry;
+				classIdsForMethodQuery.push(`'${agg.ApexClassOrTriggerId}'`);
 			}
+		}
 
-
-			let soqlCoverage = 'SELECT ApexTestClass.Name, TestMethodName, NumLinesCovered, NumLinesUncovered FROM ApexCodeCoverage WHERE ApexClassOrTriggerId = \'' + coverageAggregate.ApexClassOrTriggerId + '\'';
-			const responseCoverage = await executeSoqlQuery(soqlCoverage, true);
-
-			const coverages = responseCoverage?.records;
-
-			if (coverages.length) {
-				result.testMethods = coverages.map(coverage => ({
-					className: coverage.ApexTestClass.Name,
-					methodName: coverage.TestMethodName,
-					numLinesCovered: coverage.NumLinesCovered || 0,
-					numLinesUncovered: coverage.NumLinesUncovered || 0,
-						percentage: Math.round((coverage.NumLinesCovered / (coverage.NumLinesCovered + coverage.NumLinesUncovered)) * 100)
-				}));
+		// Fetch method-level coverages in one query
+		if (classIdsForMethodQuery.length) {
+			const soqlCoverages = `SELECT ApexClassOrTriggerId, ApexTestClass.Name, TestMethodName, NumLinesCovered, NumLinesUncovered FROM ApexCodeCoverage WHERE ApexClassOrTriggerId IN (${classIdsForMethodQuery.join(',')})`;
+			const responseCoverages = await executeSoqlQuery(soqlCoverages, true);
+			const coverages = responseCoverages?.records || [];
+			for (const cov of coverages) {
+				const entry = classesById[cov.ApexClassOrTriggerId];
+				if (!entry) continue;
+				const covCovered = cov.NumLinesCovered || 0;
+				const covUncovered = cov.NumLinesUncovered || 0;
+				const covTotal = covCovered + covUncovered;
+				entry.testMethods.push({
+					testClassName: cov?.ApexTestClass?.Name,
+					testMethodName: cov.TestMethodName,
+					numLinesCovered: covCovered,
+					numLinesUncovered: covUncovered,
+					linesCovered: covCovered,
+					linesUncovered: covUncovered,
+					totalLines: covTotal,
+					percentage: covTotal > 0 ? Math.round((covCovered / covTotal) * 100) : 0
+				});
 			}
+			// Order and limit test methods per class
+			for (const entry of classes) {
+				if (entry.testMethods && entry.testMethods.length) {
+					entry.testMethods.sort((a, b) => b.linesCovered - a.linesCovered);
+					entry.testMethods = entry.testMethods.slice(0, 10);
+				}
+			}
+		}
 
-			return result;
+		// Compute summary and sort classes (worst coverage first)
+		classes.sort((a, b) => a.percentage - b.percentage);
+		const totalClasses = classes.length;
+		const classesWithCoverage = classes.filter(c => c.aggregateFound && c.totalLines > 0).length;
+		const classesWithoutCoverage = totalClasses - classesWithCoverage;
+		const averagePercentage = totalClasses ? Math.round(classes.reduce((s, c) => s + (c.percentage || 0), 0) / totalClasses) : 0;
+
+		const result = {
+			success: true,
+			timestamp: new Date().toISOString(),
+			summary: { totalClasses, classesWithCoverage, classesWithoutCoverage, averagePercentage },
+			classes,
+			errors: [],
+			warnings: []
 		};
 
+		return result;
+
 	} catch (error) {
-		log(error, 'error', `Error getting code coverage for class ${className}`);
+		log(error, 'error', `Error getting code coverage for classes ${Array.isArray(classNames) ? classNames.join(', ') : classNames}`);
 		throw error;
 	}
 }
@@ -636,7 +717,7 @@ export async function deployMetadata(sourceDir) {
 	}
 }
 
-export async function generateMetadata({ type, name, outputDir, template, sobjectName, events = [] }) {
+export async function generateMetadata({ type, name, outputDir, sobjectName, events = [] }) {
     try {
         if (!type || typeof type !== 'string') {
             throw new Error('type is required and must be a string');
@@ -647,6 +728,7 @@ export async function generateMetadata({ type, name, outputDir, template, sobjec
 
         const defaultDirs = {
             apexClass: 'force-app/main/default/classes',
+            apexTestClass: 'force-app/main/default/classes',
             apexTrigger: 'force-app/main/default/triggers',
             lwc: 'force-app/main/default/lwc'
         };
@@ -654,10 +736,10 @@ export async function generateMetadata({ type, name, outputDir, template, sobjec
         const resolvedOutputDir = outputDir || defaultDirs[type];
         let command;
 
-        if (type === 'apexClass') {
+        if (type === 'apexClass' || type === 'apexTestClass') {
             command = `sf apex generate class --name "${name}"`;
             if (resolvedOutputDir) command += ` --output-dir "${resolvedOutputDir}"`;
-            if (template) command += ` --template "${template}"`;
+            // No template parameter from tool; we'll inject content later for test class
 
         } else if (type === 'apexTrigger') {
             if (!sobjectName || typeof sobjectName !== 'string') {
@@ -666,7 +748,7 @@ export async function generateMetadata({ type, name, outputDir, template, sobjec
             command = `sf apex generate trigger --name "${name}" --sobject "${sobjectName}"`;
             if (Array.isArray(events) && events.length) command += ` --events ${events.join(',')}`;
             if (resolvedOutputDir) command += ` --output-dir "${resolvedOutputDir}"`;
-            if (template) command += ` --template "${template}"`;
+            // templates not supported via tool anymore
 
         } else if (type === 'lwc') {
             command = `sf lightning generate component --type lwc --name "${name}"`;
@@ -682,11 +764,36 @@ export async function generateMetadata({ type, name, outputDir, template, sobjec
         let files = [];
         let folder = null;
 
-        if (type === 'apexClass') {
+        if (type === 'apexClass' || type === 'apexTestClass') {
             const classFilePath = path.join(resolvedDir, `${name}.cls`);
             const metaFilePath = path.join(resolvedDir, `${name}.cls-meta.xml`);
             try { await fs.access(classFilePath); files.push(classFilePath); } catch {}
             try { await fs.access(metaFilePath); files.push(metaFilePath); } catch {}
+
+            // Overwrite content for Apex test classes with a fixed template
+            if (type === 'apexTestClass') {
+                const testClassContent = `@isTest
+public class ${name} {
+
+	@isTest
+	private static void test1() {
+		System.runAs(TestDataFactory.createTestUser()) {
+			//Set up prerequisites for the logic under test
+			TestDataFactory.createAccount('ACME Test');
+
+			Test.startTest();
+			//Invoke the logic under test
+			Test.stopTest();
+
+			//Verify expected outcome
+			System.assertEquals(expectedValue, actualValue, 'Explanation of the assertion failure');
+		}
+	}
+}`;
+                try {
+                    await fs.writeFile(classFilePath, testClassContent, 'utf8');
+                } catch {}
+            }
 
         } else if (type === 'apexTrigger') {
             const triggerFilePath = path.join(resolvedDir, `${name}.trigger`);

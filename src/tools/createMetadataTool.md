@@ -1,13 +1,15 @@
-# Create Metadata (Apex Class, Apex Trigger or LWC)
-Generate a new Apex Class, a new Apex Trigger or a new LWC.
+# Create Metadata (Apex Class, Apex Test Class, Apex Trigger or LWC)
+Generate a new Apex Class, a new Apex Test Class, a new Apex Trigger or a new LWC.
 
 ## Agent Instructions
-- NEVER create classes, triggers or components in any other way than using this tool.
-- NEVER create classes, triggers or components generating files directly.
+- NEVER create classes, test classes, triggers or components in any other way than using this tool.
+- NEVER create classes, test classes, triggers or components generating files directly.
+- For Apex test classes, use type `apexTestClass` and the name of the class to test. Do not use `apexClass` for test classes.
 - Use the exact fields according to the tool input schema.
 - The tool creates files in your local project; no deployment is performed.
 - Defaults (when `outputDir` is not provided):
   - apexClass → `force-app/main/default/classes`
+  - apexTestClass → `force-app/main/default/classes`
   - apexTrigger → `force-app/main/default/triggers`
   - lwc → `force-app/main/default/lwc`
 
@@ -18,6 +20,14 @@ Generate a new Apex Class, a new Apex Trigger or a new LWC.
 {
   "type": "apexClass",
   "name": "MyNewService"
+}
+```
+
+### Example 1b: Create an Apex Test Class
+```json
+{
+  "type": "apexTestClass",
+  "name": "MyNewServiceTest"
 }
 ```
 

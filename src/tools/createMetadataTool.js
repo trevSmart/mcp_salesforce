@@ -4,44 +4,35 @@ import { z } from 'zod';
 
 export const createMetadataToolDefinition = {
     name: 'createMetadata',
-    title: 'Create Metadata (Apex Class, Apex Trigger or LWC)',
+    title: 'Create Metadata (Apex Class, Apex Test Class, Apex Trigger or LWC)',
     description: textFileContent('createMetadataTool'),
     inputSchema: {
-        type: z
-            .enum(['apexClass', 'apexTrigger', 'lwc'])
-            .describe('The metadata type to generate: "apexClass", "apexTrigger" or "lwc"'),
-        name: z
-            .string()
+        type: z.enum(['apexClass', 'apexTestClass', 'apexTrigger', 'lwc'])
+            .describe('The metadata type to generate: "apexClass", "apexTestClass", "apexTrigger" or "lwc".'),
+        name: z.string()
             .describe('Name of the metadata to generate. For LWC, this will be the component folder name.'),
-        outputDir: z
-            .string()
+        outputDir: z.string()
             .optional()
             .describe('Optional. Output directory relative to the workspace. Defaults depend on the type.'),
-        sobjectName: z
-            .string()
+        sobjectName: z.string()
             .optional()
-            .describe('Required for apexTrigger. The sObject API name the trigger is defined on.'),
-        events: z
-            .array(z.string())
+            .describe('Required for apexTrigger. The sObject API name the trigger is defined on. For LWC, this will be the component folder name.'),
+        events: z.array(z.string())
             .optional()
-            .describe('Optional for apexTrigger. Trigger events. Example: ["beforeInsert", "afterUpdate"].'),
-        template: z
-            .string()
-            .optional()
-            .describe('Optional template name for Apex artifacts (e.g., DefaultApexClass, DefaultApexTrigger).')
+            .describe('Optional for apexTrigger. Trigger events. Example: ["beforeInsert", "afterUpdate"].')
     },
     annotations: {
         readOnlyHint: false,
         destructiveHint: false,
         idempotentHint: true,
         openWorldHint: true,
-        title: 'Create project metadata'
+        title: 'Create Metadata (Apex Class, Apex Test Class, Apex Trigger or LWC)'
     }
 };
 
-export async function createMetadataTool({ type, name, outputDir, sobjectName, events = [], template }) {
+export async function createMetadataTool({ type, name, outputDir, sobjectName, events = [] }) {
     try {
-        const result = await generateMetadata({ type, name, outputDir, sobjectName, events, template });
+        const result = await generateMetadata({ type, name, outputDir, sobjectName, events });
 
         return {
             content: [{
