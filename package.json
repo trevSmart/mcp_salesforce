@@ -13,7 +13,7 @@
   "scripts": {
     "publish-package": "sh dev/publish-package.sh",
     "test": "node dev/testTools.js",
-    "lint": "eslint . --ext .js,.mjs,.cjs,.jsx,.ts,.tsx",
+    "lint": "eslint .",
     "startMcpInspector": "sh dev/startMcpInspector.sh"
   },
   "keywords": [

@@ -1,8 +1,7 @@
-import { defineConfig } from "eslint/config";
 import globals from "globals";
 import babelParser from "@babel/eslint-parser";
 
-export default defineConfig([{
+export default [{ 
     languageOptions: {
         globals: {
             ...globals.browser,
@@ -11,8 +10,8 @@ export default defineConfig([{
         },
 
         parser: babelParser,
-        ecmaVersion: 5,
-        sourceType: "commonjs",
+        ecmaVersion: 2022,
+        sourceType: "module",
 
         parserOptions: {
             requireConfigFile: false,
@@ -135,4 +134,4 @@ export default defineConfig([{
         "compat/compat": "off",
         "object-curly-spacing": ["error", "never"],
     },
-}]);
+}];

@@ -9,14 +9,28 @@ import {executeSoqlQuery} from './salesforceServices.js';
 import state from './state.js';
 
 export function log(data, logLevel = 'info', context = null) {
-	try {
-		const LOG_LEVEL_PRIORITY = {emergency: 0, alert: 1, critical: 2, error: 3, warning: 4, notice: 5, info: 6, debug: 7};
+        try {
+                const LOG_LEVEL_PRIORITY = {
+                        emergency: 0,
+                        alert: 1,
+                        critical: 2,
+                        error: 3,
+                        warning: 4,
+                        notice: 5,
+                        info: 6,
+                        debug: 7
+                };
 
-		const logLevelPriority = LOG_LEVEL_PRIORITY[logLevel];
-		const currentLogLevelPriority = LOG_LEVEL_PRIORITY[config.currentLogLevel];
-		if (logLevelPriority > currentLogLevelPriority) {
-			return;
-		}
+                //Fallback to 'info' for unknown log levels to avoid runtime errors
+                if (!(logLevel in LOG_LEVEL_PRIORITY)) {
+                        logLevel = 'info';
+                }
+
+                const logLevelPriority = LOG_LEVEL_PRIORITY[logLevel];
+                const currentLogLevelPriority = LOG_LEVEL_PRIORITY[config.currentLogLevel];
+                if (logLevelPriority > currentLogLevelPriority) {
+                        return;
+                }
 
 		let logData = data;
 
@@ -215,14 +229,24 @@ export function getTimestamp(long = false) {
 }
 
 function getLogPrefix(logLevel) {
-	const logLevelPrefix = ({
-		emergency: '🔥', alert: '⛔️', critical: '❗️', error: '❌', warning: '⚠️', notice: '✉️', info: '💡', debug: '🐞'
-	}[logLevel].repeat(3));
+        const symbols = {
+                emergency: '🔥',
+                alert: '⛔️',
+                critical: '❗️',
+                error: '❌',
+                warning: '⚠️',
+                notice: '✉️',
+                info: '💡',
+                debug: '🐞'
+        };
 
-	if (config.logPrefix) {
-		return `(${config.logPrefix} · ${logLevelPrefix})`;
-	}
-	return `(${logLevelPrefix})`;
+        const symbol = symbols[logLevel] || symbols.info;
+        const logLevelPrefix = symbol.repeat(3);
+
+        if (config.logPrefix) {
+                return `(${config.logPrefix} · ${logLevelPrefix})`;
+        }
+        return `(${logLevelPrefix})`;
 }
 
 export function getFileNameFromPath(filePath) {
