@@ -20,7 +20,7 @@ export const runApexTestToolDefinition = {
 		suiteNames: z
 			.array(z.string())
 			.optional()
-			.describe('Case sensitive. Names of the Apex test suites to run (all classes in the suites will be run).'),
+			.describe('Case sensitive. Names of the Apex test suites to run (all classes in the suites will be run).')
 	},
 	annotations: {
 		testHint: true,
