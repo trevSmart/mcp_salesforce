@@ -1,11 +1,9 @@
 # Create Metadata (Apex Class, Apex Trigger or LWC)
-
-Generate project metadata via Salesforce CLI commands:
-- Apex Class: `sf apex generate class`
-- Apex Trigger: `sf apex generate trigger`
-- Lightning Web Component: `sf lightning generate component --type lwc`
+Generate a new Apex Class, a new Apex Trigger or a new LWC.
 
 ## Agent Instructions
+- NEVER create classes, triggers or components in any other way than using this tool.
+- NEVER create classes, triggers or components generating files directly.
 - Use the exact fields according to the tool input schema.
 - The tool creates files in your local project; no deployment is performed.
 - Defaults (when `outputDir` is not provided):
