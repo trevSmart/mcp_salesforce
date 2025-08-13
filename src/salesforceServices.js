@@ -201,7 +201,7 @@ export async function createRecord(sObjectName, fields, useToolingApi = false) {
 export async function updateRecord(sObjectName, recordId, fields, useToolingApi = false) {
 	try {
 		if (!sObjectName || !recordId || !fields || typeof fields !== 'object') {
-			throw new Error('sObjectName, recordId i fields són obligatoris');
+			throw new Error('sObjectName, recordId and fields are required');
 		}
 		const valuesString = Object.entries(fields)
 			.map(([key, value]) => `${key}='${String(value).replace(/'/g, '\\\'')}'`)
@@ -218,7 +218,7 @@ export async function updateRecord(sObjectName, recordId, fields, useToolingApi 
 		}
 
 		if (response.status !== 0) {
-			throw new Error(response.message || 'Error actualitzant el registre');
+			throw new Error(response.message || 'Error updating record');
 		}
 		return response.result;
 
@@ -231,7 +231,7 @@ export async function updateRecord(sObjectName, recordId, fields, useToolingApi 
 export async function deleteRecord(sObjectName, recordId, useToolingApi = false) {
 	try {
 		if (!sObjectName || !recordId) {
-			throw new Error('sObjectName i recordId són obligatoris');
+			throw new Error('sObjectName and recordId are required');
 		}
 
 		const command = `sf data delete record --sobject ${sObjectName} --record-id ${recordId} ${useToolingApi ? '--use-tooling-api' : ''} --json`;
@@ -246,7 +246,7 @@ export async function deleteRecord(sObjectName, recordId, useToolingApi = false)
 		}
 
 		if (response.status !== 0) {
-			throw new Error(response.message || 'Error eliminant el registre');
+			throw new Error(response.message || 'Error deleting record');
 		}
 		return response.result;
 
@@ -256,10 +256,162 @@ export async function deleteRecord(sObjectName, recordId, useToolingApi = false)
 	}
 }
 
+export async function updateBulk(sObjectName, filePath, options = {}) {
+    try {
+        if (!sObjectName || typeof sObjectName !== 'string') {
+            throw new Error('sObjectName is required and must be a string');
+        }
+        if (!filePath || typeof filePath !== 'string') {
+            throw new Error('filePath is required and must be a string');
+        }
+
+        const { asyncMode = false, wait, lineEnding, columnDelimiter } = options;
+
+        let command = `sf data update bulk --sobject ${sObjectName} --file "${filePath}" --wait 5`;
+
+        if (asyncMode) {
+            command += ' --async';
+        } else if (typeof wait === 'number' && !Number.isNaN(wait)) {
+            command += ` --wait ${wait}`;
+        }
+
+        if (lineEnding && (lineEnding === 'CRLF' || lineEnding === 'LF')) {
+            command += ` --line-ending ${lineEnding}`;
+        }
+
+        const allowedDelimiters = ['BACKQUOTE', 'CARET', 'COMMA', 'PIPE', 'SEMICOLON', 'TAB'];
+        if (columnDelimiter && allowedDelimiters.includes(columnDelimiter)) {
+            command += ` --column-delimiter ${columnDelimiter}`;
+        }
+
+        command += ' --json';
+        log(`Executing bulk update command: ${command}`, 'debug');
+
+        const responseString = await runCliCommand(command);
+        let response;
+        try {
+            response = JSON.parse(responseString);
+        } catch (error) {
+            throw new Error(`Error parsing JSON response: ${responseString}`);
+        }
+
+        if (response.status !== 0) {
+            throw new Error(response.message || 'Error running bulk update');
+        }
+
+        return response.result;
+
+    } catch (error) {
+        log(error, 'error', `Error running bulk update for object ${sObjectName} with file ${filePath}`);
+        throw error;
+    }
+}
+
+export async function createBulk(sObjectName, filePath, options = {}) {
+    try {
+        if (!sObjectName || typeof sObjectName !== 'string') {
+            throw new Error('sObjectName is required and must be a string');
+        }
+        if (!filePath || typeof filePath !== 'string') {
+            throw new Error('filePath is required and must be a string');
+        }
+
+        const { asyncMode = false, wait, lineEnding, columnDelimiter } = options;
+
+        let command = `sf data import bulk --sobject ${sObjectName} --file "${filePath}"`;
+
+        if (asyncMode) {
+            command += ' --async';
+        } else if (typeof wait === 'number' && !Number.isNaN(wait)) {
+            command += ` --wait ${wait}`;
+        }
+
+        if (lineEnding && (lineEnding === 'CRLF' || lineEnding === 'LF')) {
+            command += ` --line-ending ${lineEnding}`;
+        }
+
+        const allowedDelimiters = ['BACKQUOTE', 'CARET', 'COMMA', 'PIPE', 'SEMICOLON', 'TAB'];
+        if (columnDelimiter && allowedDelimiters.includes(columnDelimiter)) {
+            command += ` --column-delimiter ${columnDelimiter}`;
+        }
+
+        command += ' --json';
+        log(`Executing bulk import command: ${command}`, 'debug');
+
+        const responseString = await runCliCommand(command);
+        let response;
+        try {
+            response = JSON.parse(responseString);
+        } catch (error) {
+            throw new Error(`Error parsing JSON response: ${responseString}`);
+        }
+
+        if (response.status !== 0) {
+            throw new Error(response.message || 'Error running bulk import');
+        }
+
+        return response.result;
+
+    } catch (error) {
+        log(error, 'error', `Error running bulk import for object ${sObjectName} with file ${filePath}`);
+        throw error;
+    }
+}
+
+export async function deleteBulk(sObjectName, filePath, options = {}) {
+    try {
+        if (!sObjectName || typeof sObjectName !== 'string') {
+            throw new Error('sObjectName is required and must be a string');
+        }
+        if (!filePath || typeof filePath !== 'string') {
+            throw new Error('filePath is required and must be a string');
+        }
+
+        const { asyncMode = false, wait, lineEnding, hardDelete = false } = options;
+
+        let command = `sf data delete bulk --sobject ${sObjectName} --file "${filePath}"`;
+
+        if (asyncMode) {
+            command += ' --async';
+        } else if (typeof wait === 'number' && !Number.isNaN(wait)) {
+            command += ` --wait ${wait}`;
+        }
+
+        if (hardDelete) {
+            command += ' --hard-delete';
+        }
+
+        if (lineEnding && (lineEnding === 'CRLF' || lineEnding === 'LF')) {
+            command += ` --line-ending ${lineEnding}`;
+        }
+
+        command += ' --json';
+        log(`Executing bulk delete command: ${command}`, 'debug');
+
+        const responseString = await runCliCommand(command);
+        let response;
+        try {
+            response = JSON.parse(responseString);
+        } catch (error) {
+            throw new Error(`Error parsing JSON response: ${responseString}`);
+        }
+
+        if (response.status !== 0) {
+            throw new Error(response.message || 'Error running bulk delete');
+        }
+
+        return response.result;
+
+    } catch (error) {
+        log(error, 'error', `Error running bulk delete for object ${sObjectName} with file ${filePath}`);
+        throw error;
+    }
+}
+
 export async function getRecord(sObjectName, recordId) {
 	try {
 		if (!sObjectName || !recordId) {
-			throw new Error('sObjectName i recordId són obligatoris');
+			throw new Error('sObjectName and recordId are required');
 		}
 		const command = `sf data get record --sobject ${sObjectName} --record-id ${recordId} --json`;
 		log(`Executing get record command: ${command}`, 'debug');
@@ -273,7 +425,7 @@ export async function getRecord(sObjectName, recordId) {
 		}
 
 		if (response.status !== 0) {
-			throw new Error(response.message || 'Error obtenint el registre');
+			throw new Error(response.message || 'Error getting record');
 		}
 		return response.result;
 
@@ -286,7 +438,7 @@ export async function getRecord(sObjectName, recordId) {
 export async function describeObject(sObjectName) {
 	try {
 		if (!sObjectName || typeof sObjectName !== 'string') {
-			throw new Error('sObjectName és obligatori i ha de ser una string');
+			throw new Error('sObjectName is required and must be a string');
 		}
 		const command = `sf sobject describe --sobject ${sObjectName} --json`;
 		log(`Executing describe object command: ${command}`, 'debug');
@@ -347,9 +499,51 @@ export async function runApexTest(classNames = [], methodNames = [], suiteNames 
 	}
 }
 
+export async function getApexClassCodeCoverage(className) {
+	try {
+		let soqlCoverageAggregate = 'SELECT ApexClassOrTriggerId, NumLinesCovered, NumLinesUncovered FROM ApexCodeCoverageAggregate WHERE ApexClassOrTrigger.Name = \'' + className + '\'';
+		const responseCoverageAggregate = await executeSoqlQuery(soqlCoverageAggregate, true);
+		const coverageAggregate = responseCoverageAggregate?.records?.[0];
+
+		if (coverageAggregate) {
+
+			const result = {
+				success: true,
+				className,
+				classId: coverageAggregate.ApexClassOrTriggerId,
+				numLinesCovered: coverageAggregate.NumLinesCovered || 0,
+				numLinesUncovered: coverageAggregate.NumLinesUncovered || 0,
+				percentage: Math.round((coverageAggregate.NumLinesCovered / (coverageAggregate.NumLinesCovered + coverageAggregate.NumLinesUncovered)) * 100)
+			}
+
+
+			let soqlCoverage = 'SELECT ApexTestClass.Name, TestMethodName, NumLinesCovered, NumLinesUncovered FROM ApexCodeCoverage WHERE ApexClassOrTriggerId = \'' + coverageAggregate.ApexClassOrTriggerId + '\'';
+			const responseCoverage = await executeSoqlQuery(soqlCoverage, true);
+
+			const coverages = responseCoverage?.records;
+
+			if (coverages.length) {
+				result.testMethods = coverages.map(coverage => ({
+					className: coverage.ApexTestClass.Name,
+					methodName: coverage.TestMethodName,
+					numLinesCovered: coverage.NumLinesCovered || 0,
+					numLinesUncovered: coverage.NumLinesUncovered || 0,
+						percentage: Math.round((coverage.NumLinesCovered / (coverage.NumLinesCovered + coverage.NumLinesUncovered)) * 100)
+				}));
+			}
+
+			return result;
+		};
+
+	} catch (error) {
+		log(error, 'error', `Error getting code coverage for class ${className}`);
+		throw error;
+	}
+}
+
 export async function executeAnonymousApex(apexCode) {
 	if (!apexCode || typeof apexCode !== 'string') {
-		throw new Error('apexCode és obligatori i ha de ser una string');
+		throw new Error('apexCode is required and must be a string');
 	}
 	const tmpDir = os.tmpdir() || path.join(process.cwd(), 'tmp');
 
@@ -440,6 +634,80 @@ export async function deployMetadata(sourceDir) {
 		log(error, 'error', `Error deploying metadata file ${sourceDir}`);
 		throw error;
 	}
+}
+
+export async function generateMetadata({ type, name, outputDir, template, sobjectName, events = [] }) {
+    try {
+        if (!type || typeof type !== 'string') {
+            throw new Error('type is required and must be a string');
+        }
+        if (!name || typeof name !== 'string') {
+            throw new Error('name is required and must be a string');
+        }
+
+        const defaultDirs = {
+            apexClass: 'force-app/main/default/classes',
+            apexTrigger: 'force-app/main/default/triggers',
+            lwc: 'force-app/main/default/lwc'
+        };
+
+        const resolvedOutputDir = outputDir || defaultDirs[type];
+        let command;
+
+        if (type === 'apexClass') {
+            command = `sf apex generate class --name "${name}"`;
+            if (resolvedOutputDir) command += ` --output-dir "${resolvedOutputDir}"`;
+            if (template) command += ` --template "${template}"`;
+
+        } else if (type === 'apexTrigger') {
+            if (!sobjectName || typeof sobjectName !== 'string') {
+                throw new Error('sobjectName is required and must be a string when type is apexTrigger');
+            }
+            command = `sf apex generate trigger --name "${name}" --sobject "${sobjectName}"`;
+            if (Array.isArray(events) && events.length) command += ` --events ${events.join(',')}`;
+            if (resolvedOutputDir) command += ` --output-dir "${resolvedOutputDir}"`;
+            if (template) command += ` --template "${template}"`;
+
+        } else if (type === 'lwc') {
+            command = `sf lightning generate component --type lwc --name "${name}"`;
+            if (resolvedOutputDir) command += ` --output-dir "${resolvedOutputDir}"`;
+
+        } else {
+            throw new Error(`Unsupported type: ${type}`);
+        }
+
+        const stdout = await runCliCommand(command);
+
+        const resolvedDir = path.resolve(config.workspacePath || process.cwd(), resolvedOutputDir || '.');
+        let files = [];
+        let folder = null;
+
+        if (type === 'apexClass') {
+            const classFilePath = path.join(resolvedDir, `${name}.cls`);
+            const metaFilePath = path.join(resolvedDir, `${name}.cls-meta.xml`);
+            try { await fs.access(classFilePath); files.push(classFilePath); } catch {}
+            try { await fs.access(metaFilePath); files.push(metaFilePath); } catch {}
+
+        } else if (type === 'apexTrigger') {
+            const triggerFilePath = path.join(resolvedDir, `${name}.trigger`);
+            const metaFilePath = path.join(resolvedDir, `${name}.trigger-meta.xml`);
+            try { await fs.access(triggerFilePath); files.push(triggerFilePath); } catch {}
+            try { await fs.access(metaFilePath); files.push(metaFilePath); } catch {}
+
+        } else if (type === 'lwc') {
+            folder = path.join(resolvedDir, name);
+            try {
+                const entries = await fs.readdir(folder);
+                files = entries.map(f => path.join(folder, f));
+            } catch {}
+        }
+
+        return { success: true, type, name, sobjectName, outputDir: resolvedDir, folder, files, stdout };
+
+    } catch (error) {
+        log(error, 'error', `Error generating metadata ${name} of type ${type}`);
+        throw error;
+    }
 }
 
 export async function callSalesforceApi(operation, apiPath, body = null, baseUrl = null) {

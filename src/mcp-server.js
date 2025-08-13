@@ -30,7 +30,9 @@ import { getRecordToolDefinition, getRecordTool } from './tools/getRecordTool.js
 import { getSetupAuditTrailToolDefinition, getSetupAuditTrailTool } from './tools/getSetupAuditTrailTool.js';
 import { executeSoqlQueryToolDefinition, executeSoqlQueryTool } from './tools/executeSoqlQueryTool.js';
 import { runApexTestToolDefinition, runApexTestTool } from './tools/runApexTestTool.js';
+import { getApexClassCodeCoverageToolDefinition, getApexClassCodeCoverageTool } from './tools/getApexClassCodeCoverageTool.js';
 import { apexDebugLogsToolDefinition, apexDebugLogsTool } from './tools/apexDebugLogsTool.js';
+import { createMetadataToolDefinition, createMetadataTool } from './tools/createMetadataTool.js';
 //import {generateSoqlQueryToolDefinition, generateSoqlQueryTool} from './tools/generateSoqlQueryTool.js';
 
 export let resources = {};
@@ -135,6 +137,8 @@ export async function setupServer() {
 	mcpServer.registerTool('executeSoqlQuery', executeSoqlQueryToolDefinition, executeSoqlQueryTool);
 	mcpServer.registerTool('runApexTest', runApexTestToolDefinition, runApexTestTool);
 	mcpServer.registerTool('apexDebugLogs', apexDebugLogsToolDefinition, apexDebugLogsTool);
+	mcpServer.registerTool('getApexClassCodeCoverage', getApexClassCodeCoverageToolDefinition, getApexClassCodeCoverageTool);
+ 	mcpServer.registerTool('createMetadata', createMetadataToolDefinition, createMetadataTool);
 
 	//Set up request handlers
 	mcpServer.server.setRequestHandler(SetLevelRequestSchema, async ({ params }) => {
