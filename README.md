@@ -9,10 +9,6 @@ Pending...
 - Salesforce CLI connected to an org (only for internal testing)
 - VS Code, Cursor, Windsurf, Claude Desktop or any other IDE supporting MCP
 
-## Configuration
-Crea un fitxer `.env` a l'arrel del projecte amb les variables necessàries per a la connexió (consulta l'equip de desenvolupament per als detalls).
-
-
 ### Getting started
 
 First, install the Playwright MCP server with your client. A typical configuration looks like this:
