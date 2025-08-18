@@ -90,15 +90,28 @@ export async function dmlOperationTool({ operations, options = {} }) {
 
 		const response = await dmlOperation(operations, options);
 
-		// Generate simple summary message
-		const summaryText = response.hasErrors
-			? `DML request completed with ${response.failedRecords} error(s). ${response.successfulRecords} operation(s) succeeded, ${response.failedRecords} failed.`
-			: `DML request completed successfully. All ${response.successfulRecords} operation(s) succeeded.`;
+		// Check if the response indicates errors and mark accordingly
+		if (response.hasErrors) {
+			// Generate error summary message
+			const errorSummaryText = `DML request completed with ${response.failedRecords} error(s). ${response.successfulRecords} operation(s) succeeded, ${response.failedRecords} failed.`;
+
+			return {
+				isError: true,
+				content: [{
+					type: 'text',
+					text: `❌ ${errorSummaryText}`
+				}],
+				structuredContent: response
+			};
+		}
+
+		// Generate success summary message
+		const successSummaryText = `DML request completed successfully. All ${response.successfulRecords} operation(s) succeeded.`;
 
 		return {
 			content: [{
 				type: 'text',
-				text: summaryText
+				text: successSummaryText
 			}],
 			structuredContent: response
 		};

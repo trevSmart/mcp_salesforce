@@ -17,7 +17,7 @@ export function log(data, logLevel = 'info', context = null) {
 		const currentPriority = LEVEL_PRIORITIES[state.currentLogLevel];
 		const errorPriority = LEVEL_PRIORITIES['error'];
 		const loggingSupported = client?.supportsCapability('logging');
-		const shouldLog = loggingSupported && logPriority >= currentPriority;
+		const shouldLog = loggingSupported && logPriority <= currentPriority;
 		const shouldError = logPriority <= errorPriority || !loggingSupported && logPriority >= noticePriority;
 
 		if (!shouldLog && !shouldError) {

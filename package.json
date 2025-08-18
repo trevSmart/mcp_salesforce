@@ -13,7 +13,6 @@
   "scripts": {
     "publish-package": "sh dev/publish-package.sh",
     "test": "node dev/testClient.js",
-    "test-tool": "node dev/testTools.js",
     "lint": "eslint . --ext .js,.mjs,.cjs,.jsx,.ts,.tsx",
     "startMcpInspector": "sh dev/startMcpInspector.sh"
   },
@@ -33,7 +32,7 @@
   },
   "devDependencies": {
     "@babel/eslint-parser": "^7.27.5",
-    "@modelcontextprotocol/inspector": "^0.16.1",
+    "@modelcontextprotocol/inspector": "^0.16.5",
     "eslint": "^8.57.1",
     "globals": "^16.3.0",
     "javascript-obfuscator": "^4.1.0"

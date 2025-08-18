@@ -128,8 +128,14 @@ class MCPClient {
     // Log notification messages
     logNotification(level, text) {
         const color = {
-            'error': COLORS.red, 'warning': COLORS.yellow, 'debug': COLORS.blue,
-            'debug': COLORS.gray, 'debug': COLORS.pink, 'info': COLORS.cyan
+            'emergency': COLORS.red,
+            'alert': COLORS.red,
+            'critical': COLORS.red,
+            'error': COLORS.red,
+            'warning': COLORS.yellow,
+            'notice': COLORS.green,
+            'info': COLORS.cyan,
+            'debug': COLORS.pink
         }[level] || COLORS.reset;
         console.log(`${color}[${level.toUpperCase()}]${COLORS.reset} ${text}`);
     }
@@ -284,67 +290,55 @@ class MCPTestRunner {
                 await this.client.initialize();
             });
 
-
             // List tools
-            console.log(`${COLORS.orange}Listing available tools...${COLORS.reset}`);
             await this.runTest('List Available Tools', async () => {
                 await this.client.listTools();
             });
 
             // Set logging level to info
-            console.log(`${COLORS.orange}Setting logging level to info...${COLORS.reset}`);
             await this.runTest('Set Logging Level to Info', async () => {
                 await this.client.setLoggingLevel('info');
             });
 
             // Test basic tools - commented out for now to focus on connection
-            console.log(`${COLORS.orange}Testing getOrgAndUserDetails...${COLORS.reset}`);
             await this.runTest('Test getOrgAndUserDetails', async () => {
                 const result = await this.client.callTool('getOrgAndUserDetails', {});
                 // console.log('Result:', JSON.stringify(result, null, 2));
             });
 
             // Wait for server to fully retrieve the org and user details
-            console.log(`${COLORS.orange}Waiting 3 seconds for server to fully retrieve the org and user details...${COLORS.reset}`);
             await new Promise(resolve => setTimeout(resolve, 3000));
 
-            console.log(`${COLORS.orange}Testing salesforceMcpUtils getState...${COLORS.reset}`);
             await this.runTest('Test salesforceMcpUtils getState', async () => {
                 const result = await this.client.callTool('salesforceMcpUtils', { action: 'getState' });
                 // console.log('Result:', JSON.stringify(result, null, 2));
             });
 
-            console.log(`${COLORS.orange}Testing salesforceMcpUtils getCurrentDatetime...${COLORS.reset}`);
             await this.runTest('Test salesforceMcpUtils getCurrentDatetime', async () => {
                 const result = await this.client.callTool('salesforceMcpUtils', { action: 'getCurrentDatetime' });
                 // console.log('Result:', JSON.stringify(result, null, 2));
             });
 
-            console.log(`${COLORS.orange}Testing salesforceMcpUtils clearCache...${COLORS.reset}`);
             await this.runTest('Test salesforceMcpUtils clearCache', async () => {
                 const result = await this.client.callTool('salesforceMcpUtils', { action: 'clearCache' });
                 // console.log('Result:', JSON.stringify(result, null, 2));
             });
 
-            console.log(`${COLORS.orange}Testing apexDebugLogs status...${COLORS.reset}`);
             await this.runTest('Test apexDebugLogs status', async () => {
                 const result = await this.client.callTool('apexDebugLogs', { action: 'status' });
                 // console.log('Result:', JSON.stringify(result, null, 2));
             });
 
-            console.log(`${COLORS.orange}Testing apexDebugLogs on...${COLORS.reset}`);
             await this.runTest('Test apexDebugLogs on', async () => {
                 const result = await this.client.callTool('apexDebugLogs', { action: 'on' });
                 // console.log('Result:', JSON.stringify(result, null, 2));
             });
 
-            console.log(`${COLORS.orange}Testing apexDebugLogs list...${COLORS.reset}`);
             await this.runTest('Test apexDebugLogs list', async () => {
                 const result = await this.client.callTool('apexDebugLogs', { action: 'list' });
                 // console.log('Result:', JSON.stringify(result, null, 2));
             });
 
-            console.log(`${COLORS.orange}Testing apexDebugLogs get...${COLORS.reset}`);
             await this.runTest('Test apexDebugLogs get', async () => {
                 // First get a log ID from the list operation
                 const listResult = await this.client.callTool('apexDebugLogs', { action: 'list' });
@@ -360,13 +354,11 @@ class MCPTestRunner {
                 }
             });
 
-            console.log(`${COLORS.orange}Testing apexDebugLogs off...${COLORS.reset}`);
             await this.runTest('Test apexDebugLogs off', async () => {
                 const result = await this.client.callTool('apexDebugLogs', { action: 'off' });
                 // console.log('Result:', JSON.stringify(result, null, 2));
             });
 
-            console.log(`${COLORS.orange}Testing describeObject Account...${COLORS.reset}`);
             await this.runTest('Test describeObject Account', async () => {
                 const result = await this.client.callTool('describeObject', {
                     sObjectName: 'Account',
@@ -374,7 +366,6 @@ class MCPTestRunner {
                 });
             });
 
-            console.log(`${COLORS.orange}Testing executeSoqlQuery...${COLORS.reset}`);
             await this.runTest('Test executeSoqlQuery', async () => {
                 const result = await this.client.callTool('executeSoqlQuery', {
                     query: 'SELECT Id, Name FROM Account LIMIT 3'
@@ -382,14 +373,12 @@ class MCPTestRunner {
                 // console.log('Result:', JSON.stringify(result, null, 2));
             });
 
-            console.log(`${COLORS.orange}Testing getRecentlyViewedRecords...${COLORS.reset}`);
             await this.runTest('Test getRecentlyViewedRecords', async () => {
                 const result = await this.client.callTool('getRecentlyViewedRecords', {});
                 // console.log('Result:', JSON.stringify(result, null, 2));
                 return result; // Return result to use in next test
             });
 
-            console.log(`${COLORS.orange}Testing getRecord...${COLORS.reset}`);
             await this.runTest('Test getRecord', async () => {
                 // Get a record ID from recently viewed records
                 const recentlyViewed = await this.client.callTool('getRecentlyViewedRecords', {});
@@ -410,7 +399,6 @@ class MCPTestRunner {
                 }
             });
 
-            console.log(`${COLORS.orange}Testing getApexClassCodeCoverage...${COLORS.reset}`);
             await this.runTest('Test getApexClassCodeCoverage', async () => {
                 const result = await this.client.callTool('getApexClassCodeCoverage', {
                     classNames: ['TestMCPTool']

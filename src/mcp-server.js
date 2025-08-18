@@ -8,6 +8,7 @@ import {
 	ListResourcesRequestSchema,
 	ListResourceTemplatesRequestSchema,
 	ReadResourceRequestSchema
+
 } from '@modelcontextprotocol/sdk/types.js';
 
 import { log, validateUserPermissions } from './utils.js';
@@ -22,7 +23,6 @@ import targetOrgWatcher from './OrgWatcher.js';
 import { salesforceMcpUtilsToolDefinition } from './tools/salesforceMcpUtilsTool.js';
 import { getOrgAndUserDetailsToolDefinition } from './tools/getOrgAndUserDetailsTool.js';
 import { dmlOperationToolDefinition } from './tools/dmlOperationTool.js';
-// import { dmlOperationToolingToolDefinition } from './tools/dmlOperationToolingTool.js';
 import { deployMetadataToolDefinition } from './tools/deployMetadataTool.js';
 import { describeObjectToolDefinition } from './tools/describeObjectTool.js';
 // import { describeObjectUIToolDefinition } from './tools/describeObjectUITool.js'; // TODO
@@ -199,7 +199,6 @@ export async function setupServer() {
 	mcpServer.registerTool('salesforceMcpUtils', salesforceMcpUtilsToolDefinition, callToolHandler('salesforceMcpUtilsTool'));
 	mcpServer.registerTool('getOrgAndUserDetails', getOrgAndUserDetailsToolDefinition, callToolHandler('getOrgAndUserDetailsTool'));
 	mcpServer.registerTool('dmlOperation', dmlOperationToolDefinition, callToolHandler('dmlOperationTool'));
-	// mcpServer.registerTool('dmlOperationTooling', dmlOperationToolingToolDefinition, callToolHandler('dmlOperationToolingTool'));
 	mcpServer.registerTool('deployMetadata', deployMetadataToolDefinition, callToolHandler('deployMetadataTool'));
 	mcpServer.registerTool('describeObject', describeObjectToolDefinition, callToolHandler('describeObjectTool'));
 	// mcpServer.registerTool('describeObjectUI', describeObjectUIToolDefinition, callToolHandler('describeObjectUITool')); // TODO
@@ -220,6 +219,7 @@ export async function setupServer() {
 	//Set up request handlers
 	mcpServer.server.setRequestHandler(SetLevelRequestSchema, async ({ params }) => {
 		state.currentLogLevel = params.level;
+		log(`Log level set to ${params.level}`, 'debug');
 		return {};
 	});
 
@@ -245,34 +245,31 @@ export async function setupServer() {
 				}
 			}
 
-			/*
-			if (client.supportsCapability('sampling')) {
-				mcpServer.registerTool('generateSoqlQuery', generateSoqlQueryToolDefinition, generateSoqlQueryTool);
-			}
-			*/
+			//if (client.supportsCapability('sampling')) {
+			//	mcpServer.registerTool('generateSoqlQuery', generateSoqlQueryToolDefinition, generateSoqlQueryTool);
+			//}
 
 			//Execute org setup and validation after directory change is complete
 			(async () => {
 				try {
-					//Wait for directory change to complete before proceeding with org setup
-					await directoryChangePromise;
+					// Wait for directory change to complete before proceeding with org setup
+					// await directoryChangePromise;
 
 					process.env.HOME = process.env.HOME || os.homedir();
-					await updateOrgAndUserDetails();
-					log(`Server initialized and running. Target org: ${state.org.alias}`, 'debug');
 					targetOrgWatcher.start(updateOrgAndUserDetails);
+					await updateOrgAndUserDetails();
+
+					log(`Server initialized and running. Target org: ${state.org.alias}`, 'debug');
 
 				} catch (error) {
 					log(error, 'error', 'Error during async org setup');
 					throw error;
 
-				/*
-				} finally { TODO
-					//Mark server as ready after org setup is complete (or failed)
-					/*if (typeof resolveServerReady === 'function') {
-						resolveServerReady();
-					}
-				*/
+				// } finally { TODO
+				// 	//Mark server as ready after org setup is complete (or failed)
+				// 	/*if (typeof resolveServerReady === 'function') {
+				// 		resolveServerReady();
+				// 	}
 				}
 			})();
 
