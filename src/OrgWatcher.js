@@ -25,11 +25,10 @@ class TargetOrgWatcher extends EventEmitter {
                 return;
             }
 
-            this.addExitHandlers();
+            // this.addExitHandlers();  // exit handlers removed to speed up shutdown
 
             this.on('started', orgAlias => log(`Monitoring Salesforce CLI target org changes (current: ${orgAlias})`, 'debug'));
             this.on('orgChanged', onChange);
-            this.on('stopped', () => log('Stopped monitoring Salesforce CLI target org changes', 'debug'));
             this.on('error', error => log(error, 'error', 'Error in Salesforce CLI target org watcher'));
 
             this.fileWatcher = fs.watch(path.dirname(this.configFilePath), (eventType, filename) => {
