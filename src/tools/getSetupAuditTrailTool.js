@@ -1,33 +1,27 @@
 import {executeSoqlQuery} from '../salesforceServices.js';
 import {log, textFileContent, getTimestamp} from '../utils.js';
-import {newResource} from '../mcp-server.js';
+import {newResource, resources} from '../mcp-server.js';
 import fs from 'fs/promises';
 import path from 'path';
 import {z} from 'zod';
 import state from '../state.js';
 import client from '../client.js';
 
-const SOQL_LIMIT = 50000;
-
 export const getSetupAuditTrailToolDefinition = {
 	name: 'getSetupAuditTrail',
 	title: 'Get the changes in the Salesforce org metadata performed in the last days from the Salesforce Setup Audit Trail data',
 	description: textFileContent('getSetupAuditTrailTool'),
 	inputSchema: {
-		lastDays: z
-			.number()
+		lastDays: z.number()
 			.int()
-			.min(1)
 			.max(90)
 			.optional()
 			.describe('Number of days to query (between 1 and 90)'),
-		createdByName: z
-			.string()
+		createdByName: z.string()
 			.nullable()
 			.optional()
 			.describe('Only the changes performed by this user will be returned (if not set, the changes from all users will be returned)'),
-		metadataName: z
-			.string()
+		metadataName: z.string()
 			.nullable()
 			.optional()
 			.describe('Name of the file or folder to get the changes of (e.g. "FOO_AlertMessages_Controller", "FOO_AlertMessage__c", "FOO_AlertNessageList_LWC", etc.)')
@@ -42,24 +36,32 @@ export const getSetupAuditTrailToolDefinition = {
 
 export async function getSetupAuditTrailTool({lastDays = 90, createdByName = null, metadataName = null}) {
 	try {
-		let soqlQuery = 'SELECT Section, CreatedDate, CreatedBy.Name, Display FROM SetupAuditTrail';
-		let shouldFilterByMetadataName = metadataName && metadataName.trim() !== '';
-		let conditions = [];
+		// Generate unique resource name based on parameters
+		const resourceName = `mcp://mcp/setup-audit-trail-${lastDays}-${createdByName || 'all'}-${metadataName || 'all'}.json`;
 
-		if (lastDays) {
-			conditions.push(`CreatedDate = LAST_N_DAYS:${lastDays}`);
-		}
-		if (createdByName) {
-			conditions.push(`CreatedBy.Name = '${createdByName.replace(/'/g, '\\\'')}'`);
-		}
-		if (conditions.length) {
-			soqlQuery += ' WHERE ' + conditions.join(' AND ');
-		}
-		soqlQuery += ` ORDER BY CreatedDate DESC LIMIT ${SOQL_LIMIT}`;
+		// Check if already cached
+		if (resources[resourceName]) {
+			log(`Setup Audit Trail already cached, skipping fetch`, 'debug');
+			const cachedResult = JSON.parse(resources[resourceName].text);
 
-		//Clean the query by replacing line breaks and tabs with spaces
-		const cleanQuery = soqlQuery.replace(/[\n\t\r]+/g, ' ').trim();
-		const response = await executeSoqlQuery(cleanQuery);
+			const content = [{
+				type: 'text',
+				text: `Display this data in a Markdown table with "Date", "User" and "Change description" columns, sorted by date in descending order: ${JSON.stringify(cachedResult, null, 3)}`
+			}];
+
+			if (client.supportsCapability('embeddedResources')) {
+				// Reuse the existing cached resource instead of creating a new one
+				content.push({type: 'resource', resource: resources[resourceName]});
+			}
+
+			return {
+				content,
+				structuredContent: {wasCached: true, ...cachedResult}
+			};
+		}
+
+		const soqlQuery = buildSoqlQuery(lastDays, createdByName);
+		const response = await executeSoqlQuery(soqlQuery);
 
 		if (!response || !Array.isArray(response.records)) {
 			throw new Error('No response or invalid response from Salesforce CLI');
@@ -80,7 +82,9 @@ export async function getSetupAuditTrailTool({lastDays = 90, createdByName = nul
 			'Manage Users', 'Customize Activities', 'Connected App Session Policy',
 			'Translation Workbench', 'CBK Configs', 'Security Controls'
 		];
-		const sizeBeforeFilters = response.records.length;
+
+		let shouldFilterByMetadataName = metadataName && metadataName.trim() !== '';
+
 		let results = validRecords.filter(r => {
 			if (!r || typeof r !== 'object'
 			|| !r.Section || ignoredSections.includes(r.Section)
@@ -122,14 +126,9 @@ export async function getSetupAuditTrailTool({lastDays = 90, createdByName = nul
 		}, {});
 
 		let formattedResult = {
-			sizeBeforeFilters,
-			sizeAfterFilters: results.length,
 			records: transformedResults
 		};
 
-		if (sizeBeforeFilters === SOQL_LIMIT) {
-			formattedResult.warning = `The number of query results is equal to the set limit (${SOQL_LIMIT}), so there might be additional records that were not returned.`;
-		}
 		const formattedResultString = JSON.stringify(formattedResult, null, 3);
 
 		const tmpDir = path.join(state.workspacePath, 'tmp');
@@ -146,7 +145,17 @@ export async function getSetupAuditTrailTool({lastDays = 90, createdByName = nul
 			text: `Display this data in a Markdown table with "Date", "User" and "Change description" columns, sorted by date in descending order: ${formattedResultString}`
 		}];
 
-		if (client.isVsCode) {
+		// Cache the result for future use
+		const cacheResource = newResource(
+			resourceName,
+			`Setup Audit Trail (${lastDays} days, ${createdByName || 'all users'}, ${metadataName || 'all metadata'})`,
+			'Setup Audit Trail cached query results',
+			'application/json',
+			formattedResultString,
+			{audience: ['assistant', 'user']}
+		);
+
+		if (client.supportsCapability('embeddedResources')) {
 			const resource = newResource(
 				`file://setup-audit-trail/${fileName}`,
 				fileName,
@@ -170,4 +179,28 @@ export async function getSetupAuditTrailTool({lastDays = 90, createdByName = nul
 			}]
 		};
 	}
+}
+
+function buildSoqlQuery(lastDays = 90, createdByName = null) {
+	let soqlQuery = 'SELECT FORMAT (CreatedDate), Section, CreatedBy.Name, Display FROM SetupAuditTrail';
+	const actions = [
+		'changedActionOverrideContent', 'filteredLookupEdit', 'createdRecordTypeCustom', 'createdQuickAction',
+		'changedQuickActionLayoutGlobal', 'createdApexPage', 'changedPicklistSortCustom', 'createServicePresenceStatus',
+		'changedQuickActionNameCustom', 'deletedQuickActionCustom', 'CustomPermissionCreate', 'deletedApexComponent',
+		'createdqueue', 'createdgroup', 'PermissionSetGroupCreate', 'changedStaticResource','deletedStaticResource',
+		'createdCustMdType', 'filteredLookupRequired', 'filteredLookupCreate','deleteSharingRule', 'changedApexTrigger',
+		'deletedAuraComponent', 'updateSharingRule', 'changedPicklist', 'changedPicklistCustom', 'changedRecordTypeName',
+		'changedValidationFormula','deletedLightningWebComponent', 'createdAuraComponent', 'deletedQuickAction',
+		'changedQuickActionLayout', 'deletedprofile', 'changedPicklistValueApiNameCustom', 'createdLightningWebComponent',
+		'deletedApexPage', 'deletedApexClass', 'PermSetCreate', 'changedApexPage', 'caselayout', 'createduser',
+		'queueMembership', 'groupMembership', 'createdApexClass', 'PermSetDelete', 'profilePageLayoutChangedCustom',
+		'PermSetRecordTypeRemoved', 'PermSetAssign', 'PermSetUnassign', 'changedFlexiPage', 'PermSetRecordTypeAdded',
+		'changedAuraComponent', 'PermSetFlsChanged', 'changedApexClass', 'changedLightningWebComponent'
+	];
+	let conditions = ['Action IN (' + actions.map(a => `'${a}'`).join(',') + ')'];
+	lastDays && conditions.push(`CreatedDate = LAST_N_DAYS:${lastDays}`);
+	createdByName && conditions.push(`CreatedBy.Name = '${createdByName.replace(/'/g, '\\\'')}'`);
+	soqlQuery += ' WHERE ' + conditions.join(' AND ') + ' ORDER BY CreatedDate DESC';
+
+	return soqlQuery.replace(/[\n\t\r]+/g, ' ').trim();
 }

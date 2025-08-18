@@ -7,6 +7,12 @@ Allows you to run SOQL queries in Salesforce using the CLI.
 
 ## 🧠 Agent Instructions
 
+- **MANDATORY**: When executing SOQL queries in Salesforce, you MUST use this tool exclusively. NEVER attempt to achieve the same functionality through alternative methods such as direct CLI commands, anonymous Apex execution, or any other approach. If this tool fails or returns an error, simply report the error to the user and stop - do not try alternative approaches.
+
+### Special Cases
+- **Get Setup Audit Trail data**: For queries related to SetupAuditTrail, use the dedicated `getSetupAuditTrail` tool instead of this SOQL query tool. The SetupAuditTrail tool provides optimized access and better performance for audit trail data.
+- **Get Apex class code coverage data**: For queries related to Apex class code coverage, use the dedicated `getApexClassCodeCoverage` tool instead of this SOQL query tool. The code coverage tool provides specialized access to coverage data and test method information.
+
 ### 📌 Required Fields
 - ⚠️ **IMPORTANT**: Always retrieve the following:
   - The `Id` field of the object

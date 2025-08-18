@@ -1,18 +1,18 @@
+import { newResource } from '../mcp-server.js';
 import state from '../state.js';
-import {log, textFileContent} from '../utils.js';
-import {executeSoqlQuery, createRecord, updateRecord, deleteRecord, runCliCommand} from '../salesforceServices.js';
+import client from '../client.js';
+import {log, textFileContent, formatDate} from '../utils.js';
+import {executeSoqlQuery, dmlOperation, runCliCommand} from '../salesforceServices.js';
 import {z} from 'zod';
 
 export const apexDebugLogsToolDefinition = {
 	name: 'apexDebugLogs',
-	title: 'Apex Debug Logs',
+	title: 'Manage Apex debug logs',
 	description: textFileContent('apexDebugLogsTool'),
 	inputSchema: {
-		action: z
-			.enum(['status', 'on', 'off', 'list', 'get'])
+		action: z.enum(['status', 'on', 'off', 'list', 'get'])
 			.describe('The action to perform. Possible values: "status", "on", "off", "list", "get".'),
-		logId: z
-			.string()
+		logId: z.string()
 			.optional()
 			.describe('The ID of the log to retrieve (only required for "get" action)')
 	},
@@ -20,7 +20,7 @@ export const apexDebugLogsToolDefinition = {
 		readOnlyHint: false,
 		idempotentHint: false,
 		openWorldHint: true,
-		title: 'Apex Debug Logs'
+		title: 'Manage Apex debug logs'
 	}
 };
 
@@ -30,130 +30,251 @@ export async function apexDebugLogsTool({action, logId}) {
 			throw new Error(`Invalid action: ${action}`);
 		}
 
-		const userDescription = state.org.user;
+		const user = state?.org?.user;
+		log(`User data: ${JSON.stringify(user)}`, 'debug');
+		if (!user) {
+			throw new Error('User data not found');
+		}
 		let traceFlag;
 
 		if (action === 'status') {
-			log('Checking existing TraceFlag...');
+			log('Checking already existing TraceFlag...', 'debug');
 
-			traceFlag = await executeSoqlQuery(
-				`SELECT Id FROM TraceFlag WHERE TracedEntityId = '${userDescription.id}' AND StartDate < ${new Date().toISOString()} AND ExpirationDate > ${new Date().toISOString()} LIMIT 1`,
-				true
-			)?.[0];
-
-			return {
-				content: [{
-					type: 'text',
-					text: `Debug logs for user ${userDescription.username} status: ${traceFlag ? 'active' : 'inactive'}`
-				}],
-				structuredContent: {status: traceFlag ? 'active' : 'inactive', traceFlag}
-			};
-
-		} else if (action === 'on') {
-			log('Deleting expired TraceFlags for user...');
-			//1. Delete expired TraceFlags for the user
-			const expiredTraceFlagsResult = await executeSoqlQuery(
-				`SELECT Id FROM TraceFlag WHERE TracedEntityId = '${userDescription.id}' AND ExpirationDate < ${new Date().toISOString()}`,
+			const soqlTraceFlagResult = await executeSoqlQuery(
+				`SELECT Id, StartDate, ExpirationDate, DebugLevel.DeveloperName FROM TraceFlag WHERE TracedEntityId = '${user.id}' AND StartDate < ${new Date().toISOString()} AND ExpirationDate > ${new Date().toISOString()} LIMIT 1`,
 				true
 			);
-			if (expiredTraceFlagsResult?.records?.length) {
-				for (const tf of expiredTraceFlagsResult.records) {
-					try {
-						await deleteRecord('TraceFlag', tf.Id, true);
-					} catch (err) {
-						log(`Error deleting expired TraceFlag ${tf.Id}: ${err.message}`, 'warning');
+			const traceFlag = soqlTraceFlagResult?.records?.[0];
+
+			if (traceFlag) {
+				const startDate = new Date(traceFlag.StartDate);
+				const expirationDate = new Date(traceFlag.ExpirationDate);
+				const now = new Date();
+				const status = startDate < now && expirationDate > now ? '🟢 Active' : '🟥 Inactive';
+
+				return {
+					content: [{
+						type: 'text',
+						text: `Apex debug logs status for user ${user.name} in ${state?.org?.alias}: ${status}.`
+					}],
+					structuredContent: {
+						user: user.name,
+						status,
+						traceFlagId: traceFlag.Id,
+						startDate: formatDate(startDate),
+						expirationDate: formatDate(expirationDate),
+						debugLevel: traceFlag?.DebugLevel?.DeveloperName || null
 					}
-				}
+				};
+			} else {
+				return {
+					content: [{
+						type: 'text',
+						text: `Apex debug logs status for user ${user.name} in ${state?.org?.alias}: 🟥 Inactive`
+					}],
+					structuredContent: {status: 'inactive', traceFlag: null}
+				};
+			}
+
+		} else if (action === 'on') {
+			//1. Check if there's already an active TraceFlag
+			log('Checking for already active TraceFlag...', 'debug');
+			const soqlActiveTraceFlagResult = await executeSoqlQuery(
+				`SELECT Id, StartDate, ExpirationDate, DebugLevel.DeveloperName FROM TraceFlag WHERE TracedEntityId = '${user.id}' AND LogType = 'DEVELOPER_LOG' AND ExpirationDate > ${new Date().toISOString()}`,
+				true
+			);
+			const activeTraceFlag = soqlActiveTraceFlagResult?.records?.[0];
+
+			if (activeTraceFlag) {
+				// Extend the expiration date by 1 hour from now
+				const now = new Date();
+				const newExpirationDate = new Date(now.getTime() + 60 * 60000); //1 hour from now
+				await dmlOperation({
+					update: [{
+						sObjectName: 'TraceFlag',
+						recordId: activeTraceFlag.Id,
+						fields: {ExpirationDate: newExpirationDate.toISOString()}
+					}],
+					useToolingApi: true
+				});
+
+				const startDate = new Date(activeTraceFlag.StartDate);
+
+				return {
+					content: [{
+						type: 'text',
+						text: `Debug logs were already active for ${user.name} in ${state?.org?.alias}. Extended expiration date for the next hour, new expiration date is ${formatDate(newExpirationDate)}.`
+					}],
+					structuredContent: {
+						user: user.name,
+						traceFlagId: activeTraceFlag.Id,
+						status: startDate < now && newExpirationDate > now ? '🟢 Active' : '🟥 Inactive',
+						startDate: formatDate(startDate),
+						expirationDate: formatDate(newExpirationDate),
+						debugLevel: activeTraceFlag.DebugLevel?.DeveloperName || null
+					}
+				};
 			}
 
 			//2. Find or create DebugLevel with DeveloperName=ReplayDebuggerLevels
-			log('Looking for DebugLevel with DeveloperName=ReplayDebuggerLevels...');
-			let debugLevelId = null;
-			const debugLevelResult = await executeSoqlQuery(
-				'SELECT Id FROM DebugLevel WHERE DeveloperName = \'ReplayDebuggerLevels\' LIMIT 1',
-				true
-			);
-			if (debugLevelResult?.records?.length && debugLevelResult.records[0].Id) {
-				debugLevelId = debugLevelResult.records[0].Id;
-			} else {
-				log('DebugLevel not found. Creating new DebugLevel...');
-				const newDebugLevel = await createRecord('DebugLevel', {
-					DeveloperName: 'ReplayDebuggerLevels',
-					MasterLabel: 'ReplayDebuggerLevels',
-					ApexCode: 'FINEST',
-					Visualforce: 'FINER'
-				}, true);
-				debugLevelId = newDebugLevel.id || newDebugLevel.Id;
+			let soqlDebugLevelResult = await executeSoqlQuery("SELECT Id FROM DebugLevel WHERE DeveloperName = 'ReplayDebuggerLevels' LIMIT 1", true);
+			let debugLevelId = soqlDebugLevelResult?.records?.[0]?.Id;
+
+			if (!debugLevelId) {
+				log('DebugLevel not found. Creating new DebugLevel...', 'debug');
+				const debugLevelResult = await dmlOperation({
+					create: [{
+						sObjectName: 'DebugLevel',
+						fields: {
+							DeveloperName: 'ReplayDebuggerLevels',
+							MasterLabel: 'ReplayDebuggerLevels',
+							ApexCode: 'FINEST',
+							Visualforce: 'FINER'
+						}
+					}]
+				}, { useToolingApi: true });
+				debugLevelId = debugLevelResult.results[0].body.id;
 			}
 
-			//3. Create new TraceFlag for the user
 			const now = new Date();
-			const expirationDate = new Date(now.getTime() + 30 * 60000); //30 minutes
-			const newTraceFlag = await createRecord('TraceFlag', {
-				TracedEntityId: userDescription.id,
-				DebugLevelId: debugLevelId,
-				LogType: 'DEVELOPER_LOG',
-				StartDate: now.toISOString(),
-				ExpirationDate: expirationDate.toISOString()
-			}, true);
+			const startDate = new Date(now);
+			const expirationDate = new Date(startDate.getTime() + 60 * 60000); //1 hour
+			const traceFlagResult = await dmlOperation({
+				create: [{
+					sObjectName: 'TraceFlag',
+					fields: {
+						TracedEntityId: user.id,
+						DebugLevelId: debugLevelId,
+						LogType: 'DEVELOPER_LOG',
+						StartDate: startDate.toISOString(),
+						ExpirationDate: expirationDate.toISOString()
+					}
+				}]
+			}, { useToolingApi: true });
+			const newTraceFlag = traceFlagResult.results[0].body;
 
-			//4. Return activation info
 			return {
 				content: [{
 					type: 'text',
-					text: `Apex debug logging is turned on for ${userDescription.username}. It will expire at ${expirationDate.toLocaleTimeString()}. TraceFlag ID: ${newTraceFlag.id || newTraceFlag.Id}`
+					text: `Apex debug logs status for ${user.name} in ${state?.org?.alias}: active`
 				}],
-				structuredContent: newTraceFlag
+				structuredContent: {
+					traceFlagId: newTraceFlag.id,
+					status: startDate <= now && now <= expirationDate ? '🟢 Active' : '🟥 Inactive',
+					startDate: formatDate(startDate),
+					expirationDate: formatDate(expirationDate),
+					debugLevelName: 'ReplayDebuggerLevels'
+				}
 			};
 
 		} else if (action === 'off') {
-			traceFlag = await executeSoqlQuery(
-				`SELECT DebugLevelId FROM TraceFlag WHERE TracedEntityId = '${userDescription.id}' AND ExpirationDate > ${new Date().toISOString()}`,
+			const soqlTraceFlagResult = await executeSoqlQuery(
+				`SELECT Id, DebugLevelId FROM TraceFlag WHERE TracedEntityId = '${user.id}' AND ExpirationDate >= ${new Date().toISOString()}`,
 				true
-			)?.[0];
+			);
+			const traceFlag = soqlTraceFlagResult?.records?.[0];
 
 			if (!traceFlag) {
 				return {
 					content: [{
 						type: 'text',
-						text: 'No active debug logs found'
-					}]
+						text: `Debug logs were already inactive for ${user.name} in ${state?.org?.alias}, no action taken`
+					}],
+					structuredContent: {}
 				};
 			}
 
-			await updateRecord('TraceFlag', traceFlag.Id, {ExpirationDate: new Date().toISOString()}, true);
+			const newExpirationDate = new Date(Date.now() + 10000); // 10 seconds in the future
+			await dmlOperation({
+				update: [{
+					sObjectName: 'TraceFlag',
+					recordId: traceFlag.Id,
+					fields: {ExpirationDate: newExpirationDate.toISOString()}
+				}],
+				useToolingApi: true
+			});
 
 			return {
 				content: [{
 					type: 'text',
-					text: `Debug logs deactivated for ${userDescription.username}`
+					text: `Apex debug logs status for ${user.name} in ${state?.org?.alias}: 🟥 Inactive`
 				}],
-				structuredContent: {status: 'deactivated', traceFlag}
+				structuredContent: {...traceFlag, status: '🟥 Inactive', expirationDate: formatDate(newExpirationDate)}
 			};
 
 		} else if (action === 'list') {
-			const logs = await runCliCommand('sf apex:log:list --include-body');
+			let response = await runCliCommand('sf apex list log --json');
+			let logs = [];
+
+			try {
+				const parsedResponse = JSON.parse(response);
+				logs = parsedResponse?.result || [];
+			} catch (error) {
+				log(`Error parsing JSON response: ${error.message}`, 'error');
+				logs = [];
+			}
+
+			if (logs && Array.isArray(logs)) {
+				// Take only the first 50 logs and format them
+				logs = logs.slice(0, 50).map(log => {
+					if (log.LogLength) {
+						const lengthInBytes = parseInt(log.LogLength);
+						if (lengthInBytes < 1024 * 1024) {
+							log.LogLength = `${Math.floor(lengthInBytes / 1024)} KB`;
+						} else {
+							log.LogLength = `${(lengthInBytes / (1024 * 1024)).toFixed(1)} MB`;
+						}
+					}
+
+					// Convert duration from DurationMilliseconds to seconds
+					if (log.DurationMilliseconds) {
+						const durationMs = parseInt(log.DurationMilliseconds);
+						if (durationMs < 1000) {
+							log.duration = `${durationMs}ms`;
+						} else {
+							log.duration = `${Math.floor(durationMs / 1000)}s`;
+						}
+						// Remove the original attribute
+						delete log.DurationMilliseconds;
+					}
+
+					log.StartTime = formatDate(new Date(log.StartTime));
+					return log;
+				});
+			} else {
+				logs = [];
+			}
 
 			return {
-				content: [
-					{
-						type: 'text',
-						text: logs
-					}
-				],
+				content: [{
+					type: 'text',
+					text: `${logs.length} Apex debug logs found in ${state?.org?.alias}`
+				}],
 				structuredContent: logs
 			};
 
 		} else if (action === 'get') {
-			const apexLog = await runCliCommand(`sf apex:log:get --log-id ${logId} --include-body`);
+			const apexLog = await runCliCommand(`sf apex get log --log-id ${logId}`);
+
+			const content = [{
+				type: 'text',
+				text: `Succesfully retrieved Apex debug log ${logId}`
+			}];
+
+			if (client.supportsCapability('embeddedResources')) {
+				const resource = newResource(
+					`file://mcp/apexLogs/${logId}`,
+					logId,
+					`Apex debug log ${logId}`,
+					'text/plain',
+					apexLog,
+					{audience: ['user']}
+				);
+				content.push({type: 'resource', resource});
+			}
 
 			return {
-				content: [
-					{
-						type: 'text',
-						text: apexLog
-					}
-				],
+				content,
 				structuredContent: apexLog
 			};
 		}

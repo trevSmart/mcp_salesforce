@@ -6,6 +6,7 @@ import client from '../client.js';
 import {z} from 'zod';
 import fs from 'fs/promises';
 import path from 'path';
+import config from '../config.js';
 
 export const executeAnonymousApexToolDefinition = {
 	name: 'executeAnonymousApex',
@@ -81,7 +82,7 @@ export async function executeAnonymousApexTool({apexCode, mayModify}) {
 			text: `Resultat execució Anonymous Apex:\n\n${JSON.stringify(result.logs)}`
 		}];
 
-		const tmpDir = path.join(state.workspacePath, 'tmp');
+		const tmpDir = path.join(config.workspacePath, 'tmp');
 		//Use the same naming format as the main execution
 		const username = state.org?.user?.name || 'unknown';
 
@@ -89,7 +90,8 @@ export async function executeAnonymousApexTool({apexCode, mayModify}) {
 		await fs.mkdir(tmpDir, {recursive: true});
 		await fs.writeFile(path.join(tmpDir, logFileName), result.logs, 'utf8');
 		const logSize = (Buffer.byteLength(result.logs, 'utf8') / 1024).toFixed(1);
-		if (client.isVsCode && result?.logs) {
+
+		if (client.supportsCapability('embeddedResources') && result?.logs) {
 			const resourceApexLog = newResource(
 				`file://apex/${logFileName}`,
 				logFileName,
@@ -100,7 +102,7 @@ export async function executeAnonymousApexTool({apexCode, mayModify}) {
 			);
 			content.push({type: 'resource', resource: resourceApexLog});
 		}
-		mcpServer.server.sendResourceListChanged();
+
 		return {content, structuredContent: result};
 
 	} catch (error) {

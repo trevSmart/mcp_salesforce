@@ -1,10 +1,8 @@
-import {config} from './config.js';
 let org = {};
+let currentLogLevel = process.env.LOG_LEVEL || 'info';
+let userValidated = true;
 
 export default {
-	get workspacePath() {
-		return config.workspacePath;
-	},
 	get org() {
 		return org;
 	},
@@ -12,12 +10,17 @@ export default {
 		org = newOrg;
 	},
 
-	get currentAccessToken() {
-		return org?.accessToken;
+	get currentLogLevel() {
+		return currentLogLevel;
 	},
-	set currentAccessToken(newAccessToken) {
-		if (org) {
-			org.accessToken = newAccessToken;
-		}
+	set currentLogLevel(level) {
+		currentLogLevel = level;
+	},
+
+	get userValidated() {
+		return userValidated;
+	},
+	set userValidated(validated) {
+		userValidated = validated;
 	}
 };

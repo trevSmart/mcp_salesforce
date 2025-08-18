@@ -1,206 +1,118 @@
 import state from '../state.js';
 import { log, textFileContent } from '../utils.js';
-import { createRecord, updateRecord, deleteRecord, updateBulk, createBulk, deleteBulk } from '../salesforceServices.js';
+import { dmlOperation } from '../salesforceServices.js';
 import { mcpServer } from '../mcp-server.js';
 import client from '../client.js';
 import { z } from 'zod';
 
 export const dmlOperationToolDefinition = {
 	name: 'dmlOperation',
-	title: 'DML Operation (create, update or delete a record)',
+	title: 'DML Operations (Create, Update or Delete)',
 	description: textFileContent('dmlOperationTool'),
 	inputSchema: {
-		operation: z
-			.enum(['create', 'update', 'delete'])
-			.describe('The DML operation to perform. Possible values: "create", "update", "delete".'),
-		sObjectName: z
-			.string()
-			.describe('The SObject type of the record.'),
-		recordId: z
-			.string()
+		operations: z.object({
+			create: z.array(z.object({
+				sObjectName: z.string()
+					.describe('The SObject type for the record to create'),
+				fields: z.record(z.any())
+					.describe('Field values for the record to create')
+			}))
+				.optional().describe('Array of records to create'),
+			update: z.array(z.object({
+				sObjectName: z.string().describe('The SObject type for the record to update'),
+				recordId: z.string().describe('The ID of the record to update'),
+				fields: z.record(z.any()).describe('Field values to update')
+			}))
+				.optional().describe('Array of records to update'),
+			delete: z.array(z.object({
+				sObjectName: z.string().describe('The SObject type for the record to delete'),
+				recordId: z.string().describe('The ID of the record to delete')
+			}))
+				.optional().describe('Array of records to delete'),
+		})
+			.describe('DML operations to perform'),
+		options: z.object({
+			allOrNone: z.boolean()
+				.default(false)
+				.describe('If true, all operations must succeed or none will be committed'),
+			bypassUserConfirmation: z.boolean()
+				.default(false)
+				.describe('Whether to bypass user confirmation for destructive operations')
+		})
 			.optional()
-			.describe('Only applicable for operations "update" and "delete". The ID of the record.'),
-		fields: z
-			.record(z.string())
-			.optional()
-			.describe('Required unless bulk update is used (For "delete" operation, pass {}). An object with the field values for the record. E.g. {"Name": "New Name", "Description": "New Description"}.'),
-		bulk: z
-			.boolean()
-			.optional()
-			.describe('Enable bulk mode for the operation. Supported for operations "create", "update" and "delete".'),
-		filePath: z
-			.string()
-			.optional()
-			.describe('Required when bulk=true. Absolute path to the CSV file to process.'),
-		wait: z
-			.number()
-			.optional()
-			.default(5)
-			.describe('When bulk=true, minutes to wait for the command to finish before returning.'),
-		lineEnding: z
-			.enum(['CRLF', 'LF'])
-			.optional()
-			.describe('When bulk=true, line ending used in the CSV file.'),
-		columnDelimiter: z
-			.enum(['BACKQUOTE', 'CARET', 'COMMA', 'PIPE', 'SEMICOLON', 'TAB'])
-			.optional()
-			.describe('When bulk=true for create/update, column delimiter used in the CSV file.'),
+			.describe('Additional options for the request')
 	},
 	annotations: {
 		destructiveHint: true,
 		idempotentHint: false,
 		openWorldHint: true,
-		title: 'DML Operation'
+		title: 'DML Operations (Create, Update or Delete)'
 	}
 };
 
-export async function dmlOperationTool({ operation, sObjectName, recordId, fields, bulk, filePath, wait, lineEnding, columnDelimiter }) {
+export async function dmlOperationTool({ operations, options = {} }) {
 	try {
-		if (!operation || !sObjectName || typeof sObjectName !== 'string') {
-			throw new Error('Operation and SObject name are required');
-		}
+		// Check for destructive operations and require confirmation if needed
+		if (options.bypassUserConfirmation !== true
+		&& (operations.delete?.length || operations.update?.length)
+		&& client.supportsCapability('elicitInput')) {
+			const deleteCount = operations.delete?.length || 0;
+			const updateCount = operations.update?.length || 0;
 
-		switch (operation) {
-			case 'create': {
-				if (bulk) {
-					if (!filePath || typeof filePath !== 'string') {
-						throw new Error('filePath is required and must be a string when bulk=true for create operation');
-					}
-					const options = { wait, lineEnding, columnDelimiter };
-					const result = await createBulk(sObjectName, filePath, options);
-					const structuredContent = { operation, sObject: sObjectName, bulk: true, filePath, result };
-					return {
-						content: [{ type: 'text', text: `✅ Bulk create launched for ${sObjectName} using file "${filePath}".` }],
-						structuredContent
-					};
-				} else {
-					const fieldsObject = typeof fields === 'string' ? JSON.parse(fields) : fields;
-					if (!fieldsObject || typeof fieldsObject !== 'object') {
-						throw new Error('Field values must be a valid object or JSON string');
-					}
-					const result = await createRecord(sObjectName, fieldsObject);
-					const newRecordId = result.id || result.Id;
-					const recordUrl = `${state.org.instanceUrl}/${newRecordId}`;
-					const structuredContent = { operation, sObject: sObjectName, result };
-					return {
-						content: [{ type: 'text', text: `✅ Record created successfully with id "${newRecordId}".\n🔗 [View record in Salesforce](${recordUrl})` }],
-						structuredContent
-					};
-				}
-			}
-			case 'update': {
-				if (bulk) {
-					if (!filePath || typeof filePath !== 'string') {
-						throw new Error('filePath is required and must be a string when bulk=true for update operation');
-					}
-					const options = { wait, lineEnding, columnDelimiter };
-					const result = await updateBulk(sObjectName, filePath, options);
-					const structuredContent = {
-						operation,
-						sObject: sObjectName,
-						bulk: true,
-						filePath,
-						result
-					};
-					return {
-						content: [{
-							type: 'text',
-							text: `✅ Bulk update launched for ${sObjectName} using file "${filePath}".`
-						}],
-						structuredContent
-					};
-				} else {
-					if (!recordId) {
-						throw new Error('Record ID is required for update operation');
-					}
-					const fieldsObject = typeof fields === 'string' ? JSON.parse(fields) : fields;
-					if (!fieldsObject || typeof fieldsObject !== 'object') {
-						throw new Error('Field values must be a valid object or JSON string');
-					}
-					const result = await updateRecord(sObjectName, recordId, fieldsObject);
-					const structuredContent = {
-						operation,
-						sObject: sObjectName,
-						result
-					};
-					return {
-						content: [{
-							type: 'text',
-							text: `✅ Record with id "${recordId}" updated successfully.`
-						}],
-						structuredContent
-					};
-				}
-			}
-			case 'delete': {
-				if (bulk) {
-					if (!filePath || typeof filePath !== 'string') {
-						throw new Error('filePath is required and must be a string when bulk=true for delete operation');
-					}
-					const options = { wait, lineEnding };
-					const result = await deleteBulk(sObjectName, filePath, options);
-					const structuredContent = { operation, sObject: sObjectName, bulk: true, filePath, result };
-					return {
-						content: [{ type: 'text', text: `✅ Bulk delete launched for ${sObjectName} using file "${filePath}".` }],
-						structuredContent
-					};
-				}
-
-				if (!recordId) {
-					throw new Error('Record ID is required for delete operation');
-				}
-
-				if (client.supportsCapability('elicitation')) {
-					const elicitResult = await mcpServer.server.elicitInput({
-						message: `Please confirm the deletion of the ${sObjectName} record with id "${recordId}" in ${state.org.alias}.`,
-						requestedSchema: {
-							type: "object",
-							title: `Delete ${sObjectName} record (Id: ${recordId}) in ${state.org.alias}?`,
-							properties: {
-								confirm: {
-									type: "string",
-									enum: ["Yes", "No"],
-									enumNames: ["Delete record now", "Cancel record deletion"],
-									description: `Delete ${sObjectName} record (Id: ${recordId}) in ${state.org.alias}?`,
-									default: "No"
-								}
-							},
-							required: ["confirm"]
+			const elicitResult = await mcpServer.server.elicitInput({
+				message: `Please confirm the operation in ${state.org.alias}. The request includes ${deleteCount} delete(s) and ${updateCount} update(s).`,
+				requestedSchema: {
+					type: "object",
+					title: `Confirm DML operations in ${state.org.alias}?`,
+					properties: {
+						confirm: {
+							type: "string",
+							enum: ["Yes", "No"],
+							enumNames: ["✅ Execute DML operations now", "❌ Cancel DML operations"],
+							description: `Execute DML operations in ${state.org.alias}?`,
+							default: "No"
 						}
-					});
-
-					if (elicitResult.action !== 'accept' || elicitResult.content?.confirm !== 'Yes') {
-						return {
-							content: [{
-								type: 'text',
-								text: 'User has cancelled the record deletion'
-							}],
-							structuredContent: elicitResult
-						};
-					}
+					},
+					required: ["confirm"]
 				}
+			});
 
-				const result = await deleteRecord(sObjectName, recordId);
+			if (elicitResult.action !== 'accept' || elicitResult.content?.confirm !== 'Yes') {
 				return {
 					content: [{
 						type: 'text',
-						text: `${sObjectName} record with id "${recordId}" deleted successfully.`
+						text: 'User has cancelled the operations'
 					}],
-					structuredContent: result
+					structuredContent: { cancelled: true, reason: 'user_cancelled' }
 				};
 			}
-			default:
-				throw new Error(`Invalid operation: "${operation}". Must be "create", "update", or "delete".`);
 		}
 
+		const response = await dmlOperation(operations, options);
+
+		// Generate simple summary message
+		const summaryText = response.hasErrors
+			? `DML request completed with ${response.failedRecords} error(s). ${response.successfulRecords} operation(s) succeeded, ${response.failedRecords} failed.`
+			: `DML request completed successfully. All ${response.successfulRecords} operation(s) succeeded.`;
+
+		return {
+			content: [{
+				type: 'text',
+				text: summaryText
+			}],
+			structuredContent: response
+		};
+
 	} catch (error) {
-		log(error, 'error');
+		log(`Error in dmlOperationTool: ${error.message}`, 'error');
+
 		return {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: JSON.stringify(error.message)
-			}]
+				text: `❌ Error in DML operation request: ${error.message}`
+			}],
+			structuredContent: error
 		};
 	}
 }

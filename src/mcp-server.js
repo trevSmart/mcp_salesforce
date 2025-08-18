@@ -1,6 +1,4 @@
-
 import os from 'os';
-
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
@@ -13,41 +11,87 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 
 import { log, validateUserPermissions } from './utils.js';
-import { config, SERVER_CONSTANTS } from './config.js';
+import config from './config.js';
+import { fileURLToPath } from 'url';
 import client from './client.js';
 import { getOrgAndUserDetails } from './salesforceServices.js';
 import state from './state.js';
+import targetOrgWatcher from './OrgWatcher.js';
 
-import { codeModificationPromptDefinition, codeModificationPrompt } from './prompts/codeModificationPrompt.js';
-import { salesforceMcpUtilsToolDefinition, salesforceMcpUtilsTool } from './tools/salesforceMcpUtilsTool.js';
-import { getOrgAndUserDetailsToolDefinition, getOrgAndUserDetailsTool } from './tools/getOrgAndUserDetailsTool.js';
-import { dmlOperationToolDefinition, dmlOperationTool } from './tools/dmlOperationTool.js';
-import { deployMetadataToolDefinition, deployMetadataTool } from './tools/deployMetadataTool.js';
-import { describeObjectToolDefinition, describeObjectTool } from './tools/describeObjectTool.js';
-import { executeAnonymousApexToolDefinition, executeAnonymousApexTool } from './tools/executeAnonymousApexTool.js';
-import { getRecentlyViewedRecordsToolDefinition, getRecentlyViewedRecordsTool } from './tools/getRecentlyViewedRecordsTool.js';
-import { getRecordToolDefinition, getRecordTool } from './tools/getRecordTool.js';
-import { getSetupAuditTrailToolDefinition, getSetupAuditTrailTool } from './tools/getSetupAuditTrailTool.js';
-import { executeSoqlQueryToolDefinition, executeSoqlQueryTool } from './tools/executeSoqlQueryTool.js';
-import { runApexTestToolDefinition, runApexTestTool } from './tools/runApexTestTool.js';
-import { getApexClassCodeCoverageToolDefinition, getApexClassCodeCoverageTool } from './tools/getApexClassCodeCoverageTool.js';
-import { apexDebugLogsToolDefinition, apexDebugLogsTool } from './tools/apexDebugLogsTool.js';
-import { createMetadataToolDefinition, createMetadataTool } from './tools/createMetadataTool.js';
-//import {generateSoqlQueryToolDefinition, generateSoqlQueryTool} from './tools/generateSoqlQueryTool.js';
+// import { codeModificationPromptDefinition, codeModificationPrompt } from './prompts/codeModificationPrompt.js';
+import { salesforceMcpUtilsToolDefinition } from './tools/salesforceMcpUtilsTool.js';
+import { getOrgAndUserDetailsToolDefinition } from './tools/getOrgAndUserDetailsTool.js';
+import { dmlOperationToolDefinition } from './tools/dmlOperationTool.js';
+// import { dmlOperationToolingToolDefinition } from './tools/dmlOperationToolingTool.js';
+import { deployMetadataToolDefinition } from './tools/deployMetadataTool.js';
+import { describeObjectToolDefinition } from './tools/describeObjectTool.js';
+// import { describeObjectUIToolDefinition } from './tools/describeObjectUITool.js'; // TODO
+import { executeAnonymousApexToolDefinition } from './tools/executeAnonymousApexTool.js';
+import { getRecentlyViewedRecordsToolDefinition } from './tools/getRecentlyViewedRecordsTool.js';
+import { getRecordToolDefinition } from './tools/getRecordTool.js';
+import { getSetupAuditTrailToolDefinition } from './tools/getSetupAuditTrailTool.js';
+import { executeSoqlQueryToolDefinition } from './tools/executeSoqlQueryTool.js';
+import { runApexTestToolDefinition } from './tools/runApexTestTool.js';
+import { getApexClassCodeCoverageToolDefinition } from './tools/getApexClassCodeCoverageTool.js';
+import { apexDebugLogsToolDefinition } from './tools/apexDebugLogsTool.js';
+import { createMetadataToolDefinition } from './tools/createMetadataTool.js';
+// import { chatWithAgentforceToolDefinition } from './tools/chatWithAgentforceTool.js';
+// import { toolingApiRequestToolDefinition } from './tools/toolingApiRequestTool.js';
+// import { triggerExecutionOrderToolDefinition } from './tools/triggerExecutionOrderTool.js';
+// import { analyzeApexLogToolDefinition } from './tools/analyzeApexLogTool.js';
+//import {generateSoqlQueryToolDefinition} from './tools/generateSoqlQueryTool.js';
 
 export let resources = {};
 
+async function setWorkspacePath(workspacePath) {
+	// Normalize file:// URIs to local filesystem paths
+	if (typeof workspacePath === 'string' && workspacePath.startsWith('file://')) {
+		try {
+			// Robust conversion for any platform
+			config.workspacePath = fileURLToPath(workspacePath);
+
+		} catch (error) { //Fallback: manual URI conversion
+			config.workspacePath = decodeURIComponent(workspacePath.replace(/^file:\/\//, ''));
+			process.platform === 'win32' && (config.workspacePath = config.workspacePath.replace(/^\/([a-zA-Z]):/, '$1:'));
+		}
+	} else {
+		config.workspacePath = workspacePath;
+	}
+
+	if (config.workspacePath) {
+		try {
+			process.chdir(config.workspacePath);
+		} catch (error) {
+			log(error, 'error', 'Failed to change working directory');
+		}
+
+		log(`Workspace path set to: "${config.workspacePath}"`, 'info');
+	}
+}
+
+async function updateOrgAndUserDetails() {
+	try {
+		const currentUsername = state.org?.user?.username;
+		const org = await getOrgAndUserDetails(true);
+		state.org = org;
+		if (currentUsername !== org?.user?.username) {
+			clearResources();
+			validateUserPermissions(org.user.username);
+		}
+
+	} catch (error) {
+		state.org = {};
+		state.userValidated = false;
+	}
+}
+
 //Create the MCP server instance
-const { protocolVersion, serverInfo, capabilities, instructions } = SERVER_CONSTANTS;
-const mcpServer = new McpServer(serverInfo, {
-	capabilities,
-	instructions,
-	debouncedNotificationMethods: [
-		'notifications/tools/list_changed',
-		'notifications/resources/list_changed',
-		'notifications/prompts/list_changed'
-	]
-});
+const { protocolVersion, serverInfo, capabilities, instructions } = config.SERVER_CONSTANTS;
+const mcpServer = new McpServer(serverInfo, {capabilities, instructions, debouncedNotificationMethods: [
+	'notifications/tools/list_changed',
+	'notifications/resources/list_changed',
+	'notifications/prompts/list_changed'
+]});
 
 export function newResource(uri, name, description, mimeType = 'text/plain', content, annotations = {}) {
 	try {
@@ -66,10 +110,9 @@ export function newResource(uri, name, description, mimeType = 'text/plain', con
 		return resource;
 
 	} catch (error) {
-		log(`Error setting resource ${uri}: ${error.message}`, 'error');
+		log(error, 'error', `Error setting resource ${uri}`);
 	}
 }
-
 
 export function clearResources() {
 	resources = {};
@@ -86,6 +129,7 @@ const directoryChangePromise = new Promise(resolve => resolveDirectoryChange = r
 
 //Server initialization function
 export async function setupServer() {
+	// Setup exit handlers immediately to ensure cleanup even if there's an error
 
 	mcpServer.server.setNotificationHandler(RootsListChangedNotificationSchema, async listRootsResult => {
 		try {
@@ -98,17 +142,8 @@ export async function setupServer() {
 			}
 
 			//Alguns clients fan servir el primer root per establir el directori del workspace
-			if (!config.workspacePath
-				&& listRootsResult.roots?.[0]?.uri.startsWith('file://')) {
-				config.setWorkspacePath(listRootsResult.roots[0].uri);
-			}
-			if (config.workspacePath) {
-				try {
-					process.chdir(config.workspacePath);
-					log(`Successfully changed directory to workspace path: ${config.workspacePath}`, 'debug');
-				} catch (error) {
-					log(`Failed to change working directory from ${process.cwd()} to ${config.workspacePath}: ${error.message}`, 'error');
-				}
+			if (!config.workspacePath && listRootsResult.roots?.[0]?.uri.startsWith('file://')) {
+				setWorkspacePath(listRootsResult.roots[0].uri);
 			}
 
 			if (typeof resolveDirectoryChange === 'function') {
@@ -116,33 +151,75 @@ export async function setupServer() {
 			}
 
 		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : String(error);
-			log(`Failed to request roots from client: ${errorMessage}`, 'error');
+			log(error, 'error', 'Failed to request roots from client');
 		}
 	});
 
 	mcpServer.server.setRequestHandler(ListResourcesRequestSchema, async () => ({ resources: Object.values(resources) }));
 	mcpServer.server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({ resourceTemplates: [] }));
 	mcpServer.server.setRequestHandler(ReadResourceRequestSchema, async ({ params: { uri } }) => ({ contents: [{ uri, ...resources[uri] }] }));
-	mcpServer.registerPrompt('code-modification', codeModificationPromptDefinition, codeModificationPrompt);
-	mcpServer.registerTool('salesforceMcpUtils', salesforceMcpUtilsToolDefinition, salesforceMcpUtilsTool);
-	mcpServer.registerTool('getOrgAndUserDetails', getOrgAndUserDetailsToolDefinition, getOrgAndUserDetailsTool);
-	mcpServer.registerTool('dmlOperation', dmlOperationToolDefinition, dmlOperationTool);
-	mcpServer.registerTool('deployMetadata', deployMetadataToolDefinition, deployMetadataTool);
-	mcpServer.registerTool('describeObject', describeObjectToolDefinition, describeObjectTool);
-	mcpServer.registerTool('executeAnonymousApex', executeAnonymousApexToolDefinition, executeAnonymousApexTool);
-	mcpServer.registerTool('getRecentlyViewedRecords', getRecentlyViewedRecordsToolDefinition, getRecentlyViewedRecordsTool);
-	mcpServer.registerTool('getRecord', getRecordToolDefinition, getRecordTool);
-	mcpServer.registerTool('getSetupAuditTrail', getSetupAuditTrailToolDefinition, getSetupAuditTrailTool);
-	mcpServer.registerTool('executeSoqlQuery', executeSoqlQueryToolDefinition, executeSoqlQueryTool);
-	mcpServer.registerTool('runApexTest', runApexTestToolDefinition, runApexTestTool);
-	mcpServer.registerTool('apexDebugLogs', apexDebugLogsToolDefinition, apexDebugLogsTool);
-	mcpServer.registerTool('getApexClassCodeCoverage', getApexClassCodeCoverageToolDefinition, getApexClassCodeCoverageTool);
- 	mcpServer.registerTool('createMetadata', createMetadataToolDefinition, createMetadataTool);
+
+	// mcpServer.registerPrompt('code-modification', codeModificationPromptDefinition, codeModificationPrompt);
+
+	const callToolHandler = tool => {
+		return async params => {
+			if (tool !== 'getOrgAndUserDetailsTool' && tool !== 'salesforceMcpUtilsTool') {
+				if (!state.org.user.id) {
+					const errorMessage = `❌ Org and user details not available. The server may still be initializing.`;
+					log(errorMessage, 'critical');
+					return {
+						isError: true,
+						content: [{
+							type: 'text',
+							text: errorMessage
+						}]
+					};
+				} else if (!state.userValidated) {
+					const errorMessage = `🚫 Request blocked due to unsuccessful user validation for "${state.org.user.username}"`;
+					log(errorMessage, 'critical');
+					return {
+						isError: true,
+						content: [{
+							type: 'text',
+							text: errorMessage
+						}]
+					};
+				}
+			}
+
+			const toolModule = await import(`./tools/${tool}.js`);
+			const toolFunction = toolModule[`${tool}`];
+			if (!toolFunction) {
+				throw new Error(`Tool function ${tool}Tool not found in module`);
+			}
+			return await toolFunction(params);
+		};
+	};
+
+	mcpServer.registerTool('salesforceMcpUtils', salesforceMcpUtilsToolDefinition, callToolHandler('salesforceMcpUtilsTool'));
+	mcpServer.registerTool('getOrgAndUserDetails', getOrgAndUserDetailsToolDefinition, callToolHandler('getOrgAndUserDetailsTool'));
+	mcpServer.registerTool('dmlOperation', dmlOperationToolDefinition, callToolHandler('dmlOperationTool'));
+	// mcpServer.registerTool('dmlOperationTooling', dmlOperationToolingToolDefinition, callToolHandler('dmlOperationToolingTool'));
+	mcpServer.registerTool('deployMetadata', deployMetadataToolDefinition, callToolHandler('deployMetadataTool'));
+	mcpServer.registerTool('describeObject', describeObjectToolDefinition, callToolHandler('describeObjectTool'));
+	// mcpServer.registerTool('describeObjectUI', describeObjectUIToolDefinition, callToolHandler('describeObjectUITool')); // TODO
+	mcpServer.registerTool('executeAnonymousApex', executeAnonymousApexToolDefinition, callToolHandler('executeAnonymousApexTool'));
+	mcpServer.registerTool('getRecentlyViewedRecords', getRecentlyViewedRecordsToolDefinition, callToolHandler('getRecentlyViewedRecordsTool'));
+	mcpServer.registerTool('getRecord', getRecordToolDefinition, callToolHandler('getRecordTool'));
+	mcpServer.registerTool('getSetupAuditTrail', getSetupAuditTrailToolDefinition, callToolHandler('getSetupAuditTrailTool'));
+	mcpServer.registerTool('executeSoqlQuery', executeSoqlQueryToolDefinition, callToolHandler('executeSoqlQueryTool'));
+	mcpServer.registerTool('runApexTest', runApexTestToolDefinition, callToolHandler('runApexTestTool'));
+	mcpServer.registerTool('apexDebugLogs', apexDebugLogsToolDefinition, callToolHandler('apexDebugLogsTool'));
+	mcpServer.registerTool('getApexClassCodeCoverage', getApexClassCodeCoverageToolDefinition, callToolHandler('getApexClassCodeCoverageTool'));
+	mcpServer.registerTool('createMetadata', createMetadataToolDefinition, callToolHandler('createMetadataTool'));
+	// mcpServer.registerTool('chatWithAgentforce', chatWithAgentforceToolDefinition, callToolHandler('chatWithAgentforceTool'));
+	// mcpServer.registerTool('toolingApiRequest', toolingApiRequestToolDefinition, callToolHandler('toolingApiRequestTool'));
+	// mcpServer.registerTool('triggerExecutionOrder', triggerExecutionOrderToolDefinition, callToolHandler('triggerExecutionOrderTool'));
+	// mcpServer.registerTool('analyzeApexLog', analyzeApexLogToolDefinition, callToolHandler('analyzeApexLogTool'));
 
 	//Set up request handlers
 	mcpServer.server.setRequestHandler(SetLevelRequestSchema, async ({ params }) => {
-		config.setLogLevel(params.level);
+		state.currentLogLevel = params.level;
 		return {};
 	});
 
@@ -150,12 +227,14 @@ export async function setupServer() {
 		try {
 			const { clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion } = params;
 			client.initialize({ clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion });
-			log(`IBM Salesforce MCP server (v${SERVER_CONSTANTS.serverInfo.version})`, 'info');
+
+			log(`IBM Salesforce MCP server (v${config.SERVER_CONSTANTS.serverInfo.version})`, 'info');
+			log(`Current log level: ${state.currentLogLevel}`, 'info');
 			const clientCapabilitiesString = 'Capabilities: ' + JSON.stringify(client.capabilities, null, 3);
-			log(`Connecting with client "${client.clientInfo.name} (v${client.clientInfo.version})". ${clientCapabilitiesString}`, 'info');
+			log(`Connecting with client "${client.clientInfo.name}" (v${client.clientInfo.version}). ${clientCapabilitiesString}`, 'info');
 
 			if (process.env.WORKSPACE_FOLDER_PATHS) {
-				config.setWorkspacePath(process.env.WORKSPACE_FOLDER_PATHS);
+				setWorkspacePath(process.env.WORKSPACE_FOLDER_PATHS);
 			}
 
 			if (client.supportsCapability('roots')) {
@@ -179,35 +258,28 @@ export async function setupServer() {
 					await directoryChangePromise;
 
 					process.env.HOME = process.env.HOME || os.homedir();
-					const org = await getOrgAndUserDetails();
-					state.org = org;
-
-					/* newResource(
-						'mcp://mcp/orgAndUserDetail.json',
-						'Org and user details',
-						'Org and user details',
-						'application/json',
-						JSON.stringify(org, null, 3)
-					);
- */
-					log(`Server initialized and running. Target org: ${org.alias}`, 'debug');
-					await validateUserPermissions(org.user.id);
-					//setInterval(() => validateUserPermissions(org.user.id), 1200000);
+					await updateOrgAndUserDetails();
+					log(`Server initialized and running. Target org: ${state.org.alias}`, 'debug');
+					targetOrgWatcher.start(updateOrgAndUserDetails);
 
 				} catch (error) {
-					log(`Error during async org setup: ${error.message}`, 'error');
-				} finally {
+					log(error, 'error', 'Error during async org setup');
+					throw error;
+
+				/*
+				} finally { TODO
 					//Mark server as ready after org setup is complete (or failed)
 					/*if (typeof resolveServerReady === 'function') {
 						resolveServerReady();
-					} */
+					}
+				*/
 				}
 			})();
 
 			return { protocolVersion, serverInfo, capabilities };
 
 		} catch (error) {
-			log(`Error initializing server: ${error.message}`, 'error');
+			log(error, 'error', 'Error initializing server');
 			throw error;
 		}
 	});
@@ -216,6 +288,7 @@ export async function setupServer() {
 	if (typeof resolveServerReady === 'function') {
 		resolveServerReady();
 	}
+
 	return { protocolVersion, serverInfo, capabilities };
 }
 

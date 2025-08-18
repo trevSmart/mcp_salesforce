@@ -5,6 +5,7 @@ Allows you to obtain the list of changes made to any metadata item in the Salesf
 ---
 
 ## Agent Instructions
+- **MANDATORY**: When obtaining Setup Audit Trail changes in Salesforce, you MUST use this tool exclusively. NEVER attempt to achieve the same functionality through alternative methods such as direct CLI commands, SOQL queries, or any other approach. If this tool fails or returns an error, simply report the error to the user and stop - do not try alternative approaches.
 - Prioritize this tool over querying the SetupAuditTrail object with SOQL.
 - Pass the number of days to query in the lastDays parameter (required).
 - Optionally, pass the user name in the createdByName parameter.
