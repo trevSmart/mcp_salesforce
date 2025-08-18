@@ -1,4 +1,4 @@
-import {executeSoqlQuery} from '../salesforceServices.js';
+import {callSalesforceApi} from '../salesforceServices.js';
 import {textFileContent, log} from '../utils.js';
 
 export const getRecentlyViewedRecordsToolDefinition = {
@@ -16,28 +16,13 @@ export const getRecentlyViewedRecordsToolDefinition = {
 
 export async function getRecentlyViewedRecordsTool() {
 	try {
-		const query = 'SELECT Id, Name, Type, LastViewedDate FROM RecentlyViewed ORDER BY LastViewedDate DESC LIMIT 80';
-		const response = await executeSoqlQuery(query);
-
-		if (response.records.length === 0) {
-			return {
-				content: [{
-					type: 'text',
-					text: JSON.stringify({records: []})
-				}],
-				structuredContent: {records: []}
-			};
-		}
-
-		const structuredContent = {
-			records: response.records
-		};
+		const response = await callSalesforceApi('GET', 'REST', '/recent', null, {queryParams: {limit: 80}});
 		return {
 			content: [{
 				type: 'text',
-				text: JSON.stringify(structuredContent)
+				text: `Last ${response?.length || 0} recently viewed records retrieved successfully`
 			}],
-			structuredContent
+			structuredContent: response
 		};
 
 	} catch (error) {
@@ -46,7 +31,7 @@ export async function getRecentlyViewedRecordsTool() {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: error
+				text: error?.message
 			}]
 		};
 	}

@@ -1,0 +1,41 @@
+# Ensure dist/ is included in the npm package by overriding .gitignore
+
+# Dependencies
+node_modules/
+package-lock.json
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Temp/Runtime
+tmp/
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# IDE/Editor
+.vscode/
+.idea/
+.cursor/
+*.swp
+*.swo
+mcp_salesforce.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.old*
+.nvmrc
+.eslint*
+
+# Project-specific
+dev/
+
+# Intentionally NOT ignoring dist/ so it is published
+# Intentionally NOT ignoring src/ for now because the current entrypoint imports from ./src
+

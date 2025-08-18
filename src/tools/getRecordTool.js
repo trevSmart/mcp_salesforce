@@ -1,6 +1,7 @@
 import {getRecord} from '../salesforceServices.js';
 import {log, textFileContent} from '../utils.js';
 import {z} from 'zod';
+import state from '../state.js';
 
 export const getRecordToolDefinition = {
 	name: 'getRecord',
@@ -29,29 +30,24 @@ export async function getRecordTool({sObjectName, recordId}) {
 		}
 
 		const result = await getRecord(sObjectName, recordId);
-		const structuredContent = {
-			id: recordId,
-			sObject: sObjectName,
-			fields: result
-		};
+
 		return {
 			content: [{
 				type: 'text',
-				text: JSON.stringify(structuredContent)
+				text: `Successfully retrieved details for the ${sObjectName} record with Id ${recordId}`
 			}],
-			structuredContent
+			structuredContent: result
 		};
 
 	} catch (error) {
 		log(error, 'error');
-		const errorContent = {error: true, message: error.message};
 		return {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: JSON.stringify(errorContent)
+				text: error.message
 			}],
-			structuredContent: errorContent
+			structuredContent: error
 		};
 	}
 }

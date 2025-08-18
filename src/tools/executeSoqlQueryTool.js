@@ -59,12 +59,37 @@ export const executeSoqlQueryToolDefinition = {
 export async function executeSoqlQueryTool({query, useToolingApi = false}) {
 	try {
 		let queryResult = await executeSoqlQuery(query, useToolingApi);
+
+		// Validate response structure
+		if (!queryResult || typeof queryResult !== 'object') {
+			throw new Error('Invalid response structure from Salesforce API');
+		}
+
+		// Ensure records array exists
+		if (!queryResult.records || !Array.isArray(queryResult.records)) {
+			throw new Error('No records found in query response');
+		}
+
+		// Add URLs to all records and related records
 		queryResult.records = queryResult.records.map(r => addUrlToRecord({...r}));
+
+		// Build response message
+		const totalSize = queryResult.totalSize || queryResult.records.length;
+		const message = `SOQL query executed successfully. Returned ${totalSize} record${totalSize !== 1 ? 's' : ''}.`;
+
+		// If there are many records, provide a summary instead of full JSON
+		const displayRecords = totalSize > 10 ?
+			queryResult.records.slice(0, 10) :
+			queryResult.records;
+
+		const displayText = totalSize > 10 ?
+			`${message} Showing first 10 records (${totalSize - 10} more available in structuredContent):` :
+			`${message} All records:`;
 
 		return {
 			content: [{
 				type: 'text',
-				text: `SOQL query returned the following ${queryResult.totalSize} records: ${JSON.stringify(queryResult.records, null, 3)}`
+				text: `${totalSize} records returned`
 			}],
 			structuredContent: queryResult
 		};
@@ -75,7 +100,7 @@ export async function executeSoqlQueryTool({query, useToolingApi = false}) {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: `❌ Error: ${error.message}`
+				text: `❌ Error executing SOQL query: ${error.message}`
 			}]
 		};
 	}

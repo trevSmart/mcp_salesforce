@@ -1,5 +1,5 @@
-import { log, getSfCliCurrentTargetOrg } from './utils.js';
-import { config } from './config.js';
+import { log } from './utils.js';
+import config from './config.js';
 import { exec as execCb } from 'child_process';
 import { promisify } from 'node:util';
 import fs from 'fs/promises';
@@ -44,11 +44,8 @@ function generateApexFileName(username = 'unknown') {
 	return `apexRun_${camelCaseUsername}${timestamp}`;
 }
 
-
 export async function runCliCommand(command) {
 	try {
-		log(`Running SF CLI command: ${command}`, 'debug');
-
 		let stdout = null;
 		try {
 			const response = await exec(command, {
@@ -63,7 +60,7 @@ export async function runCliCommand(command) {
 			}
 		}
 
-		log(stdout, 'debug', 'SF CLI command output (stdout)');
+		log(stdout, 'debug', 'Salesforce CLI output');
 		return stdout;
 
 	} catch (error) {
@@ -80,21 +77,30 @@ export async function executeSoqlQuery(query, useToolingApi = false) {
 			throw new Error('La consulta SOQL (query) és obligatòria i ha de ser una string');
 		}
 
-		const command = `sf data query --query "${query}" ${useToolingApi ? '--use-tooling-api' : ''} --json`;
-		log(`Executing SOQL query command: ${command}`, 'debug');
-		const responseString = await runCliCommand(command);
-
-		let response;
-		try {
-			response = JSON.parse(responseString);
-		} catch (error) {
-			throw new Error(`Error parsing JSON response: ${responseString}`);
+		// Ensure org details are available
+		if (!state?.org?.instanceUrl || !state?.org?.accessToken) {
+			throw new Error('Org details not initialized. Please wait for server initialization.');
 		}
 
-		if (response.status !== 0) {
-			throw new Error(response.message || 'Error executant la consulta SOQL');
+		log(`Executing SOQL query with ${useToolingApi ? 'Tooling' : 'REST'} API: ${query}`, 'debug');
+
+		// Use the new callSalesforceApi function
+		const apiType = useToolingApi ? 'TOOLING' : 'REST';
+		const response = await callSalesforceApi('GET', apiType, '/query', null, { queryParams: { q: query } });
+
+		// Validate response structure
+		if (!response || typeof response !== 'object') {
+			throw new Error('Invalid response structure from Salesforce API');
 		}
-		return response.result;
+
+		// Check for Salesforce API errors
+		if (response.errors?.length) {
+			const errorMessages = response.errors.map(err => err.message || err).join('; ');
+			throw new Error(`Salesforce API error: ${errorMessages}`);
+		}
+
+		// Return the response (contains records, totalSize, done, etc.)
+		return response;
 
 	} catch (error) {
 		log(error, 'error', 'Error executing SOQL query');
@@ -102,17 +108,14 @@ export async function executeSoqlQuery(query, useToolingApi = false) {
 	}
 }
 
-export async function getOrgAndUserDetails() {
-	log('getOrgAndUserDetails', 'debug');
+export async function getOrgAndUserDetails(skipCache = false) {
 	try {
-		// Check current SF CLI target alias and reuse cached org if unchanged
-		const fileAlias = getSfCliCurrentTargetOrg();
-		if (fileAlias === state?.org?.alias) {
-			log(`Target org alias unchanged (${fileAlias}), using cached state.org`, 'debug');
+		if (state?.org?.alias && !skipCache) {
+			log(`Org and user details already cached, skipping fetch`, 'debug');
 			return state.org;
 		}
 
-		const orgResultString = await runCliCommand('sf org display user --json');
+		const orgResultString = await runCliCommand('sf org display --json');
 		let orgResult;
 		try {
 			orgResult = JSON.parse(orgResultString).result;
@@ -120,29 +123,34 @@ export async function getOrgAndUserDetails() {
 			throw new Error(`Error parsing JSON response: ${orgResultString}`);
 		}
 
-		if (!orgResult?.id || orgResult.id === 'unknown') {
+		if (!orgResult?.username || orgResult.username === 'unknown') {
 			throw new Error('Error: Could not retrieve Salesforce org and user details.');
 		}
 
 		const org = {
-			id: orgResult.orgId,
+			id: orgResult.id,
 			alias: orgResult.alias,
 			instanceUrl: orgResult.instanceUrl,
+			apiVersion: orgResult.apiVersion,
+			accessToken: orgResult.accessToken,
 			user: {
-				id: orgResult.id,
+				id: null,
 				username: orgResult.username,
-				profileName: orgResult.profileName,
+				profileName: null,
 				name: null
 			}
 		};
-		log( 'Org and user details successfully retrieved', 'debug');
 		state.org = org;
 
-
 		const getUserFullName = async () => {
-			const soqlUserResult = await executeSoqlQuery(`SELECT Name FROM User WHERE Id = '${org.user.id}'`);
-			state.org.user.name = soqlUserResult?.records?.[0]?.Name;
-
+			const soqlUserResult = await executeSoqlQuery(`SELECT Id, Name, Profile.Name FROM User WHERE Username = '${org.user.username}'`);
+			const user = soqlUserResult?.records?.[0];
+			state.org.user = {
+				id: user.Id,
+				username: orgResult.username,
+				profileName: user.Profile?.Name,
+				name: user.Name
+			};
 			newResource(
 				'mcp://org/orgAndUserDetail.json',
 				'Org and user details',
@@ -150,12 +158,6 @@ export async function getOrgAndUserDetails() {
 				'application/json',
 				JSON.stringify(state.org, null, 3)
 			);
-
-			/*
-			if ('mcp://mcp/orgAndUserDetail.json' in resources) {
-				resources['mcp://mcp/orgAndUserDetail.json'].text = JSON.stringify(state.org, null, 3);
-			}
-			*/
 		};
 		getUserFullName();
 
@@ -167,267 +169,580 @@ export async function getOrgAndUserDetails() {
 	}
 }
 
-export async function createRecord(sObjectName, fields, useToolingApi = false) {
+// OLD VERSION - UI API only
+/*
+export async function dmlOperation(operations, options = {}) {
 	try {
-		if (!sObjectName || !fields || typeof fields !== 'object') {
-			throw new Error('sObjectName i fields són obligatoris');
+		// Validate org state
+		if (!state?.org?.instanceUrl || !state?.org?.accessToken) {
+			throw new Error('Org details not initialized. Please wait for server initialization.');
 		}
 
-		const valuesString = Object.entries(fields)
-			.map(([key, value]) => `${key}='${String(value).replace(/'/g, '\\\'')}'`)
-			.join(' ');
-		const command = `sf data create record --sobject ${sObjectName} --values "${valuesString}" ${useToolingApi ? '--use-tooling-api' : ''} --json`;
-		log(`Executing create record command: ${command}`, 'debug');
-
-		const responseString = await runCliCommand(command);
-		let response;
-		try {
-			response = JSON.parse(responseString);
-		} catch (error) {
-			throw new Error(`Error parsing JSON response: ${responseString}`);
+		// Validate that at least one operation type is provided
+		const hasOperations = operations.create?.length || operations.update?.length || operations.delete?.length;
+		if (!hasOperations) {
+			throw new Error('At least one operation must be specified (create, update, delete)');
 		}
 
-		if (response.status !== 0) {
-			throw new Error(response.message || 'Error creant el registre');
+		// Prepare batch operations for UI API
+		const requestOperations = [];
+
+		if (operations.create?.length) {
+			requestOperations.push({
+				type: 'Create',
+				records: operations.create.map(record => ({
+					apiName: record.sObjectName,
+					fields: record.fields
+				}))
+			});
 		}
-		return response.result;
+
+		// Process update operations
+		if (operations.update?.length) {
+			requestOperations.push({
+				type: 'Update',
+				records: operations.update.map(record => ({
+					fields: {
+						Id: record.recordId,
+						...record.fields
+					}
+				}))
+			});
+		}
+
+		// Process delete operations
+		if (operations.delete?.length) {
+			requestOperations.push({
+				type: 'Delete',
+				records: operations.delete.map(record => ({
+					fields: { Id: record.recordId }
+				}))
+			});
+		}
+
+		// Prepare the batch request payload
+		const payload = {
+			allOrNone: options.allOrNone || false,
+			operations: requestOperations
+		};
+
+		log(`Executing batch DML operation via UI API: ${JSON.stringify(payload, null, 2)}`, 'debug');
+
+		// Use UI API for REST operations
+		const result = await callSalesforceApi('POST', 'UI', '/records/batch', payload);
+		log(`API Response: ${JSON.stringify(result, null, 2)}`, 'debug');
+
+		// Validate response structure for REST operations
+		if (!result || typeof result !== 'object') {
+			throw new Error('Invalid response structure from Salesforce API');
+		}
+
+		// Check for Salesforce API errors
+		if (result.errors && result.errors.length > 0) {
+			const errorMessages = result.errors.map(err => err.message || err).join('; ');
+			throw new Error(`Salesforce API error: ${errorMessages}`);
+		}
+
+		// Process UI API response to match Tooling API format
+		let hasErrors = false;
+		let errorMessages = [];
+		let successCount = 0;
+		let failedCount = 0;
+		let processedResults = [];
+
+		// UI API returns results in a different format, we need to adapt it
+		if (result.results && Array.isArray(result.results)) {
+			result.results.forEach((operationResult, index) => {
+				if (operationResult.success) {
+					successCount++;
+					// Adapt UI API result to match Tooling API format
+					processedResults.push({
+						body: {
+							id: operationResult.id,
+							success: true,
+							errors: [],
+							warnings: [],
+							infos: []
+						},
+						httpHeaders: {},
+						httpStatusCode: 200,
+						referenceId: `operation_${index}`
+					});
+				} else {
+					hasErrors = true;
+					failedCount++;
+					const errorMsg = operationResult.errors ? operationResult.errors.join('; ') : 'Unknown error';
+					errorMessages.push(`Operation ${index + 1}: ${errorMsg}`);
+					// Adapt failed result
+					processedResults.push({
+						body: {
+							success: false,
+							errors: operationResult.errors || ['Unknown error']
+						},
+						httpHeaders: {},
+						httpStatusCode: 400,
+						referenceId: `operation_${index}`
+					});
+				}
+			});
+		}
+
+		// Return structured response matching Tooling API format
+		const response = {
+			success: !hasErrors,
+			hasErrors: hasErrors,
+			totalRecords: requestOperations.length,
+			successfulRecords: successCount,
+			failedRecords: failedCount,
+			results: processedResults,
+			errors: errorMessages.length > 0 ? errorMessages : null,
+			rawResponse: result
+		};
+
+		log(`Final UI API response: ${JSON.stringify(response, null, 2)}`, 'debug');
+		return response;
 
 	} catch (error) {
-		log(error, 'error', `Error creating record in object ${sObjectName}`);
+		log(error, 'error', 'Error executing batch DML operation');
+		throw error;
+	}
+}
+*/
+
+// NEW UNIFIED VERSION - Supports both UI API and Tooling API
+export async function dmlOperation(operations, options = {}) {
+	try {
+		// Validate org state
+		if (!state?.org?.instanceUrl || !state?.org?.accessToken) {
+			throw new Error('Org details not initialized. Please wait for server initialization.');
+		}
+
+		// Validate that at least one operation type is provided
+		const hasOperations = operations.create?.length || operations.update?.length || operations.delete?.length;
+		if (!hasOperations) {
+			throw new Error('At least one operation must be specified (create, update, delete)');
+		}
+
+		// Determine which API to use based on options
+		const useToolingApi = options.useToolingApi === true;
+
+		if (useToolingApi) {
+			log('=== Executing DML operation via Tooling API ===', 'debug');
+			log(`Input operations: ${JSON.stringify(operations, null, 2)}`, 'debug');
+			log(`Input options: ${JSON.stringify(options, null, 2)}`, 'debug');
+
+			// Prepare the Composite request payload for Tooling API
+			const compositeRequests = [];
+
+			// Process create operations
+			if (operations.create?.length) {
+				operations.create.forEach((record, index) => {
+					compositeRequests.push({
+						method: 'POST',
+						url: `/services/data/v${state.org.apiVersion}/tooling/sobjects/${record.sObjectName}`,
+						referenceId: `create_${index}`,
+						body: record.fields
+					});
+				});
+			}
+
+			// Process update operations
+			if (operations.update?.length) {
+				operations.update.forEach((record, index) => {
+					compositeRequests.push({
+						method: 'PATCH',
+						url: `/services/data/v${state.org.apiVersion}/tooling/sobjects/${record.sObjectName}/${record.recordId}`,
+						referenceId: `update_${index}`,
+						body: record.fields
+					});
+				});
+			}
+
+			// Process delete operations
+			if (operations.delete?.length) {
+				operations.delete.forEach((record, index) => {
+					compositeRequests.push({
+						method: 'DELETE',
+						url: `/services/data/v${state.org.apiVersion}/tooling/sobjects/${record.sObjectName}/${record.recordId}`,
+						referenceId: `delete_${index}`
+					});
+				});
+			}
+
+			// Prepare the Composite request payload
+			const payload = {
+				allOrNone: options.allOrNone || false,
+				compositeRequest: compositeRequests
+			};
+
+			log(`Final Tooling API payload: ${JSON.stringify(payload, null, 2)}`, 'debug');
+			log(`Executing batch DML operation via Tooling API Composite endpoint`, 'debug');
+
+			// Use Tooling API Composite endpoint for batch operations
+			const result = await callSalesforceApi('POST', 'TOOLING', '/composite', payload);
+			log(`=== Tooling API Raw Response ===`, 'debug');
+			log(`Response type: ${typeof result}`, 'debug');
+			log(`Response keys: ${result ? Object.keys(result).join(', ') : 'N/A'}`, 'debug');
+			log(`Full response: ${JSON.stringify(result, null, 2)}`, 'debug');
+
+			// Validate response structure for Tooling API operations
+			if (!result || typeof result !== 'object') {
+				log(result, 'error', 'Invalid response structure from Salesforce Tooling API');
+				throw new Error('Invalid response structure from Salesforce Tooling API');
+			}
+
+			// Process Tooling API Composite response
+			let hasErrors = false;
+			let errorMessages = [];
+			let successCount = 0;
+			let failedCount = 0;
+
+			if (result.compositeResponse && Array.isArray(result.compositeResponse)) {
+				log(`Processing ${result.compositeResponse.length} composite responses...`, 'debug');
+				result.compositeResponse.forEach((subResponse, index) => {
+					if (subResponse.httpStatusCode >= 200 && subResponse.httpStatusCode < 300) {
+						successCount++;
+						log(`SubResponse ${index} SUCCESS (${subResponse.httpStatusCode})`, 'debug');
+					} else {
+						hasErrors = true;
+						failedCount++;
+						const errorMsg = subResponse.body ? JSON.stringify(subResponse.body) : `HTTP ${subResponse.httpStatusCode}`;
+						errorMessages.push(`SubRequest ${index + 1}: ${errorMsg}`);
+						log(`SubResponse ${index} FAILED (${subResponse.httpStatusCode}): ${errorMsg}`, 'debug');
+					}
+				});
+			}
+
+			// Check for top-level errors
+			if (result.errors && result.errors.length > 0) {
+				log(`Found ${result.errors.length} top-level errors`, 'debug');
+				hasErrors = true;
+				const topLevelErrors = result.errors.map(err => err.message || err).join('; ');
+				errorMessages.push(`Top-level errors: ${topLevelErrors}`);
+			}
+
+			// Return structured response
+			const response = {
+				success: !hasErrors,
+				hasErrors: hasErrors,
+				totalRecords: compositeRequests.length,
+				successfulRecords: successCount,
+				failedRecords: failedCount,
+				results: result.compositeResponse || [],
+				errors: errorMessages.length > 0 ? errorMessages : null,
+				rawResponse: result
+			};
+
+			log(`Final Tooling API response: ${JSON.stringify(response, null, 2)}`, 'debug');
+			return response;
+
+		} else {
+			log('=== Executing DML operation via UI API ===', 'debug');
+
+			// Prepare batch operations for UI API
+			const requestOperations = [];
+
+			if (operations.create?.length) {
+				requestOperations.push({
+					type: 'Create',
+					records: operations.create.map(record => ({
+						apiName: record.sObjectName,
+						fields: record.fields
+					}))
+				});
+			}
+
+			// Process update operations
+			if (operations.update?.length) {
+				requestOperations.push({
+					type: 'Update',
+					records: operations.update.map(record => ({
+						fields: {
+							Id: record.recordId,
+							...record.fields
+						}
+					}))
+				});
+			}
+
+			// Process delete operations
+			if (operations.delete?.length) {
+				requestOperations.push({
+					type: 'Delete',
+					records: operations.delete.map(record => ({
+						fields: { Id: record.recordId }
+					}))
+				});
+			}
+
+			// Prepare the batch request payload
+			const payload = {
+				allOrNone: options.allOrNone || false,
+				operations: requestOperations
+			};
+
+			log(`Executing batch DML operation via UI API: ${JSON.stringify(payload, null, 2)}`, 'debug');
+
+			// Use UI API for REST operations
+			const result = await callSalesforceApi('POST', 'UI', '/records/batch', payload);
+			log(`UI API Response: ${JSON.stringify(result, null, 2)}`, 'debug');
+
+			// Validate response structure for REST operations
+			if (!result || typeof result !== 'object') {
+				throw new Error('Invalid response structure from Salesforce API');
+			}
+
+			// Check for Salesforce API errors
+			if (result.errors && result.errors.length > 0) {
+				const errorMessages = result.errors.map(err => err.message || err).join('; ');
+				throw new Error(`Salesforce API error: ${errorMessages}`);
+			}
+
+			// Process UI API response to match Tooling API format
+			let hasErrors = false;
+			let errorMessages = [];
+			let successCount = 0;
+			let failedCount = 0;
+			let processedResults = [];
+
+			// UI API returns results in a different format, we need to adapt it
+			if (result.results && Array.isArray(result.results)) {
+				result.results.forEach((operationResult, index) => {
+					// Use statusCode to determine success (transversal approach)
+					const statusCode = operationResult.statusCode;
+					const isSuccess = statusCode >= 200 && statusCode < 300;
+
+					if (isSuccess) {
+						successCount++;
+						// Adapt UI API result to match Tooling API format
+						processedResults.push({
+							body: {
+								id: operationResult.result?.id || operationResult.id || null,
+								success: true,
+								errors: [],
+								warnings: [],
+								infos: []
+							},
+							httpHeaders: {},
+							httpStatusCode: statusCode,
+							referenceId: `operation_${index}`
+						});
+					} else {
+						hasErrors = true;
+						failedCount++;
+						// Extract error details from UI API response
+						let errorMsg = 'Unknown error';
+						if (operationResult.result?.errors) {
+							errorMsg = operationResult.result.errors.join('; ');
+						} else if (operationResult.errors) {
+							errorMsg = operationResult.errors.join('; ');
+						}
+						errorMessages.push(`Operation ${index + 1}: ${errorMsg}`);
+						// Adapt failed result
+						processedResults.push({
+							body: {
+								success: false,
+								errors: [errorMsg]
+							},
+							httpHeaders: {},
+							httpStatusCode: statusCode,
+							referenceId: `operation_${index}`
+						});
+					}
+				});
+			}
+
+			// Return structured response matching Tooling API format
+			const response = {
+				success: !hasErrors,
+				hasErrors: hasErrors,
+				totalRecords: requestOperations.length,
+				successfulRecords: successCount,
+				failedRecords: failedCount,
+				results: processedResults,
+				errors: errorMessages.length > 0 ? errorMessages : null,
+				rawResponse: result
+			};
+
+			log(`Final UI API response: ${JSON.stringify(response, null, 2)}`, 'debug');
+			return response;
+		}
+
+	} catch (error) {
+		log(error, 'error', 'Error executing batch DML operation');
 		throw error;
 	}
 }
 
-export async function updateRecord(sObjectName, recordId, fields, useToolingApi = false) {
+// OLD VERSION - Tooling API only (replaced by unified dmlOperation)
+/*
+export async function dmlOperationTooling(operations, options = {}) {
 	try {
-		if (!sObjectName || !recordId || !fields || typeof fields !== 'object') {
-			throw new Error('sObjectName, recordId and fields are required');
-		}
-		const valuesString = Object.entries(fields)
-			.map(([key, value]) => `${key}='${String(value).replace(/'/g, '\\\'')}'`)
-			.join(' ');
-		const command = `sf data update record --sobject ${sObjectName} --record-id ${recordId} --values "${valuesString}" ${useToolingApi ? '--use-tooling-api' : ''} --json`;
-		log(`Executing update record command: ${command}`, 'debug');
+		log('=== dmlOperationTooling START ===', 'debug');
+		log(`Input operations: ${JSON.stringify(operations, null, 2)}`, 'debug');
+		log(`Input options: ${JSON.stringify(options, null, 2)}`, 'debug');
 
-		const responseString = await runCliCommand(command);
-		let response;
-		try {
-			response = JSON.parse(responseString);
-		} catch (error) {
-			throw new Error(`Error parsing JSON response: ${responseString}`);
+		// Validate org state
+		if (!state?.org?.instanceUrl || !state?.org?.accessToken) {
+			throw new Error('Org details not initialized. Please wait for server initialization.');
 		}
 
-		if (response.status !== 0) {
-			throw new Error(response.message || 'Error updating record');
+		// Validate that at least one operation type is provided
+		const hasOperations = operations.create?.length || operations.update?.length || operations.delete?.length;
+		if (!hasOperations) {
+			throw new Error('At least one operation must be specified (create, update, delete)');
 		}
-		return response.result;
+
+		log(`Has operations: ${hasOperations}`, 'debug');
+		log(`Create operations: ${operations.create?.length || 0}`, 'debug');
+		log(`Update operations: ${operations.update?.length || 0}`, 'debug');
+		log(`Delete operations: ${operations.delete?.length || 0}`, 'debug');
+
+		// Prepare the Composite request payload for Tooling API
+		const compositeRequests = [];
+
+		// Process create operations
+		if (operations.create?.length) {
+			operations.create.forEach((record, index) => {
+				compositeRequests.push({
+					method: 'POST',
+					url: `/services/data/v${state.org.apiVersion}/tooling/sobjects/${record.sObjectName}`,
+					referenceId: `create_${index}`,
+					body: record.fields
+				});
+			});
+		}
+
+		// Process update operations
+		if (operations.update?.length) {
+			operations.update.forEach((record, index) => {
+				compositeRequests.push({
+					method: 'PATCH',
+					url: `/services/data/v${state.org.apiVersion}/tooling/sobjects/${record.sObjectName}/${record.recordId}`,
+					referenceId: `update_${index}`,
+					body: record.fields
+				});
+			});
+		}
+
+		// Process delete operations
+		if (operations.delete?.length) {
+			operations.delete.forEach((record, index) => {
+				compositeRequests.push({
+					method: 'DELETE',
+					url: `/services/data/v${state.org.apiVersion}/tooling/sobjects/${record.sObjectName}/${record.recordId}`,
+					referenceId: `delete_${index}`
+				});
+			});
+		}
+
+		// Prepare the Composite request payload
+		const payload = {
+			allOrNone: options.allOrNone || false,
+			compositeRequest: compositeRequests
+		};
+
+		log(`Final payload: ${JSON.stringify(payload, null, 2)}`, 'debug');
+		log(`Executing batch DML operation via Tooling API Composite endpoint: ${JSON.stringify(payload, null, 2)}`, 'debug');
+
+		// Use Tooling API SObject Collections for batch operations
+		const result = await callSalesforceApi('POST', 'TOOLING', '/composite', payload);
+		log(`=== Tooling API Raw Response ===`, 'debug');
+		log(`Response type: ${typeof result}`, 'debug');
+		log(`Response is null: ${result === null}`, 'debug');
+		log(`Response is undefined: ${result === undefined}`, 'debug');
+		log(`Response keys: ${result ? Object.keys(result).join(', ') : 'N/A'}`, 'debug');
+		log(`Full response: ${JSON.stringify(result, null, 2)}`, 'debug');
+
+		// Validate response structure for Tooling API operations
+		if (!result || typeof result !== 'object') {
+			log(`Invalid response structure: ${result}`, 'error');
+			throw new Error('Invalid response structure from Salesforce Tooling API');
+		}
+
+		// Tooling API Composite endpoint returns results in compositeResponse structure
+		// Check for individual subrequest errors and success status
+		let hasErrors = false;
+		let errorMessages = [];
+		let successCount = 0;
+		let failedCount = 0;
+
+		log(`Checking result.compositeResponse: ${result.compositeResponse ? 'exists' : 'does not exist'}`, 'debug');
+		log(`result.compositeResponse type: ${result.compositeResponse ? typeof result.compositeResponse : 'N/A'}`, 'debug');
+		log(`result.compositeResponse is array: ${result.compositeResponse ? Array.isArray(result.compositeResponse) : 'N/A'}`, 'debug');
+		log(`result.compositeResponse length: ${result.compositeResponse ? result.compositeResponse.length : 'N/A'}`, 'debug');
+
+		if (result.compositeResponse && Array.isArray(result.compositeResponse)) {
+			log(`Processing ${result.compositeResponse.length} composite responses...`, 'debug');
+			result.compositeResponse.forEach((subResponse, index) => {
+				log(`SubResponse ${index}: ${JSON.stringify(subResponse, null, 2)}`, 'debug');
+				if (subResponse.httpStatusCode >= 200 && subResponse.httpStatusCode < 300) {
+					successCount++;
+					log(`SubResponse ${index} SUCCESS (${subResponse.httpStatusCode})`, 'debug');
+				} else {
+					hasErrors = true;
+					failedCount++;
+					const errorMsg = subResponse.body ? JSON.stringify(subResponse.body) : `HTTP ${subResponse.httpStatusCode}`;
+					errorMessages.push(`SubRequest ${index + 1}: ${errorMsg}`);
+					log(`SubResponse ${index} FAILED (${subResponse.httpStatusCode}): ${errorMsg}`, 'debug');
+				}
+			});
+		} else {
+			log('No compositeResponse array found in response', 'debug');
+		}
+
+		// Check for top-level errors
+		log(`Checking result.errors: ${result.errors ? 'exists' : 'does not exist'}`, 'debug');
+		if (result.errors && result.errors.length > 0) {
+			log(`Found ${result.errors.length} top-level errors`, 'debug');
+			hasErrors = true;
+			const topLevelErrors = result.errors.map(err => err.message || err).join('; ');
+			errorMessages.push(`Top-level errors: ${topLevelErrors}`);
+		}
+
+		// Return structured response with operation results
+		const response = {
+			success: !hasErrors,
+			hasErrors: hasErrors,
+			totalRecords: compositeRequests.length,
+			successfulRecords: successCount,
+			failedRecords: failedCount,
+			results: result.compositeResponse || [],
+			errors: errorMessages.length > 0 ? errorMessages : null,
+			rawResponse: result
+		};
+
+		log(`Final response: ${JSON.stringify(response, null, 2)}`, 'debug');
+		log('=== dmlOperationTooling END ===', 'debug');
+
+		return response;
 
 	} catch (error) {
-		log(error, 'error', `Error updating record ${recordId} in object ${sObjectName}`);
+		log(`=== dmlOperationTooling ERROR ===`, 'error');
+		log(`Error: ${error.message}`, 'error');
+		log(`Stack: ${error.stack}`, 'error');
+		log(error, 'error', 'Error executing batch DML operation with Tooling API');
 		throw error;
 	}
 }
-
-export async function deleteRecord(sObjectName, recordId, useToolingApi = false) {
-	try {
-		if (!sObjectName || !recordId) {
-			throw new Error('sObjectName and recordId are required');
-		}
-
-		const command = `sf data delete record --sobject ${sObjectName} --record-id ${recordId} ${useToolingApi ? '--use-tooling-api' : ''} --json`;
-		log(`Executing delete record command: ${command}`, 'debug');
-
-		const responseString = await runCliCommand(command);
-		let response;
-		try {
-			response = JSON.parse(responseString);
-		} catch (error) {
-			throw new Error(`Error parsing JSON response: ${responseString}`);
-		}
-
-		if (response.status !== 0) {
-			throw new Error(response.message || 'Error deleting record');
-		}
-		return response.result;
-
-	} catch (error) {
-		log(error, 'error', `Error deleting record ${recordId} from object ${sObjectName}`);
-		throw error;
-	}
-}
-
-export async function updateBulk(sObjectName, filePath, options = {}) {
-    try {
-        if (!sObjectName || typeof sObjectName !== 'string') {
-            throw new Error('sObjectName is required and must be a string');
-        }
-        if (!filePath || typeof filePath !== 'string') {
-            throw new Error('filePath is required and must be a string');
-        }
-
-        const { asyncMode = false, wait, lineEnding, columnDelimiter } = options;
-
-        let command = `sf data update bulk --sobject ${sObjectName} --file "${filePath}" --wait 5`;
-
-        if (asyncMode) {
-            command += ' --async';
-        } else if (typeof wait === 'number' && !Number.isNaN(wait)) {
-            command += ` --wait ${wait}`;
-        }
-
-        if (lineEnding && (lineEnding === 'CRLF' || lineEnding === 'LF')) {
-            command += ` --line-ending ${lineEnding}`;
-        }
-
-        const allowedDelimiters = ['BACKQUOTE', 'CARET', 'COMMA', 'PIPE', 'SEMICOLON', 'TAB'];
-        if (columnDelimiter && allowedDelimiters.includes(columnDelimiter)) {
-            command += ` --column-delimiter ${columnDelimiter}`;
-        }
-
-        command += ' --json';
-        log(`Executing bulk update command: ${command}`, 'debug');
-
-        const responseString = await runCliCommand(command);
-        let response;
-        try {
-            response = JSON.parse(responseString);
-        } catch (error) {
-            throw new Error(`Error parsing JSON response: ${responseString}`);
-        }
-
-        if (response.status !== 0) {
-            throw new Error(response.message || 'Error running bulk update');
-        }
-
-        return response.result;
-
-    } catch (error) {
-        log(error, 'error', `Error running bulk update for object ${sObjectName} with file ${filePath}`);
-        throw error;
-    }
-}
-
-export async function createBulk(sObjectName, filePath, options = {}) {
-    try {
-        if (!sObjectName || typeof sObjectName !== 'string') {
-            throw new Error('sObjectName is required and must be a string');
-        }
-        if (!filePath || typeof filePath !== 'string') {
-            throw new Error('filePath is required and must be a string');
-        }
-
-        const { asyncMode = false, wait, lineEnding, columnDelimiter } = options;
-
-        let command = `sf data import bulk --sobject ${sObjectName} --file "${filePath}"`;
-
-        if (asyncMode) {
-            command += ' --async';
-        } else if (typeof wait === 'number' && !Number.isNaN(wait)) {
-            command += ` --wait ${wait}`;
-        }
-
-        if (lineEnding && (lineEnding === 'CRLF' || lineEnding === 'LF')) {
-            command += ` --line-ending ${lineEnding}`;
-        }
-
-        const allowedDelimiters = ['BACKQUOTE', 'CARET', 'COMMA', 'PIPE', 'SEMICOLON', 'TAB'];
-        if (columnDelimiter && allowedDelimiters.includes(columnDelimiter)) {
-            command += ` --column-delimiter ${columnDelimiter}`;
-        }
-
-        command += ' --json';
-        log(`Executing bulk import command: ${command}`, 'debug');
-
-        const responseString = await runCliCommand(command);
-        let response;
-        try {
-            response = JSON.parse(responseString);
-        } catch (error) {
-            throw new Error(`Error parsing JSON response: ${responseString}`);
-        }
-
-        if (response.status !== 0) {
-            throw new Error(response.message || 'Error running bulk import');
-        }
-
-        return response.result;
-
-    } catch (error) {
-        log(error, 'error', `Error running bulk import for object ${sObjectName} with file ${filePath}`);
-        throw error;
-    }
-}
-
-export async function deleteBulk(sObjectName, filePath, options = {}) {
-    try {
-        if (!sObjectName || typeof sObjectName !== 'string') {
-            throw new Error('sObjectName is required and must be a string');
-        }
-        if (!filePath || typeof filePath !== 'string') {
-            throw new Error('filePath is required and must be a string');
-        }
-
-        const { asyncMode = false, wait, lineEnding, hardDelete = false } = options;
-
-        let command = `sf data delete bulk --sobject ${sObjectName} --file "${filePath}"`;
-
-        if (asyncMode) {
-            command += ' --async';
-        } else if (typeof wait === 'number' && !Number.isNaN(wait)) {
-            command += ` --wait ${wait}`;
-        }
-
-        if (hardDelete) {
-            command += ' --hard-delete';
-        }
-
-        if (lineEnding && (lineEnding === 'CRLF' || lineEnding === 'LF')) {
-            command += ` --line-ending ${lineEnding}`;
-        }
-
-        command += ' --json';
-        log(`Executing bulk delete command: ${command}`, 'debug');
-
-        const responseString = await runCliCommand(command);
-        let response;
-        try {
-            response = JSON.parse(responseString);
-        } catch (error) {
-            throw new Error(`Error parsing JSON response: ${responseString}`);
-        }
-
-        if (response.status !== 0) {
-            throw new Error(response.message || 'Error running bulk delete');
-        }
-
-        return response.result;
-
-    } catch (error) {
-        log(error, 'error', `Error running bulk delete for object ${sObjectName} with file ${filePath}`);
-        throw error;
-    }
-}
+*/
 
 export async function getRecord(sObjectName, recordId) {
 	try {
 		if (!sObjectName || !recordId) {
 			throw new Error('sObjectName and recordId are required');
 		}
-		const command = `sf data get record --sobject ${sObjectName} --record-id ${recordId} --json`;
-		log(`Executing get record command: ${command}`, 'debug');
-
-		const responseString = await runCliCommand(command);
-		let response;
-		try {
-			response = JSON.parse(responseString);
-		} catch (error) {
-			throw new Error(`Error parsing JSON response: ${responseString}`);
+		log(`Getting record via REST API: ${sObjectName}/${recordId}`, 'debug');
+		const response = await callSalesforceApi('GET', 'REST', `/sobjects/${sObjectName}/${recordId}`);
+		if (!response || typeof response !== 'object') {
+			throw new Error('Invalid response structure from Salesforce API');
+		}
+		if (response.errors?.length) {
+			const errorMessages = response.errors.map(err => err.message || err).join('; ');
+			throw new Error(`Salesforce API error: ${errorMessages}`);
 		}
 
-		if (response.status !== 0) {
-			throw new Error(response.message || 'Error getting record');
-		}
-		return response.result;
+		return response;
 
 	} catch (error) {
 		log(error, 'error', `Error getting record ${recordId} from object ${sObjectName}`);
@@ -455,7 +770,7 @@ export async function describeObject(sObjectName) {
 
 	} catch (error) {
 		log(error, 'error', `Error describing object ${sObjectName}`);
-		throw error;
+		 throw error;
 	}
 }
 
@@ -517,100 +832,158 @@ export async function getApexClassCodeCoverage(classNames = []) {
 		const existingRecords = existingClassesResult?.records || [];
 		const existingNamesSet = new Set(existingRecords.map(r => r.Name));
 		const existingIdByName = {};
-		for (const rec of existingRecords) existingIdByName[rec.Name] = rec.Id;
-		const missingNames = filteredNames.filter(n => !existingNamesSet.has(n));
-		if (missingNames.length) {
-			throw new Error(`The following Apex classes do not exist in the org: ${missingNames.join(', ')}`);
+		for (const rec of existingRecords) {
+			existingIdByName[rec.Name] = rec.Id;
 		}
 
-		// Include relationship Name explicitly in the SELECT
-		const soqlCoverageAggregates = `SELECT ApexClassOrTriggerId, ApexClassOrTrigger.Name, NumLinesCovered, NumLinesUncovered FROM ApexCodeCoverageAggregate WHERE ApexClassOrTrigger.Name IN (${escapedNames})`;
-		const responseCoverageAggregates = await executeSoqlQuery(soqlCoverageAggregates, true);
-		const coverageAggregates = responseCoverageAggregates?.records || [];
-		const aggregateByName = {};
-		for (const agg of coverageAggregates) {
-			const name = agg?.ApexClassOrTrigger?.Name;
-			if (name) aggregateByName[name] = agg;
-		}
+		// Identify missing classes but don't throw error - we'll handle them gracefully
+		const missingNames = filteredNames.filter(n => !existingNamesSet.has(n));
+		const existingNames = filteredNames.filter(n => existingNamesSet.has(n));
 
 		// Build initial class entries for all requested names and collect ids that have aggregate
 		const classIdsForMethodQuery = [];
 		const classesById = {};
 		const classes = [];
-		for (const name of filteredNames) {
-			const agg = aggregateByName[name];
-			const covered = agg ? (agg.NumLinesCovered || 0) : 0;
-			const uncovered = agg ? (agg.NumLinesUncovered || 0) : 0;
-			const total = covered + uncovered;
-			const percentage = total > 0 ? Math.round((covered / total) * 100) : 0;
-			const coverageStatus = total === 0 ? 'none' : (percentage === 100 ? 'full' : 'partial');
-			const classId = agg?.ApexClassOrTriggerId || existingIdByName[name] || null;
 
-			const entry = {
+		// Process existing classes first
+		for (const name of existingNames) {
+			const classId = existingIdByName[name];
+			classes.push({
 				className: name,
-				classId,
-				numLinesCovered: covered,
-				numLinesUncovered: uncovered,
-				percentage,
-				coveredLines: covered,
-				uncoveredLines: uncovered,
-				totalLines: total,
-				coverageStatus,
-				aggregateFound: Boolean(agg),
+				classId: classId,
+				numLinesCovered: 0,
+				numLinesUncovered: 0,
+				percentage: 0,
+				coveredLines: 0,
+				uncoveredLines: 0,
+				totalLines: 0,
+				coverageStatus: 'none',
+				aggregateFound: false,
 				testMethods: []
-			};
-
-			classes.push(entry);
-			if (agg?.ApexClassOrTriggerId) {
-				classesById[agg.ApexClassOrTriggerId] = entry;
-				classIdsForMethodQuery.push(`'${agg.ApexClassOrTriggerId}'`);
-			}
+			});
 		}
 
-		// Fetch method-level coverages in one query
-		if (classIdsForMethodQuery.length) {
-			const soqlCoverages = `SELECT ApexClassOrTriggerId, ApexTestClass.Name, TestMethodName, NumLinesCovered, NumLinesUncovered FROM ApexCodeCoverage WHERE ApexClassOrTriggerId IN (${classIdsForMethodQuery.join(',')})`;
-			const responseCoverages = await executeSoqlQuery(soqlCoverages, true);
-			const coverages = responseCoverages?.records || [];
-			for (const cov of coverages) {
-				const entry = classesById[cov.ApexClassOrTriggerId];
-				if (!entry) continue;
-				const covCovered = cov.NumLinesCovered || 0;
-				const covUncovered = cov.NumLinesUncovered || 0;
-				const covTotal = covCovered + covUncovered;
-				entry.testMethods.push({
-					testClassName: cov?.ApexTestClass?.Name,
-					testMethodName: cov.TestMethodName,
-					numLinesCovered: covCovered,
-					numLinesUncovered: covUncovered,
-					linesCovered: covCovered,
-					linesUncovered: covUncovered,
-					totalLines: covTotal,
-					percentage: covTotal > 0 ? Math.round((covCovered / covTotal) * 100) : 0
-				});
+		// Process missing classes with appropriate status
+		for (const name of missingNames) {
+			classes.push({
+				className: name,
+				classId: null,
+				numLinesCovered: 0,
+				numLinesUncovered: 0,
+				percentage: 0,
+				coveredLines: 0,
+				uncoveredLines: 0,
+				totalLines: 0,
+				coverageStatus: 'class not found',
+				aggregateFound: false,
+				testMethods: []
+			});
+		}
+
+		// Only proceed with coverage queries if we have existing classes
+		if (existingNames.length > 0) {
+			// Include relationship Name explicitly in the SELECT
+			const soqlCoverageAggregates = `SELECT ApexClassOrTriggerId, ApexClassOrTrigger.Name, NumLinesCovered, NumLinesUncovered FROM ApexCodeCoverageAggregate WHERE ApexClassOrTrigger.Name IN (${existingNames.map(n => `'${n.replace(/'/g, `\\'`)}'`).join(',')})`;
+			const responseCoverageAggregates = await executeSoqlQuery(soqlCoverageAggregates, true);
+			const coverageAggregates = responseCoverageAggregates?.records || [];
+			const aggregateByName = {};
+			for (const agg of coverageAggregates) {
+				const name = agg?.ApexClassOrTrigger?.Name;
+				if (name) aggregateByName[name] = agg;
 			}
-			// Order and limit test methods per class
+
+			// Update existing classes with coverage data
 			for (const entry of classes) {
-				if (entry.testMethods && entry.testMethods.length) {
-					entry.testMethods.sort((a, b) => b.linesCovered - a.linesCovered);
-					entry.testMethods = entry.testMethods.slice(0, 10);
+				if (entry.coverageStatus !== 'class not found') {
+					const agg = aggregateByName[entry.className];
+					if (agg) {
+						const covered = agg.NumLinesCovered || 0;
+						const uncovered = agg.NumLinesUncovered || 0;
+						const total = covered + uncovered;
+						const percentage = total > 0 ? Math.round((covered / total) * 100) : 0;
+						const coverageStatus = total === 0 ? 'none' : (percentage === 100 ? 'full' : 'partial');
+
+						entry.numLinesCovered = covered;
+						entry.numLinesUncovered = uncovered;
+						entry.percentage = percentage;
+						entry.coveredLines = covered;
+						entry.uncoveredLines = uncovered;
+						entry.totalLines = total;
+						entry.coverageStatus = coverageStatus;
+						entry.aggregateFound = true;
+
+						if (agg.ApexClassOrTriggerId) {
+							classesById[agg.ApexClassOrTriggerId] = entry;
+							classIdsForMethodQuery.push(`'${agg.ApexClassOrTriggerId}'`);
+						}
+					}
+				}
+			}
+
+			// Fetch method-level coverages in one query
+			if (classIdsForMethodQuery.length) {
+				const soqlCoverages = `SELECT ApexClassOrTriggerId, ApexTestClass.Name, TestMethodName, NumLinesCovered, NumLinesUncovered FROM ApexCodeCoverage WHERE ApexClassOrTriggerId IN (${classIdsForMethodQuery.join(',')})`;
+				const responseCoverages = await executeSoqlQuery(soqlCoverages, true);
+				const coverages = responseCoverages?.records || [];
+				for (const cov of coverages) {
+					const entry = classesById[cov.ApexClassOrTriggerId];
+					if (!entry) continue;
+					const covCovered = cov.NumLinesCovered || 0;
+					const covUncovered = cov.NumLinesUncovered || 0;
+					const covTotal = covCovered + covUncovered;
+					entry.testMethods.push({
+						testClassName: cov?.ApexTestClass?.Name,
+						testMethodName: cov.TestMethodName,
+						numLinesCovered: covCovered,
+						numLinesUncovered: covUncovered,
+						linesCovered: covCovered,
+						linesUncovered: covUncovered,
+						totalLines: covTotal,
+						percentage: covTotal > 0 ? Math.round((covCovered / covTotal) * 100) : 0
+					});
+				}
+				// Order and limit test methods per class
+				for (const entry of classes) {
+					if (entry.testMethods && entry.testMethods.length) {
+						entry.testMethods.sort((a, b) => b.linesCovered - a.linesCovered);
+						entry.testMethods = entry.testMethods.slice(0, 10);
+					}
 				}
 			}
 		}
 
-		// Compute summary and sort classes (worst coverage first)
-		classes.sort((a, b) => a.percentage - b.percentage);
+		// Compute summary and sort classes (worst coverage first, then missing classes)
+		classes.sort((a, b) => {
+			// Missing classes go to the end
+			if (a.coverageStatus === 'class not found' && b.coverageStatus !== 'class not found') return 1;
+			if (b.coverageStatus === 'class not found' && a.coverageStatus !== 'class not found') return -1;
+			// For existing classes, sort by coverage percentage
+			return a.percentage - b.percentage;
+		});
+
 		const totalClasses = classes.length;
 		const classesWithCoverage = classes.filter(c => c.aggregateFound && c.totalLines > 0).length;
-		const classesWithoutCoverage = totalClasses - classesWithCoverage;
-		const averagePercentage = totalClasses ? Math.round(classes.reduce((s, c) => s + (c.percentage || 0), 0) / totalClasses) : 0;
+		const classesWithoutCoverage = classes.filter(c => c.coverageStatus !== 'class not found' && (!c.aggregateFound || c.totalLines === 0)).length;
+		const missingClasses = classes.filter(c => c.coverageStatus === 'class not found').length;
+		const averagePercentage = classes.filter(c => c.coverageStatus !== 'class not found').length > 0
+			? Math.round(classes.filter(c => c.coverageStatus !== 'class not found').reduce((s, c) => s + (c.percentage || 0), 0) / classes.filter(c => c.coverageStatus !== 'class not found').length)
+			: 0;
 
 		const result = {
 			success: true,
 			timestamp: new Date().toISOString(),
-			summary: { totalClasses, classesWithCoverage, classesWithoutCoverage, averagePercentage },
+			summary: {
+				totalClasses,
+				classesWithCoverage,
+				classesWithoutCoverage,
+				missingClasses,
+				averagePercentage
+			},
 			classes,
-			errors: [],
+			errors: missingNames.length > 0 ? [{
+				message: `The following Apex classes do not exist in the org: ${missingNames.join(', ')}`,
+				classNames: missingNames
+			}] : [],
 			warnings: []
 		};
 
@@ -672,7 +1045,7 @@ export async function executeAnonymousApex(apexCode) {
 			if (response && response.message) {
 				errorMsg += `Salesforce error: ${response.message}`;
 			}
-			log(errorMsg, 'error');
+			log(errorMsg, 'error', 'Error executing anonymous Apex');
 			throw new Error(errorMsg);
 		}
 		log(response, 'debug');
@@ -699,13 +1072,14 @@ export async function executeAnonymousApex(apexCode) {
 export async function deployMetadata(sourceDir) {
 	try {
 		const command = `sf project deploy start --source-dir "${sourceDir}" --ignore-conflicts --json`;
-		log(`Executing deploy metadata command: ${command}`, 'debug');
 
 		const responseString = await runCliCommand(command);
+		log(`responseString: ${responseString}`, 'debug');
 		let response;
 		try {
 			response = JSON.parse(responseString);
 		} catch (error) {
+			log(error, 'error', 'Error parsing CLI response');
 			throw new Error(`Error parsing CLI response: ${responseString}`);
 		}
 
@@ -817,42 +1191,105 @@ public class ${name} {
     }
 }
 
-export async function callSalesforceApi(operation, apiPath, body = null, baseUrl = null) {
-	if (!baseUrl) {
-		//For relative paths, construct the full URL using org instance URL
-		await getOrgAndUserDetails();
-		const orgDesc = state.org;
-		if (!orgDesc || !orgDesc.instanceUrl) {
-			throw new Error('Org description not initialized. Please wait for server initialization.');
-		}
-		baseUrl = orgDesc.instanceUrl;
+export async function callSalesforceApi(operation, apiType, service, body = null, options = {}) {
+	// Validate required parameters
+	if (!operation || !apiType || !service) {
+		throw new Error('operation, apiType, and service are required parameters');
 	}
 
-	const endpoint = `${baseUrl}${apiPath}`;
+	// Validate operation
+	const validOperations = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+	if (!validOperations.includes(operation.toUpperCase())) {
+		throw new Error(`Invalid operation: ${operation}. Must be one of: ${validOperations.join(', ')}`);
+	}
+
+	// Validate API type
+	const validApiTypes = ['REST', 'TOOLING', 'UI'];
+	if (!validApiTypes.includes(apiType.toUpperCase())) {
+		throw new Error(`Invalid API type: ${apiType}. Must be one of: ${validApiTypes.join(', ')}`);
+	}
+
+	// Ensure org details are available
+	if (!state?.org?.instanceUrl || !state?.org?.accessToken) {
+		throw new Error('Org details not initialized. Please wait for server initialization.');
+	}
+
+	// Build the full endpoint based on API type
+	const apiVersion = state.org.apiVersion;
+	let endpoint;
+
+	// Check if a custom base URL is provided
+	if (options.baseUrl) {
+		endpoint = `${options.baseUrl}${service}`;
+	} else {
+		// Use org instance URL for Salesforce APIs
+		switch (apiType.toUpperCase()) {
+			case 'REST':
+				endpoint = `${state.org.instanceUrl}/services/data/v${apiVersion}${service}`;
+				break;
+			case 'TOOLING':
+				endpoint = `${state.org.instanceUrl}/services/data/v${apiVersion}/tooling${service}`;
+				break;
+			case 'UI':
+				endpoint = `${state.org.instanceUrl}/services/data/v${apiVersion}/ui-api${service}`;
+				break;
+			default:
+				throw new Error(`Unsupported API type: ${apiType}`);
+		}
+	}
+
+	// Handle query parameters if provided
+	if (options.queryParams && typeof options.queryParams === 'object') {
+		const queryString = new URLSearchParams(options.queryParams).toString();
+		if (queryString) {
+			endpoint += `?${queryString}`;
+		}
+	}
 
 	try {
-		log(`Making Salesforce API call: ${operation} ${endpoint}`);
+		const requestOptions = {
+			method: operation.toUpperCase(),
+			headers: {
+				'Authorization': `Bearer ${state.org.accessToken}`,
+				'Content-Type': 'application/json'
+			}
+		};
 
-		//Use curl through CLI for API calls
-		let command = `curl -X ${operation} -H "Authorization: Bearer ${state.currentAccessToken}" -H "Content-Type: application/json"`;
-
-		if (body && (operation === 'POST' || operation === 'PATCH' || operation === 'PUT')) {
-			command += ` -d '${JSON.stringify(body, null, 3)}'`;
+		// Add custom headers if provided
+		if (options.headers && typeof options.headers === 'object') {
+			Object.assign(requestOptions.headers, options.headers);
 		}
 
-		command += ` "${endpoint}"`;
+		if (body && (operation.toUpperCase() === 'POST' || operation.toUpperCase() === 'PATCH' || operation.toUpperCase() === 'PUT')) {
+			requestOptions.body = JSON.stringify(body);
+		}
 
-		const result = await runCliCommand(command);
+		const response = await fetch(endpoint, requestOptions);
 
-		//Try to parse JSON response
+		log(`Response status: ${response.status} ${response.statusText}`, 'debug');
+
+		if (!response.ok) {
+			let errorDetails = '';
+			try {
+				const errorBody = await response.text();
+				errorDetails = `Status: ${response.status} ${response.statusText}\nResponse body: ${errorBody}`;
+			} catch (parseError) {
+				errorDetails = `Status: ${response.status} ${response.statusText}\nCould not parse response body: ${parseError.message}`;
+			}
+
+			throw new Error(`Salesforce API call failed: ${operation} ${endpoint}\n${errorDetails}`);
+		}
+
 		try {
-			return JSON.parse(result);
+			return (await response.json());
+
 		} catch (parseError) {
-			log(`Warning: Could not parse JSON response: ${parseError.message}`);
-			return result; //Return raw response if JSON parsing fails
+			log(`Could not parse JSON response: ${parseError.message}`, 'warning');
+			return (await response.text());
 		}
+
 	} catch (error) {
-		log(error, 'error', 'Error calling Salesforce API');
+		log(error, 'error', `Error calling Salesforce API: ${operation} ${endpoint}`);
 		throw error;
 	}
 }

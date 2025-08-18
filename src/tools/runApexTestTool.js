@@ -73,6 +73,16 @@ async function classNameElicitation() {
 
 export async function runApexTestTool({classNames = [], methodNames = [], suiteNames = []}) {
 	try {
+		// Validate that only one input array has items
+		const hasClassNames = classNames && classNames.length > 0;
+		const hasMethodNames = methodNames && methodNames.length > 0;
+		const hasSuiteNames = suiteNames && suiteNames.length > 0;
+
+		const inputCount = [hasClassNames, hasMethodNames, hasSuiteNames].filter(Boolean).length;
+		if (inputCount > 1) {
+			throw new Error('You can only specify one input type: either classNames, methodNames, or suiteNames. Multiple input types are not allowed.');
+		}
+
 		if (!classNames.length && !methodNames.length && !suiteNames.length) {
 			if (client.supportsCapability('elicitation')) {
 				const elicitResult = await classNameElicitation();
@@ -131,6 +141,11 @@ export async function runApexTestTool({classNames = [], methodNames = [], suiteN
 			//const progress = testRunResult.MethodsCompleted + testRunResult.MethodsFailed;
 			//notifyProgressChange(progressToken, testRunResult.MethodsEnqueued, progress, 'Executant el test...');
 			await new Promise(resolve => setTimeout(resolve, 8000)); //Polling every 8 seconds
+		}
+
+		// Verify that we have a valid testRunResult before proceeding
+		if (!testRunResult || !testRunResult.Id) {
+			throw new Error('No valid test run result found. The test may have failed to start or complete.');
 		}
 
 		//Obtenir els resultats finals dels tests

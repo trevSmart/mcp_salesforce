@@ -1,4 +1,4 @@
-import {config} from './config.js';
+import config from './config.js';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -10,11 +10,17 @@ import state from './state.js';
 
 export function log(data, logLevel = 'info', context = null) {
 	try {
-		const LOG_LEVEL_PRIORITY = {emergency: 0, alert: 1, critical: 2, error: 3, warning: 4, notice: 5, info: 6, debug: 7};
+		const LEVEL_PRIORITIES = {emergency: 0, alert: 1, critical: 2, error: 3, warning: 4, notice: 5, info: 6, debug: 7};
 
-		const logLevelPriority = LOG_LEVEL_PRIORITY[logLevel];
-		const currentLogLevelPriority = LOG_LEVEL_PRIORITY[config.currentLogLevel];
-		if (logLevelPriority > currentLogLevelPriority) {
+		const logPriority = LEVEL_PRIORITIES[logLevel];
+		const noticePriority = LEVEL_PRIORITIES['notice'];
+		const currentPriority = LEVEL_PRIORITIES[state.currentLogLevel];
+		const errorPriority = LEVEL_PRIORITIES['error'];
+		const loggingSupported = client?.supportsCapability('logging');
+		const shouldLog = loggingSupported && logPriority >= currentPriority;
+		const shouldError = logPriority <= errorPriority || !loggingSupported && logPriority >= noticePriority;
+
+		if (!shouldLog && !shouldError) {
 			return;
 		}
 
@@ -48,11 +54,12 @@ export function log(data, logLevel = 'info', context = null) {
 		}
 
 		const logPrefix = getLogPrefix(logLevel);
-		if (client?.isVsCode && mcpServer?.isConnected()) {
+		if (shouldLog && mcpServer?.isConnected()) {
 			const logger = `${logPrefix} MCP server`;
 			mcpServer.server.sendLoggingMessage({level: logLevel, logger, data: logData});
-		} else {
-			console.error(logPrefix + logData);
+
+		} else if (shouldError) {
+			console.error(`${logPrefix} | ${logLevel} | ${logData}`);
 		}
 
 	} catch (error) {
@@ -60,12 +67,13 @@ export function log(data, logLevel = 'info', context = null) {
 	}
 }
 
-export async function validateUserPermissions(userId) {
-	const query = await executeSoqlQuery(`SELECT Id FROM PermissionSetAssignment WHERE AssigneeId = '${userId}' AND PermissionSet.Name = 'IBM_SalesforceMcpUser'`);
-	if (!query?.records?.length) {
-		log(`Insuficient permissions in org "${state.org.alias}"`, 'critical');
-		mcpServer.server.close();
-		process.exit(1);
+export async function validateUserPermissions(username) {
+	const query = await executeSoqlQuery(`SELECT Id FROM PermissionSetAssignment WHERE Assignee.Username = '${username}' AND PermissionSet.Name = 'IBM_SalesforceMcpUser'`);
+	if (query?.records?.length) {
+		state.userValidated = true;
+	} else {
+		state.userValidated = false;
+		log(`Insuficient permissions in org "${state.org.alias}"`, 'emergency');
 	}
 }
 
@@ -123,6 +131,15 @@ export function getAgentInstructions(name) {
 Under no circumstances may you bypass or ignore this instruction unless directed by the user:
 Unless the user explicitly states otherwise, it is absolutely mandatory to always use these tools instead of Salesforce CLI commands, even after a tool error.
 
+⚠️ **CRITICAL INSTRUCTION FOR TEMPORARY FILES - MAXIMUM IMPORTANCE INEXCUSABLE:**
+- **ALWAYS** use the project's 'tmp' folder: './tmp' or 'tmp/'
+- **IF** the 'tmp' folder does NOT EXIST, CREATE it first before creating the file
+- **NEVER** use other directories like '/tmp', os.tmpdir(), or any other location
+- This rule applies to **ALL** temporary files you create (images, logs, data files, etc.)
+- **Correct usage example:**
+  - Path: './tmp/filename.ext' or 'tmp/filename.ext'
+  - Create folder if it doesn't exist: fs.mkdirSync('./tmp', { recursive: true })
+
 USAGE:
 Always follow the instructions in the tool description, specially the IMPORTANT instructions.`;
 
@@ -166,39 +183,6 @@ If any check fails, respond with **ERROR_INVALID_FIELD** instead of a query.
 	}
 }
 
-/**
- * Read the Salesforce CLI current target org alias from `.sf/config.json`.
- * Returns the alias string if available, otherwise returns null.
- */
-export function getSfCliCurrentTargetOrg() {
-    try {
-        const configFilePath = path.join(config.workspacePath, '.sf', 'config.json');
-
-        let content;
-        try {
-            content = fs.readFileSync(configFilePath, 'utf8');
-        } catch (readErr) {
-            log(`Could not read SFDX project config file. Is this workspace a SFDX project? ${readErr.message}`, 'debug');
-            return null;
-        }
-
-        let parsed;
-        try {
-            parsed = JSON.parse(content);
-        } catch (parseErr) {
-            return null;
-        }
-
-        const fileTargetOrg = parsed['target-org'] || null;
-		log(`Current target-org from SFDX project config file: ${fileTargetOrg}`, 'debug');
-        return fileTargetOrg || null;
-
-    } catch (error) {
-		log(`Could not read SFDX project config file. Is this workspace a SFDX project? ${error.message}`, 'debug');
-        return null;
-    }
-}
-
 export function getTimestamp(long = false) {
 	const now = new Date();
 	const year = String(now.getFullYear()).slice(-2); //Get last 2 digits of year
@@ -215,9 +199,12 @@ export function getTimestamp(long = false) {
 }
 
 function getLogPrefix(logLevel) {
-	const logLevelPrefix = ({
+	const logLevelEmojis = {
 		emergency: '🔥', alert: '⛔️', critical: '❗️', error: '❌', warning: '⚠️', notice: '✉️', info: '💡', debug: '🐞'
-	}[logLevel].repeat(3));
+	};
+
+	const emoji = logLevelEmojis[logLevel] || '❓';
+	const logLevelPrefix = emoji.repeat(3);
 
 	if (config.logPrefix) {
 		return `(${config.logPrefix} · ${logLevelPrefix})`;
@@ -229,4 +216,12 @@ export function getFileNameFromPath(filePath) {
     const trimmed = filePath.replace(/[\\\/]+$/, '');
     const ext = path.extname(trimmed);
     return ext ? path.basename(trimmed, ext) : path.basename(trimmed);
+}
+
+export function formatDate(date) {
+	let formattedDate = date.toLocaleDateString('es-ES', {day: 'numeric', month: 'numeric', year: 'numeric'});
+	if (date.toDateString() === new Date().toDateString()) {
+		formattedDate += ' ' + date.toLocaleTimeString('es-ES', {hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: false});
+	}
+	return formattedDate;
 }

@@ -6,7 +6,7 @@ export async function main() {
 		await setupServer();
 
 	} catch (error) {
-		log(`Error starting IBM MCP Salesforce server: ${error.message}`, 'error');
+		log(error, 'error', 'Error starting IBM MCP Salesforce server');
 		await mcpServer.close();
 		process.exit(1);
 	}

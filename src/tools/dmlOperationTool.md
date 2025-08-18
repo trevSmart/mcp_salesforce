@@ -1,94 +1,150 @@
-# DML Operation
+# DML Operations (Batch)
 
-Allows you to perform DML operations (create, update, delete) on a Salesforce record.
+Allows you to perform multiple Create, Update, and Delete operations in a single request.
 
 ---
+
 ## Agent Instructions
-- Use the exact fields according to the object and its definition.
-  - **For single record create:**
-    - provide the field values in the fields object.
-  - **For single record update:**
-    - provide the recordId
-    - provide the field values in the fields object.
-  - **For single record delete:**
-    - provide the recordId
-    - ⚠️ **pass and empty object (`{}`) in the fields object**.
-  - **For bulk create (import):**
-    - provide the filePath to the CSV file to process.
-    - optional: wait, lineEnding, columnDelimiter
-  - **For bulk update:**
-    - provide the filePath to the CSV file to process.
-    - optional: wait, lineEnding, columnDelimiter
-  - **For bulk delete:**
-    - provide the filePath to the CSV file (CSV with a single column named "Id").
-    - optional: wait, lineEnding
+- **⚠️ MANDATORY**: When executing DML operations in Salesforce, you MUST use this tool exclusively. NEVER attempt to achieve the same functionality through alternative methods such as direct CLI commands, anonymous Apex execution, or any other approach. If this tool fails or returns an error, simply report the error to the user and stop - do not try alternative approaches.
 
-- If the operation is successful, return the result of the operation (success or error).
-- Always return the result of the operation (success or error).
-- If the operation is not successful, return the error message.
+- Use this tool when you need to perform DML operations. In order to maximize performance, include all the operations you need to perform in a single request, for example you can make a single request to:
+  - Create 2 opportunities
+  - Update another opportunity
+  - Delete 2 accounts
+
+- **⚠️ MANDATORY**: Output the tool response in a table with the following 5 columns:
+  - **Operation**: The type of operation (Create, Update or Delete)
+  - **Object type**: The SObject type
+  - **Record Id**: Link to the record affected by the operation with Id as the text
+  - **Result**: The result of the operation (✅ Success or ❌ Error)
+  - **Error message**: The error message if the operation failed
 
 ---
+
 ## Usage
 
-### Example 1: Create an Account
+## Parameters
+
+- **operations**: Required. Object containing an array of records to create, update or delete
+
+  - **create**: Array of records to create
+    - `sObjectName`: The SObject type
+    - `fields`: Object with the field names and values for the record
+
+  - **update**: Array of records to update
+    - `sObjectName`: The SObject type
+    - `recordId`: The ID of the record to update
+    - `fields`: Object with the field names and values to update
+
+  - **delete**: Array of records to delete
+    - `sObjectName`: The SObject type
+    - `recordId`: The ID of the record to delete
+
+- **options**: Optional. Object with the following properties:
+  - `allOrNone`: If true, all operations must succeed or none will be committed (default: false)
+  - `bypassUserConfirmation`: Whether to require user confirmation for destructive operations (default: true)
+
+---
+
+## Examples
+
+### Example 1: Create multiple records
 ```json
 {
-  "operation": "create",
-  "sObjectName": "Account",
-  "fields": {"Name": "New Account", "Type": "Customer"}
+  "operations": {
+    "create": [
+      {
+        "sObjectName": "Contact",
+        "fields": {
+          "FirstName": "John",
+          "LastName": "Doe",
+          "Email": "john.doe@example.com"
+        }
+      },
+      {
+        "sObjectName": "Account",
+        "fields": {
+          "Name": "Acme Inc.",
+          "Industry": "Technology"
+        }
+      }
+    ]
+  }
 }
 ```
 
-### Example 2: Update an Account
+### Example 2: Update multiple records
 ```json
 {
-  "operation": "update",
-  "sObjectName": "Account",
-  "recordId": "001KN000006KDuKYAW",
-  "fields": {"Name": "Updated Account"}
+  "operations": {
+    "update": [
+      {
+        "sObjectName": "Contact",
+        "recordId": "003XXXXXXXXXXXXXXX",
+        "fields": {
+          "Title": "Senior Developer",
+          "Department": "Engineering"
+        }
+      },
+      {
+        "sObjectName": "Case",
+        "recordId": "500XXXXXXXXXXXXXXX",
+        "fields": {
+          "Subject": "Issue with product",
+          "Description": "The product is not working as expected"
+        }
+      }
+    ]
+  }
 }
 ```
 
-### Example 3: Delete an Account
+### Example 3: Mixed operations (create, update, delete)
 ```json
 {
-  "operation": "delete",
-  "sObjectName": "Account",
-  "recordId": "001KN000006KDuKYAW"
+  "operations": {
+    "create": [
+      {
+        "sObjectName": "Contact",
+        "fields": {
+          "FirstName": "New",
+          "LastName": "Contact",
+          "Email": "new@example.com"
+        }
+      }
+    ],
+    "update": [
+      {
+        "sObjectName": "Account",
+        "recordId": "001XXXXXXXXXXXXXXX",
+        "fields": {
+          "Industry": "Utilities"
+        }
+      }
+    ],
+    "delete": [
+      {
+        "sObjectName": "Case",
+        "recordId": "500XXXXXXXXXXXXXXX"
+      }
+    ]
+  },
+  "options": {
+    "allOrNone": false,
+    "bypassUserConfirmation": true
+  }
 }
 ```
 
-### Example 4: Bulk Create Contacts
-```json
-{
-  "operation": "create",
-  "sObjectName": "Contact",
-  "bulk": true,
-  "filePath": "/abs/path/to/contacts.csv",
-  "wait": 5,
-  "lineEnding": "LF",
-  "columnDelimiter": "COMMA"
-}
-```
+---
 
-### Example 5: Bulk Update Accounts
-```json
-{
-  "operation": "update",
-  "sObjectName": "Account",
-  "bulk": true,
-  "filePath": "/abs/path/to/accounts.csv",
-  "wait": 5
-}
-```
+## Error Handling
+- When `allOrNone: false`, operations continue even if some fail
+- Detailed error information is returned for failed operations
 
-### Example 6: Bulk Delete Leads (hard delete)
-```json
-{
-  "operation": "delete",
-  "sObjectName": "Lead",
-  "bulk": true,
-  "filePath": "/abs/path/to/delete.csv",
-  "wait": 10
-}
-```
+---
+
+## Best Practices
+- Use this tool for related operations that should be processed together
+- Set `allOrNone: true` when operations are dependent on each other
+- Group similar operations in the same request for optimal performance, instead of multiple individual DML operations

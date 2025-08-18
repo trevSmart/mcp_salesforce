@@ -1,11 +1,11 @@
-import {executeSoqlQuery} from '../salesforceServices/soqlQuery.js';
+import {executeSoqlQuery} from '../salesforceServices.js';
 import {textFileContent} from '../utils.js';
 import {z} from 'zod';
 
 export const triggerExecutionOrderToolDefinition = {
 	name: 'triggerExecutionOrder',
 	title: 'Trigger Execution Order',
-	description: textFileContent('triggerExecutionOrder'),
+	description: textFileContent('triggerExecutionOrderTool'),
 	inputSchema: {
 		sObjectName: z
 			.string()

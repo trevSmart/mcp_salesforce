@@ -3,6 +3,7 @@ Allows you to generate a well-formed, valid SOQL query instruction from a descri
 
 ---
 ## Agent Instructions
+- **MANDATORY**: When generating SOQL queries from descriptions, you MUST use this tool exclusively. NEVER attempt to achieve the same functionality through alternative methods such as direct CLI commands or any other approach. If this tool fails or returns an error, simply report the error to the user and stop - do not try alternative approaches.
 - Use the description and the list of involved fields to build the most appropriate SOQL query.
 - Return the generated query as a markdown fenced block, for example:
 

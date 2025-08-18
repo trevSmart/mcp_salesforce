@@ -5,7 +5,7 @@ import {newResource, resources} from '../mcp-server.js';
 
 export const describeObjectToolDefinition = {
 	name: 'describeObject',
-	title: 'Describe Object',
+	title: 'Describe SObject schema',
 	description: textFileContent('describeObjectTool'),
 	inputSchema: {
 		sObjectName: z
@@ -19,7 +19,7 @@ export const describeObjectToolDefinition = {
 		readOnlyHint: true,
 		idempotentHint: true,
 		openWorldHint: true,
-		title: 'Describe Object'
+		title: 'Describe SObject schema'
 	}
 };
 
@@ -27,13 +27,14 @@ export async function describeObjectTool({sObjectName, include = 'all'}) {
 	try {
 		const resourceName = 'mcp://mcp/sobject-schema-' + sObjectName.toLowerCase() + '.json';
 		if (resources[resourceName]) {
+			log(`SObject schema already cached, skipping fetch`, 'debug');
 			const filtered = JSON.parse(resources[resourceName].text);
 			return {
 				content: [{
 					type: 'text',
-					text: 'Successfully retrieved the SObject schema for ' + sObjectName + ' with the following data: ' + JSON.stringify(filtered)
+					text: 'Successfully retrieved from cache the SObject schema for ' + sObjectName + ' with the following data: ' + JSON.stringify(filtered, null, 3)
 				}],
-				structuredContent: filtered
+				structuredContent: {wasCached: true, ...filtered}
 			};
 		}
 		const response = await describeObject(sObjectName);

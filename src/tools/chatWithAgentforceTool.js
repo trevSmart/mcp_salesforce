@@ -9,7 +9,7 @@ let currentSessionId = null;
 export const chatWithAgentforceToolDefinition = {
 	name: 'chatWithAgentforce',
 	title: 'Chat with Agentforce',
-	description: textFileContent('chatWithAgentforce'),
+	description: textFileContent('chatWithAgentforceTool'),
 	inputSchema: {
 		message: z
 			.string()
@@ -53,9 +53,10 @@ async function startSession() {
 
 		const response = await callSalesforceApi(
 			'POST',
+			'REST',
 			`/agents/${process.env.SF_MCP_AGENTFORCE_AGENT_ID}/sessions`,
 			body,
-			'https://api.salesforce.com/einstein/ai-agent/v1'
+			{ baseUrl: 'https://api.salesforce.com/einstein/ai-agent/v1' }
 		);
 
 
@@ -87,6 +88,7 @@ async function sendMessage(message) {
 	try {
 		const response = await callSalesforceApi(
 			'POST',
+			'REST',
 			`/sessions/${currentSessionId}/messages`,
 			{
 				message: {
@@ -96,7 +98,7 @@ async function sendMessage(message) {
 				},
 				variables: []
 			},
-			'https://api.salesforce.com/einstein/ai-agent/v1'
+			{ baseUrl: 'https://api.salesforce.com/einstein/ai-agent/v1' }
 		);
 
 		if (!response) {

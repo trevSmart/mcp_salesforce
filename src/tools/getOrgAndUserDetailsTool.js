@@ -24,7 +24,7 @@ export async function getOrgAndUserDetailsTool() {
 			text: JSON.stringify(result, null, 2)
 		}];
 
-		if (client.isVsCode) {
+		if (client.supportsCapability('embeddedResources')) {
 			const resourceOrgAndUserDetails = newResource(
 				'mcp://org/orgAndUserDetail.json',
 				'Salesforce org and user details',
@@ -38,7 +38,7 @@ export async function getOrgAndUserDetailsTool() {
 		return {content, structuredContent: result};
 
 	} catch (error) {
-		log(error, 'error');
+		log(error, 'error', 'Error getting org and user details');
 		return {
 			isError: true,
 			content: [{

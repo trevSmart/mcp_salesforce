@@ -96,9 +96,6 @@
         "*.js": "${capture}.md"
     },
     "notebook.outline.showCodeCells": false,
-    "todohighlight.keywords": [
-        "PENDENT"
-    ],
     "editor.codeActionsOnSave": {
         // "source.fixAll.eslint": "explicit",
         // "source.organizeImports": "explicit"
@@ -107,7 +104,12 @@
         "editor.selectionBackground": "#e788ff7c",
         "editor.selectionHighlightBackground": "#ff00005b",
         "tab.activeForeground": "#ffffff",
-        "tab.activeModifiedBorder": "#f4a238"
+        "tab.activeBorder": "#006bc9",
+        "tab.activeModifiedBorder": "#f4a238",
+        "statusBar.background": null
     },
-    "typescript.workspaceSymbols.excludeLibrarySymbols": false
+    "typescript.workspaceSymbols.excludeLibrarySymbols": false,
+    "todohighlight.keywords": [
+        "TODO",
+    ]
 }
