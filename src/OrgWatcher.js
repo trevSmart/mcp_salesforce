@@ -12,7 +12,7 @@ class TargetOrgWatcher extends EventEmitter {
         this.currentOrgAlias = null;
         this.fileWatcher = null;
         this.isWatching = false;
-        this.debounceMs = 2000; // Debounce file system events to reduce noise
+        this.debounceMs = 5000; // Debounce file system events to reduce noise
         this.debounceTimer = null;
     }
 
@@ -24,8 +24,6 @@ class TargetOrgWatcher extends EventEmitter {
             if (this.isWatching || !this.currentOrgAlias || !fs.existsSync(this.configFilePath)) {
                 return;
             }
-
-            // this.addExitHandlers();  // exit handlers removed to speed up shutdown
 
             this.on('started', orgAlias => log(`Monitoring Salesforce CLI target org changes (current: ${orgAlias})`, 'debug'));
             this.on('orgChanged', onChange);
@@ -85,20 +83,10 @@ class TargetOrgWatcher extends EventEmitter {
                 this.currentOrgAlias = newValue;
                 this.emit('orgChanged', { oldValue, newValue });
             }
+
         } catch (error) {
             log(error, 'error', 'Error reading Salesforce CLI config file');
         }
-    }
-
-    addExitHandlers() {
-        process.on('SIGINT', () => {
-            targetOrgWatcher.stop();
-            process.exit(0);
-        });
-        process.on('SIGTERM', () => {
-            targetOrgWatcher.stop();
-            process.exit(0);
-        });
     }
 }
 
