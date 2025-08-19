@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salesforce MCP - Model Context Protocol Server</title>
+    <meta name="description" content="A Model Context Protocol (MCP) server that provides Salesforce org context to your IDE AI agent">
+    <link rel="icon" type="image/x-icon" href="../assets/images/ibm-logo.webp">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            padding: 60px 0;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header .subtitle {
+            font-size: 1.5rem;
+            opacity: 0.9;
+            margin-bottom: 30px;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 30px;
+            display: block;
+            border-radius: 50%;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .main-content {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            margin: 40px 0;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin: 40px 0;
+        }
+
+        .feature-card {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            border-left: 5px solid #667eea;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+
+        .feature-card h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .feature-card p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .cta-section {
+            text-align: center;
+            padding: 40px 0;
+            background: #f8f9fa;
+            border-radius: 15px;
+            margin: 40px 0;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            margin: 10px;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin: 30px 0;
+        }
+
+        .tech-badge {
+            background: #e9ecef;
+            color: #495057;
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 40px 0;
+            color: white;
+            opacity: 0.8;
+        }
+
+        .social-links {
+            margin: 20px 0;
+        }
+
+        .social-links a {
+            color: white;
+            margin: 0 15px;
+            font-size: 1.2rem;
+            text-decoration: none;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+        }
+
+        .social-links a:hover {
+            opacity: 1;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2.5rem;
+            }
+
+            .header .subtitle {
+                font-size: 1.2rem;
+            }
+
+            .main-content {
+                padding: 20px;
+                margin: 20px 0;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <img src="../assets/images/ibm-logo.webp" alt="IBM logo" class="logo">
+            <h1>Salesforce MCP</h1>
+            <p class="subtitle">Model Context Protocol Server for Salesforce Integration</p>
+            <p>Seamlessly connect your IDE AI agent to Salesforce orgs for enhanced development capabilities</p>
+        </header>
+
+        <main class="main-content">
+            <h2>🚀 Key Features</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <h3>🔗 Salesforce Integration</h3>
+                    <p>Direct connection to Salesforce orgs with real-time data access and manipulation capabilities through MCP protocol.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🤖 AI-Powered Development</h3>
+                    <p>Enhance your IDE AI agent with Salesforce context, enabling intelligent code generation and data insights.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🛡️ Security & Quality</h3>
+                    <p>Built-in security scanning, automated code review, and comprehensive testing workflows for enterprise-grade reliability.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>⚡ Performance Optimized</h3>
+                    <p>Efficient MCP server implementation with caching, connection pooling, and optimized Salesforce API interactions.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🔧 Developer Experience</h3>
+                    <p>Easy setup, comprehensive documentation, and support for multiple IDEs including VS Code, Cursor, and more.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>📊 Automated Workflows</h3>
+                    <p>GitHub Actions integration for continuous integration, code quality checks, and automated security scanning.</p>
+                </div>
+            </div>
+
+            <div class="cta-section">
+                <h2>Ready to Get Started?</h2>
+                <p>Transform your development workflow with AI-powered Salesforce integration</p>
+                <a href="https://github.com/your-username/mcp_salesforce" class="cta-button">View on GitHub</a>
+                <a href="https://github.com/your-username/mcp_salesforce/blob/main/README.md" class="cta-button">Read Documentation</a>
+            </div>
+
+            <h2>🛠️ Technology Stack</h2>
+            <div class="tech-stack">
+                <span class="tech-badge">Node.js</span>
+                <span class="tech-badge">Model Context Protocol</span>
+                <span class="tech-badge">Salesforce API</span>
+                <span class="tech-badge">GitHub Actions</span>
+                <span class="tech-badge">ESLint</span>
+                <span class="tech-badge">Playwright</span>
+            </div>
+
+            <h2>📋 Requirements</h2>
+            <ul style="margin: 20px 0; padding-left: 20px; line-height: 2;">
+                <li>Node.js v22.7.5 or newer</li>
+                <li>Salesforce CLI connected to an org</li>
+                <li>VS Code, Cursor, Windsurf, Claude Desktop or any IDE supporting MCP</li>
+            </ul>
+
+            <h2>🔧 Installation</h2>
+            <p style="margin: 20px 0;">Install the Salesforce MCP server in your preferred IDE. The server provides seamless integration with Salesforce orgs, enabling your AI agent to access and manipulate Salesforce data directly from your development environment.</p>
+
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                <h3>Quick Setup Example</h3>
+                <pre style="background: #2d3748; color: #e2e8f0; padding: 15px; border-radius: 8px; overflow-x: auto; margin: 15px 0;"><code>{
+  "mcpServers": {
+    "salesforce": {
+      "command": "npx",
+      "args": ["@your-org/salesforce-mcp"]
+    }
+  }
+}</code></pre>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <div class="social-links">
+                <a href="https://github.com/your-username/mcp_salesforce" title="GitHub">📚</a>
+                <a href="https://modelcontextprotocol.io" title="MCP Protocol">🌐</a>
+                <a href="https://developer.salesforce.com" title="Salesforce Developer">☁️</a>
+            </div>
+            <p>&copy; 2024 Salesforce MCP Project. Built with ❤️ for the developer community.</p>
+            <p>Powered by IBM and the Model Context Protocol</p>
+        </footer>
+    </div>
+</body>
+</html>

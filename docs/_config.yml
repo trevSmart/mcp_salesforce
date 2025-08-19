@@ -1,0 +1,41 @@
+# GitHub Pages Configuration
+# This file configures the GitHub Pages site
+
+# Site settings
+title: Salesforce MCP
+description: Model Context Protocol Server for Salesforce Integration
+url: "https://your-username.github.io"
+baseurl: "/mcp_salesforce"
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+permalink: pretty
+
+# Plugins
+plugins:
+  - jekyll-seo-tag
+  - jekyll-sitemap
+
+# Collections
+collections:
+  docs:
+    output: true
+    permalink: /:collection/:name
+
+# Defaults
+defaults:
+  - scope:
+      path: ""
+      type: "docs"
+    values:
+      layout: "default"
+
+# Exclude from processing
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor
+  - .git
+  - .github
