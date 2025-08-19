@@ -36,8 +36,8 @@ class GlobalCache {
 			return;
 		}
 
-		if (!this.cache[org]) {this.cache[org] = {}}
-		if (!this.cache[org][tool]) {this.cache[org][tool] = {}}
+		if (!this.cache[org]) { this.cache[org] = {}; }
+		if (!this.cache[org][tool]) { this.cache[org][tool] = {}; }
 		this.cache[org][tool][key] = {
 			value,
 			expires: Date.now() + ttl,
@@ -168,9 +168,9 @@ class GlobalCache {
 				//Only load non-expired entries
 				const now = Date.now();
 				for (const org of Object.keys(loaded)) {
-					if (!this.cache[org]) {this.cache[org] = {}}
+					if (!this.cache[org]) { this.cache[org] = {}; }
 					for (const tool of Object.keys(loaded[org])) {
-						if (!this.cache[org][tool]) {this.cache[org][tool] = {}}
+						if (!this.cache[org][tool]) { this.cache[org][tool] = {}; }
 						for (const key of Object.keys(loaded[org][tool])) {
 							const item = loaded[org][tool][key];
 							if (now <= item.expires) {

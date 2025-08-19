@@ -62,10 +62,19 @@
     "outline.showMethods": true,
     "outline.showModules": true,
     "eslint.useFlatConfig": true,
+    "eslint.workingDirectories": [
+        {
+            "mode": "auto"
+        }
+    ],
+    "eslint.validate": [
+        "javascript",
+        "javascriptreact"
+    ],
+    "eslint.options": {
+        "overrideConfigFile": "eslint.config.js"
+    },
     "actionButtons": {
-
-
-
         "commands": [
             {
                 "name": "$(test-view-icon) Inspect",
@@ -73,6 +82,13 @@
                 "command": "workbench.action.tasks.runTask",
                 "args": ["npm: startMcpInspector"],
                 "color": "#a0a0d0"
+            },
+            {
+                "name": "$(edit) Lint",
+                "useVsCodeApi": true,
+                "command": "workbench.action.tasks.runTask",
+                "args": ["npm: lint:fix"],
+                "color": "#4354a8"
             },
             {
                 "name": "$(testing-debug-icon) Test",
@@ -86,7 +102,7 @@
                 "command": "workbench.action.tasks.runTask",
                 "args": ["npm: publish-package"],
                 "color": "#cc8888"
-            },
+            }
         ],
         "defaultColor": "#ffffe0",
         "reloadButton": null,

@@ -1,5 +1,5 @@
-import { exec as execCb } from 'child_process';
-import { promisify } from 'node:util';
+import {exec as execCb} from 'child_process';
+import {promisify} from 'node:util';
 const exec = promisify(execCb);
 
 import {readyPromise, setupServer} from	'../src/mcp-server.js';
@@ -145,7 +145,7 @@ const expectedErrorPatterns = [
 //Variable global per controlar si estem en una prova amb error esperat
 let currentTestExpectsError = false;
 
-process.stdout.write = function(chunk, encoding, callback) {
+process.stdout.write = function (chunk, encoding, callback) {
 	let text = chunk instanceof Buffer ? chunk.toString('utf8') : chunk;
 	let printed = false;
 
@@ -184,7 +184,7 @@ process.stdout.write = function(chunk, encoding, callback) {
 			originalStdoutWrite(chunk, encoding, callback);
 			printed = true;
 		}
-	} catch (e) {
+	} catch {
 		//No és JSON, imprimir normal
 		originalStdoutWrite(chunk, encoding, callback);
 		printed = true;
@@ -312,7 +312,7 @@ Examples:
 	}));
 	const sequentialTests = runSequentialTests();
 
-		await Promise.all([parallelTests, sequentialTests]);
+	await Promise.all([parallelTests, sequentialTests]);
 
 	//Restore original org after tests (only if we changed it)
 	if (originalOrgAlias !== null) {
@@ -322,14 +322,14 @@ Examples:
 }
 
 main()
-.then(() => process.stdout.write('\n' +GRAY + 'Finished running tests.\n\n' + RESET, () => process.exit(0)))
-.catch(async (error) => {
-	//Ensure we restore the original org even if tests fail (only if we changed it)
-	if (originalOrgAlias !== null) {
-		process.stdout.write(GRAY + 'Restoring original Salesforce org after error... ');
-		await restoreOriginalOrg();
-		process.stdout.write('done.\n' + RESET);
-	}
+	.then(() => process.stdout.write('\n' + GRAY + 'Finished running tests.\n\n' + RESET, () => process.exit(0)))
+	.catch(async (error) => {
+		//Ensure we restore the original org even if tests fail (only if we changed it)
+		if (originalOrgAlias !== null) {
+			process.stdout.write(GRAY + 'Restoring original Salesforce org after error... ');
+			await restoreOriginalOrg();
+			process.stdout.write('done.\n' + RESET);
+		}
 
-	process.stdout.write((error.stack || error.message || error) + '\n', () => process.exit(1));
-});
+		process.stdout.write((error.stack || error.message || error) + '\n', () => process.exit(1));
+	});

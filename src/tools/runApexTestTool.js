@@ -54,19 +54,19 @@ async function classNameElicitation() {
 	}
 
 	return await mcpServer.server.elicitInput({
-		message: `Please select the Apex test class to run (all its methods will be executed).`,
+		message: 'Please select the Apex test class to run (all its methods will be executed).',
 		requestedSchema: {
-			type: "object",
-			title: `Select the Apex test class to run (all its methods will be executed).`,
+			type: 'object',
+			title: 'Select the Apex test class to run (all its methods will be executed).',
 			properties: {
 				confirm: {
-					type: "string",
+					type: 'string',
 					enum: testClasses.map(r => r.name),
 					enumNames: testClasses.map(r => r.description),
 					description: 'Select the Apex class to run.'
 				}
 			},
-			required: ["confirm"]
+			required: ['confirm']
 		}
 	});
 }

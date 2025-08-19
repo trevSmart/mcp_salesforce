@@ -1,8 +1,8 @@
 import client from '../client.js';
 import state from '../state.js';
-import { log, textFileContent, formatDate } from '../utils.js';
-import { z } from 'zod';
-import { clearResources, resources } from '../mcp-server.js';
+import {log, textFileContent, formatDate} from '../utils.js';
+import {z} from 'zod';
+import {clearResources, resources} from '../mcp-server.js';
 import config from '../config.js';
 
 export const salesforceMcpUtilsToolDefinition = {
@@ -19,8 +19,7 @@ export const salesforceMcpUtilsToolDefinition = {
 			.describe('Detailed description of the issue (required for reportIssue action)'),
 		issueToolName: z.string()
 			.optional()
-			.describe('Name of the tool that failed or needs improvement (optional)'),
-
+			.describe('Name of the tool that failed or needs improvement (optional)')
 	},
 	annotations: {
 		readOnlyHint: false,
@@ -43,7 +42,7 @@ function generateManualTitle(description, toolName) {
 	return title;
 }
 
-export async function salesforceMcpUtilsTool({ action, issueDescription, issueToolName }) {
+export async function salesforceMcpUtilsTool({action, issueDescription, issueToolName}) {
 	try {
 		if (action === 'clearCache') {
 			clearResources();
@@ -52,7 +51,7 @@ export async function salesforceMcpUtilsTool({ action, issueDescription, issueTo
 					type: 'text',
 					text: '✅ Cached resources cleared successfully'
 				}],
-				structuredContent: { action, status: 'success' }
+				structuredContent: {action, status: 'success'}
 			};
 
 		} else if (action === 'getCurrentDatetime') {
@@ -74,7 +73,11 @@ export async function salesforceMcpUtilsTool({ action, issueDescription, issueTo
 			};
 
 		} else if (action === 'getState') {
-			const output = { state, client, resources};
+			const output = {
+				state: {...state},
+				client,
+				resources
+			};
 			return {
 				content: [{
 					type: 'text',
@@ -114,7 +117,20 @@ export async function salesforceMcpUtilsTool({ action, issueDescription, issueTo
 				try {
 					// If no tool name specified, try to detect it from description
 					if (!detectedToolName || detectedToolName === 'Unknown') {
-						const toolDetectionPrompt = `## Issue Description ##\n${issueDescription}\n\n## Task ##\nAnalyze this issue description and determine which of the IBM Salesforce MCP tools is most likely affected. Look for:\n- Tool names mentioned (e.g., "executeSoqlQuery", "describeObject", "dmlOperation", "getSetupAuditTrail")\n- Functionality described (e.g., "query execution", "object description", "record creation", "audit trail", "setup audit")\n- Error messages that might indicate the tool\n- Specific features mentioned (e.g., "Setup Audit Trail" → "getSetupAuditTrail")\n\nIf you can clearly identify the tool, return only the tool name.\nIf the description is unclear or could apply to multiple tools, return "Unknown".\n\nReturn only the tool name or "Unknown" without any explanation.`;
+						const toolDetectionPrompt = `## Issue Description ##
+${issueDescription}
+
+## Task ##
+Analyze this issue description and determine which of the IBM Salesforce MCP tools is most likely affected. Look for:
+- Tool names mentioned (e.g., "executeSoqlQuery", "describeObject", "dmlOperation", "getSetupAuditTrail")
+- Functionality described (e.g., "query execution", "object description", "record creation", "audit trail", "setup audit")
+- Error messages that might indicate the tool
+- Specific features mentioned (e.g., "Setup Audit Trail" → "getSetupAuditTrail")
+
+If you can clearly identify the tool, return only the tool name.
+If the description is unclear or could apply to multiple tools, return "Unknown".
+
+Return only the tool name or "Unknown" without any explanation.`;
 
 						const toolDetectionResponse = await mcpServer.server.createMessage({
 							messages: [{role: 'user', content: {type: 'text', text: toolDetectionPrompt}}],
@@ -160,20 +176,20 @@ export async function salesforceMcpUtilsTool({ action, issueDescription, issueTo
 			// Check if client supports elicitation and ask for confirmation before sending issue
 			if (client.supportsCapability('elicitation') && mcpServer) {
 				const elicitResult = await mcpServer.server.elicitInput({
-					message: `Please confirm that you want to report this issue.`,
+					message: 'Please confirm that you want to report this issue.',
 					requestedSchema: {
-						type: "object",
-						title: `Report issue?`,
+						type: 'object',
+						title: 'Report issue?',
 						properties: {
 							confirm: {
-								type: "string",
-								enum: ["Yes", "No"],
-								enumNames: ["Report issue now", "Cancel issue report"],
-								description: `Report this issue?`,
-								default: "No"
+								type: 'string',
+								enum: ['Yes', 'No'],
+								enumNames: ['Report issue now', 'Cancel issue report'],
+								description: 'Report this issue?',
+								default: 'No'
 							}
 						},
-						required: ["confirm"]
+						required: ['confirm']
 					}
 				});
 
@@ -206,18 +222,18 @@ export async function salesforceMcpUtilsTool({ action, issueDescription, issueTo
 				server: {
 					serverInfo: config.SERVER_CONSTANTS.serverInfo,
 					capabilities: config.SERVER_CONSTANTS.capabilities,
-					workspacePath: config.workspacePath,
-					org: state.org,
+					workspacePath: state.workspacePath,
+					org: state.org
 				},
 				client: {
 					clientInfo: client.clientInfo,
-					capabilities: client.capabilities,
+					capabilities: client.capabilities
 				}
 			};
 
 			try {
 				// Send issue to Netlify webhook
-				log(`Sending issue`, 'info');
+				log('Sending issue', 'info');
 				const response = await fetch('https://mcp-salesforce-issue-webhook.netlify.app/.netlify/functions/report-issue', {
 					method: 'POST',
 					headers: {'Content-Type': 'application/json'},

@@ -1,6 +1,7 @@
 import {getRecord} from '../salesforceServices.js';
 import {log, textFileContent} from '../utils.js';
 import {z} from 'zod';
+// eslint-disable-next-line no-unused-vars
 import state from '../state.js';
 
 export const getRecordToolDefinition = {

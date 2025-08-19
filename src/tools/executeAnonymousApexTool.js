@@ -1,12 +1,10 @@
 import state from '../state.js';
-import {log, textFileContent, getTimestamp} from '../utils.js';
+import {log, textFileContent, getTimestamp, writeToTmpFileAsync, ensureTmpDir} from '../utils.js';
 import {executeAnonymousApex} from '../salesforceServices.js';
 import {mcpServer, newResource} from '../mcp-server.js';
 import client from '../client.js';
 import {z} from 'zod';
-import fs from 'fs/promises';
 import path from 'path';
-import config from '../config.js';
 
 export const executeAnonymousApexToolDefinition = {
 	name: 'executeAnonymousApex',
@@ -39,7 +37,7 @@ function formatApexCode(code) {
 		//Try to parse if it is a JSON string
 		const parsed = JSON.parse(`"${code}"`);
 		return parsed;
-	} catch (e) {
+	} catch {
 		//If not JSON, return the code as is
 		return code;
 	}
@@ -51,18 +49,18 @@ export async function executeAnonymousApexTool({apexCode, mayModify}) {
 			const elicitResult = await mcpServer.server.elicitInput({
 				message: `This script may modify data. Please confirm the execution of the Anonymous Apex script in ${state.org.alias}.`,
 				requestedSchema: {
-					type: "object",
+					type: 'object',
 					title: `Execute Anonymous Apex script in ${state.org.alias}?`,
 					properties: {
 						confirm: {
-							type: "string",
-							enum: ["Yes", "No"],
-							enumNames: ["Execute Anonymous Apex script now", "Cancel Anonymous Apex script execution"],
+							type: 'string',
+							enum: ['Yes', 'No'],
+							enumNames: ['Execute Anonymous Apex script now', 'Cancel Anonymous Apex script execution'],
 							description: `Execute Anonymous Apex script in ${state.org.alias}?`,
-							default: "No"
+							default: 'No'
 						}
 					},
-					required: ["confirm"]
+					required: ['confirm']
 				}
 			});
 
@@ -82,13 +80,10 @@ export async function executeAnonymousApexTool({apexCode, mayModify}) {
 			text: `Resultat execució Anonymous Apex:\n\n${JSON.stringify(result.logs)}`
 		}];
 
-		const tmpDir = path.join(config.workspacePath, 'tmp');
 		//Use the same naming format as the main execution
 		const username = state.org?.user?.name || 'unknown';
 
-		const logFileName = `ApexRun_${getTimestamp()}.log`;
-		await fs.mkdir(tmpDir, {recursive: true});
-		await fs.writeFile(path.join(tmpDir, logFileName), result.logs, 'utf8');
+		const logPath = await writeToTmpFileAsync(result.logs, 'ApexRun', 'log', 'utf8', state.workspacePath);
 		const logSize = (Buffer.byteLength(result.logs, 'utf8') / 1024).toFixed(1);
 
 		if (client.supportsCapability('embeddedResources') && result?.logs) {

@@ -13,7 +13,8 @@
   "scripts": {
     "publish-package": "sh dev/publish-package.sh",
     "test": "node dev/testClient.js",
-    "lint": "eslint . --ext .js,.mjs,.cjs,.jsx,.ts,.tsx",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "startMcpInspector": "sh dev/startMcpInspector.sh"
   },
   "keywords": [
@@ -23,17 +24,19 @@
   "author": "Trevor Smart",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.3",
-    "zod": "^3.24.2",
-    "semver": "^7.5.4"
+    "semver": "^7.5.4",
+    "zod": "^3.24.2"
   },
   "engines": {
     "node": ">=22.7.5"
   },
   "devDependencies": {
-    "@babel/eslint-parser": "^7.27.5",
+    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.33.0",
     "@modelcontextprotocol/inspector": "^0.16.5",
-    "eslint": "^8.57.1",
+    "eslint": "^9.33.0",
     "globals": "^16.3.0",
-    "javascript-obfuscator": "^4.1.0"
+    "javascript-obfuscator": "^4.1.0",
+    "typescript-eslint": "^8.40.0"
   }
 }

@@ -28,16 +28,25 @@ export const generateSoqlQueryToolDefinition = {
 	}
 };
 
-export async function generateSoqlQueryTool({soqlQueryDescription, involvedSObjects}) {
+export async function generateSoqlQueryTool({soqlQueryDescription, involvedFields}) {
+
 	try {
-		if (typeof involvedSObjects === 'string') {
-			involvedSObjects = involvedSObjects.split(',').map(s => s.trim());
-		} else if (!Array.isArray(involvedSObjects)) {
-			involvedSObjects = Object.values(involvedSObjects);
+		if (!soqlQueryDescription) {
+			throw new Error('soqlQueryDescription is required');
 		}
 
+		if (!involvedFields || !Array.isArray(involvedFields) || involvedFields.length === 0) {
+			throw new Error('involvedFields array is required and must contain at least one field');
+		}
+
+		// Extract SObject names from involvedFields
+		const sObjectNames = [...new Set(involvedFields.map(field => {
+			const parts = field.split('.');
+			return parts[0];
+		}))];
+
 		const descObjResults = await Promise.all(
-			involvedSObjects.map(async sObjectName => {
+			sObjectNames.map(async sObjectName => {
 				const descObjResult = (await describeObject(sObjectName)).result;
 
 				if (!descObjResult?.fields) {
@@ -61,7 +70,7 @@ export async function generateSoqlQueryTool({soqlQueryDescription, involvedSObje
 						sortable: f.sortable,
 						encrypted: f.encrypted,
 						filterable: f.filterable,
-						polymorphic: f.polymorphicForeignKey,
+						polymorphic: f.polymorphicForeignKey
 					};
 					f.picklistValues.length && (field.picklistValues = f.picklistValues);
 					fields.push(field);
@@ -81,10 +90,11 @@ export async function generateSoqlQueryTool({soqlQueryDescription, involvedSObje
 			})
 		);
 
-		//Demana  al LLM que generi la SOQL basant-se en soqlQueryDescription + els describeObjectResults
-		let samplingPrompt = '';
+		// Build the prompt using soqlQueryDescription and the schema information
+		let samplingPrompt = `## Query Description ##\n${soqlQueryDescription}\n\n## Schema Information ##\n`;
+
 		descObjResults.forEach((describeResult, index) => {
-			const sObjectName = involvedSObjects[index];
+			const sObjectName = sObjectNames[index];
 
 			//Start building the samplingPrompt with the new agreed format
 			samplingPrompt += `## ${sObjectName} schema ##`;

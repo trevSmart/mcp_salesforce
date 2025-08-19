@@ -30,8 +30,13 @@ export async function triggerExecutionOrder(args) {
 		const triggers = triggersRes.records;
 
 		//2. Get Process Builders
-		const processQuery = `SELECT Id, DeveloperName, LastModifiedDate, ProcessType, Status, TriggerType, Description, VersionNumber, NamespacePrefix FROM Flow WHERE ProcessType = 'Workflow' AND Status = 'Active' AND (TableEnumOrId = '${sObjectName}' OR TableEnumOrId = null) ORDER BY LastModifiedDate DESC`;
-		const processesRes = await executeSoqlQuery(processQuery);
+		let soql = 'SELECT Id, DeveloperName, LastModifiedDate, ProcessType, Status, ';
+		soql += 'TriggerType, Description, VersionNumber, NamespacePrefix ';
+		soql += 'FROM Flow WHERE ProcessType = \'Workflow\' AND Status = \'Active\' ';
+		soql += 'AND (TableEnumOrId = \'${sObjectName}\' OR TableEnumOrId = null) ';
+		soql += 'ORDER BY LastModifiedDate DESC';
+		soql = soql.replace('${sObjectName}', sObjectName);
+		const processesRes = await executeSoqlQuery(soql);
 		const processes = processesRes.records;
 
 		//3. Get Flows

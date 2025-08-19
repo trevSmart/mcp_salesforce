@@ -78,10 +78,12 @@ export async function executeSoqlQueryTool({query, useToolingApi = false}) {
 		const message = `SOQL query executed successfully. Returned ${totalSize} record${totalSize !== 1 ? 's' : ''}.`;
 
 		// If there are many records, provide a summary instead of full JSON
+		// eslint-disable-next-line no-unused-vars
 		const displayRecords = totalSize > 10 ?
 			queryResult.records.slice(0, 10) :
 			queryResult.records;
 
+		// eslint-disable-next-line no-unused-vars
 		const displayText = totalSize > 10 ?
 			`${message} Showing first 10 records (${totalSize - 10} more available in structuredContent):` :
 			`${message} All records:`;
