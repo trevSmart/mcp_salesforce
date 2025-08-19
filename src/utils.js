@@ -141,7 +141,11 @@ Unless the user explicitly states otherwise, it is absolutely mandatory to alway
   - Create folder if it doesn't exist: fs.mkdirSync('./tmp', { recursive: true })
 
 USAGE:
-Always follow the instructions in the tool description, specially the IMPORTANT instructions.`;
+Always follow the instructions in the tool description, specially the IMPORTANT instructions.
+
+OTHER INSTRUCTIONS:
+- When you need the current date and time, ALWAYS use the getCurrentDatetime action of the salesforceMcpUtils tool.
+- When you need to get the schema of an object, use the describeObject tool.`;
 
 		case 'generateSoqlQueryToolSampling':
 			return `

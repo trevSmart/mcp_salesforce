@@ -37,7 +37,6 @@ import { createMetadataToolDefinition } from './tools/createMetadataTool.js';
 // import { chatWithAgentforceToolDefinition } from './tools/chatWithAgentforceTool.js';
 // import { toolingApiRequestToolDefinition } from './tools/toolingApiRequestTool.js';
 // import { triggerExecutionOrderToolDefinition } from './tools/triggerExecutionOrderTool.js';
-// import { analyzeApexLogToolDefinition } from './tools/analyzeApexLogTool.js';
 //import {generateSoqlQueryToolDefinition} from './tools/generateSoqlQueryTool.js';
 
 export let resources = {};
@@ -212,7 +211,6 @@ export async function setupServer() {
 	// mcpServer.registerTool('chatWithAgentforce', chatWithAgentforceToolDefinition, callToolHandler('chatWithAgentforceTool'));
 	// mcpServer.registerTool('toolingApiRequest', toolingApiRequestToolDefinition, callToolHandler('toolingApiRequestTool'));
 	// mcpServer.registerTool('triggerExecutionOrder', triggerExecutionOrderToolDefinition, callToolHandler('triggerExecutionOrderTool'));
-	// mcpServer.registerTool('analyzeApexLog', analyzeApexLogToolDefinition, callToolHandler('analyzeApexLogTool'));
 
 	//Set up request handlers
 	mcpServer.server.setRequestHandler(SetLevelRequestSchema, async ({ params }) => {

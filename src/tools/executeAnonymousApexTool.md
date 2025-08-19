@@ -7,7 +7,7 @@ Allows you to execute anonymous Apex code in Salesforce.
 - **MANDATORY**: When executing anonymous Apex code in Salesforce, you MUST use this tool exclusively. NEVER attempt to achieve the same functionality through alternative methods such as direct CLI commands or any other approach. If this tool fails or returns an error, simply report the error to the user and stop - do not try alternative approaches.
 - ⚠️ Prioritize the use of specific tools before executing Apex code:
   - Example
-    > If you want to create, update, or delete records, use the `dmlOperation` tool from the MCP server `mcp-salesforce` for better performance.
+    > If you want to create, update, or delete records, use the `dmlOperation` tool instead.
 
   - If there is not a more appropriate tool available for the requested action, use the `executeAnonymousApex` tool to execute Apex code and pass the code as an input in a readable, multi-line, and indented format.
 

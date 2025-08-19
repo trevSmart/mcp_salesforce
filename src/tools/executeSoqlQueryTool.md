@@ -1,7 +1,7 @@
 
 # 🔄 Execute SOQL Query
 
-Allows you to run SOQL queries in Salesforce using the CLI.
+Allows you to run SOQL queries in the Salesforce Org.
 
 ---
 
@@ -118,5 +118,3 @@ SELECT Id, Name, AccountId, Account.Name FROM Contact LIMIT 5
 | 002 | [ApexClass 2](...) | u02         | [Jane Doe](...)       |
 
 ---
-
-If you’d like, I can also help you generate this as a `.md` file or include it in your `mcp.json` configuration.
