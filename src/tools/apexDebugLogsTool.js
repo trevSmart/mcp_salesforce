@@ -1,4 +1,5 @@
 import { newResource } from '../mcp-server.js';
+import { mcpServer } from '../mcp-server.js';
 import state from '../state.js';
 import client from '../client.js';
 import {log, textFileContent, formatDate} from '../utils.js';
@@ -14,7 +15,7 @@ export const apexDebugLogsToolDefinition = {
 			.describe('The action to perform. Possible values: "status", "on", "off", "list", "get".'),
 		logId: z.string()
 			.optional()
-			.describe('The ID of the log to retrieve (only required for "get" action)')
+			.describe('The ID of the log to retrieve (optional for "get" action - if not provided, user will be prompted to select from available logs)')
 	},
 	annotations: {
 		readOnlyHint: false,
@@ -254,6 +255,72 @@ export async function apexDebugLogsTool({action, logId}) {
 			};
 
 		} else if (action === 'get') {
+			if (!logId) {
+				if (client.supportsCapability('elicitation')) {
+					// Get the list of available logs for selection
+					let response = await runCliCommand('sf apex list log --json');
+					let logs = [];
+
+					try {
+						const parsedResponse = JSON.parse(response);
+						logs = parsedResponse?.result || [];
+					} catch (error) {
+						log(`Error parsing JSON response: ${error.message}`, 'error');
+						logs = [];
+					}
+
+					if (!logs || !Array.isArray(logs) || logs.length === 0) {
+						throw new Error('No Apex debug logs available for selection');
+					}
+
+					// Take only the first 50 logs and format them for selection
+					const availableLogs = logs.slice(0, 50).map(log => {
+						const startTime = formatDate(new Date(log.StartTime));
+						const user = log.ExecutedBy || log.User || 'Unknown';
+						const size = log.LogLength ?
+							(parseInt(log.LogLength) < 1024 * 1024 ?
+								`${Math.floor(parseInt(log.LogLength) / 1024)} KB` :
+								`${(parseInt(log.LogLength) / (1024 * 1024)).toFixed(1)} MB`) : 'N/A';
+
+						return {
+							id: log.Id,
+							description: `${startTime} · ${user} · ${size}`
+						};
+					});
+
+					const elicitResult = await mcpServer.server.elicitInput({
+						message: `Please select an Apex debug log to retrieve. Available logs: ${availableLogs.length}`,
+						requestedSchema: {
+							type: "object",
+							title: `Select Apex debug log to retrieve`,
+							properties: {
+								logId: {
+									type: "string",
+									enum: availableLogs.map(log => log.id),
+									enumNames: availableLogs.map(log => log.description),
+									description: 'Select the Apex debug log to retrieve'
+								}
+							},
+							required: ["logId"]
+						}
+					});
+
+					if (elicitResult.action !== 'accept' || !elicitResult.content?.logId) {
+						return {
+							content: [{
+								type: 'text',
+								text: 'User has cancelled the log selection'
+							}],
+							structuredContent: elicitResult
+						};
+					}
+
+					logId = elicitResult.content.logId;
+				} else {
+					throw new Error('logId is required for the "get" action');
+				}
+			}
+
 			const apexLog = await runCliCommand(`sf apex get log --log-id ${logId}`);
 
 			const content = [{
@@ -263,8 +330,8 @@ export async function apexDebugLogsTool({action, logId}) {
 
 			if (client.supportsCapability('embeddedResources')) {
 				const resource = newResource(
-					`file://mcp/apexLogs/${logId}`,
-					logId,
+					`file://mcp/apexLogs/${logId}.log`,
+					`${logId}.log`,
 					`Apex debug log ${logId}`,
 					'text/plain',
 					apexLog,
