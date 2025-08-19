@@ -152,17 +152,5 @@ Follow the MCP install [guide](https://github.com/google-gemini/gemini-cli/blob/
 }
 ```
 
-## 🌐 GitHub Pages Site
-
-This project includes a GitHub Pages site showcasing the Salesforce MCP server capabilities. Visit the site to learn more about features, installation, and usage.
-
-**Site URL**: [https://your-username.github.io/mcp_salesforce](https://your-username.github.io/mcp_salesforce)
-
-The site is automatically deployed from the `docs/` folder using GitHub Actions and includes:
-- Project overview and key features
-- Installation instructions
-- Technology stack information
-- Responsive design for all devices
-
 ## License
 See the LICENSE file for details.
