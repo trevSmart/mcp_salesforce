@@ -10,6 +10,7 @@ import {getOrgAndUserDetailsTool} from '../src/tools/getOrgAndUserDetailsTool.js
 import {dmlOperationTool} from '../src/tools/dmlOperationTool.js';
 import {deployMetadataTool} from '../src/tools/deployMetadataTool.js';
 import {describeObjectTool} from '../src/tools/describeObjectTool.js';
+// import {describeObjectOldTool} from '../src/tools/describeObjectOldTool.js';
 import {executeAnonymousApexTool} from '../src/tools/executeAnonymousApexTool.js';
 import {getRecentlyViewedRecordsTool} from '../src/tools/getRecentlyViewedRecordsTool.js';
 import {getRecordTool} from '../src/tools/getRecordTool.js';
@@ -100,6 +101,7 @@ const toolFunctions = {
 	dmlOperation: dmlOperationTool,
 	deployMetadata: deployMetadataTool,
 	describeObject: describeObjectTool,
+	// describeObjectOld: describeObjectOldTool,
 	executeAnonymousApex: executeAnonymousApexTool,
 	getRecentlyViewedRecords: getRecentlyViewedRecordsTool,
 	getRecord: getRecordTool,

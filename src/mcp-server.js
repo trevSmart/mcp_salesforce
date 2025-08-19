@@ -25,7 +25,6 @@ import { getOrgAndUserDetailsToolDefinition } from './tools/getOrgAndUserDetails
 import { dmlOperationToolDefinition } from './tools/dmlOperationTool.js';
 import { deployMetadataToolDefinition } from './tools/deployMetadataTool.js';
 import { describeObjectToolDefinition } from './tools/describeObjectTool.js';
-// import { describeObjectUIToolDefinition } from './tools/describeObjectUITool.js'; // TODO
 import { executeAnonymousApexToolDefinition } from './tools/executeAnonymousApexTool.js';
 import { getRecentlyViewedRecordsToolDefinition } from './tools/getRecentlyViewedRecordsTool.js';
 import { getRecordToolDefinition } from './tools/getRecordTool.js';
@@ -201,7 +200,6 @@ export async function setupServer() {
 	mcpServer.registerTool('dmlOperation', dmlOperationToolDefinition, callToolHandler('dmlOperationTool'));
 	mcpServer.registerTool('deployMetadata', deployMetadataToolDefinition, callToolHandler('deployMetadataTool'));
 	mcpServer.registerTool('describeObject', describeObjectToolDefinition, callToolHandler('describeObjectTool'));
-	// mcpServer.registerTool('describeObjectUI', describeObjectUIToolDefinition, callToolHandler('describeObjectUITool')); // TODO
 	mcpServer.registerTool('executeAnonymousApex', executeAnonymousApexToolDefinition, callToolHandler('executeAnonymousApexTool'));
 	mcpServer.registerTool('getRecentlyViewedRecords', getRecentlyViewedRecordsToolDefinition, callToolHandler('getRecentlyViewedRecordsTool'));
 	mcpServer.registerTool('getRecord', getRecordToolDefinition, callToolHandler('getRecordTool'));
