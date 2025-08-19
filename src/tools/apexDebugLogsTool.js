@@ -2,20 +2,38 @@ import { newResource } from '../mcp-server.js';
 import { mcpServer } from '../mcp-server.js';
 import state from '../state.js';
 import client from '../client.js';
-import {log, textFileContent, formatDate} from '../utils.js';
+import {log, textFileContent, formatDate, getFileNameFromPath} from '../utils.js';
 import {executeSoqlQuery, dmlOperation, runCliCommand} from '../salesforceServices.js';
 import {z} from 'zod';
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
 
 export const apexDebugLogsToolDefinition = {
 	name: 'apexDebugLogs',
 	title: 'Manage Apex debug logs',
 	description: textFileContent('apexDebugLogsTool'),
 	inputSchema: {
-		action: z.enum(['status', 'on', 'off', 'list', 'get'])
-			.describe('The action to perform. Possible values: "status", "on", "off", "list", "get".'),
+		action: z.enum(['status', 'on', 'off', 'list', 'get', 'analyze'])
+			.describe('The action to perform. Possible values: "status", "on", "off", "list", "get", "analyze".'),
 		logId: z.string()
 			.optional()
-			.describe('The ID of the log to retrieve (optional for "get" action - if not provided, user will be prompted to select from available logs)')
+			.describe('The ID of the log to retrieve (optional for "get" and "analyze" actions - if not provided, user will be prompted to select from available logs)'),
+		minDurationMs: z
+			.number()
+			.optional()
+			.default(0)
+			.describe('Filter out events shorter than this duration in milliseconds (for analyze action).'),
+		maxEvents: z
+			.number()
+			.optional()
+			.default(200)
+			.describe('Trim to the first N completed events after filtering (for analyze action).'),
+		output: z
+			.enum(['both', 'json', 'diagram'])
+			.optional()
+			.default('both')
+			.describe('Which artifacts to return in the tool output (for analyze action).')
 	},
 	annotations: {
 		readOnlyHint: false,
@@ -25,9 +43,317 @@ export const apexDebugLogsToolDefinition = {
 	}
 };
 
-export async function apexDebugLogsTool({action, logId}) {
+// Analysis functions integrated from analyzeApexLogTool.js
+async function analyzeApexLog(logContent, minDurationMs = 0, maxEvents = 200, output = 'both') {
 	try {
-		if (!['status', 'on', 'off', 'list', 'get'].includes(action)) {
+		if (!logContent) {
+			throw new Error('No log content provided');
+		}
+
+		const parseResult = parseApexLog(logContent);
+		const { events, totalDurationMs, baseNs } = buildCompletedEvents(parseResult);
+
+		const filtered = events
+			.filter(e => e.durationMs >= minDurationMs)
+			.slice(0, Math.max(0, maxEvents));
+
+		const summary = summarize(filtered, totalDurationMs);
+
+		const fileBaseName = `apex_log_${Date.now()}`;
+		const artifacts = {};
+
+		// JSON resource
+		const jsonText = JSON.stringify({ summary, events: filtered }, null, 2);
+		const jsonUri = `file://apex-log/${fileBaseName}.events.json`;
+		newResource(jsonUri, `${fileBaseName}.events.json`, 'Structured Apex log events (filtered)', 'application/json', jsonText);
+		artifacts.json = { uri: jsonUri, text: jsonText };
+
+		// ASCII timeline resource
+		const asciiText = renderAsciiTimeline(filtered, totalDurationMs);
+		const asciiUri = `file://apex-log/${fileBaseName}.txt`;
+		newResource(asciiUri, `${fileBaseName}.txt`, 'ASCII timeline view of Apex log', 'text/plain', asciiText);
+		artifacts.ascii = { uri: asciiUri, text: asciiText };
+
+		// Mermaid gantt resource (best-effort)
+		const mermaidText = renderMermaidGantt(filtered, totalDurationMs);
+		const mermaidUri = `file://apex-log/${fileBaseName}.mermaid`;
+		newResource(mermaidUri, `${fileBaseName}.mermaid`, 'Mermaid Gantt definition for Apex log', 'text/plain', mermaidText);
+		artifacts.mermaid = { uri: mermaidUri, text: mermaidText };
+
+		// PNG export to tmp folder
+		const pngPath = await exportMermaidToPng(mermaidText, fileBaseName);
+		artifacts.png = { path: pngPath };
+
+		const contentBlocks = [];
+		const lines = [];
+		lines.push(`Apex log analyzed successfully`);
+		lines.push(`Duration: ${totalDurationMs.toFixed(2)} ms.`);
+		lines.push(`Events (filtered): ${filtered.length}. Groups: ${Object.keys(summary.byType).join(', ')}`);
+		lines.push('Top slowest events:');
+		summary.top.forEach((e, idx) => {
+			lines.push(`${idx + 1}. [${e.type}] ${e.name} — ${e.durationMs.toFixed(2)} ms`);
+		});
+
+		contentBlocks.push({ type: 'text', text: lines.join('\n') });
+
+		if (output === 'json' || output === 'both') {
+			contentBlocks.push({ type: 'text', text: `JSON: ${jsonUri}` });
+		}
+		if (output === 'diagram' || output === 'both') {
+			contentBlocks.push({ type: 'text', text: `Mermaid: ${mermaidUri}` });
+			contentBlocks.push({ type: 'text', text: `ASCII: ${asciiUri}` });
+			contentBlocks.push({ type: 'text', text: `PNG: ${pngPath}` });
+		}
+
+		return {
+			content: contentBlocks,
+			structuredContent: { summary, artifacts }
+		};
+
+	} catch (error) {
+		log(error, 'error');
+		return {
+			isError: true,
+			content: [{ type: 'text', text: `❌ Error analyzing Apex log: ${error.message}` }]
+		};
+	}
+}
+
+function parseApexLog(text) {
+	const lines = text.split(/\r?\n/);
+	const records = [];
+	for (const line of lines) {
+		// Example: "16:06:58.18 (54114689)|EXECUTION_FINISHED"
+		//          "16:06:58.18 (52417923)|CODE_UNIT_FINISHED|execute_anonymous_apex"
+		//          "16:06:58.18 (49590539)|CUMULATIVE_LIMIT_USAGE_END"
+		//          "...|METHOD_ENTRY|...|ClassName.methodName|..."
+		const match = line.match(/^[^\(]*\((\d+)\)\|(\w+)(?:\|(.+))?$/);
+		if (!match) continue;
+		const [, nsStr, event, detailsRaw] = match;
+		const ns = Number(nsStr);
+		const details = detailsRaw || '';
+
+		records.push({ ns, event, raw: line, details });
+	}
+	return { records };
+}
+
+function buildCompletedEvents(parseResult) {
+	const { records } = parseResult;
+	if (records.length === 0) return { events: [], totalDurationMs: 0, baseNs: 0 };
+
+	const baseNs = records[0].ns;
+	const stack = [];
+	const events = [];
+
+	function start(type, name, ns, meta = {}) {
+		stack.push({ type, name, ns, meta });
+	}
+	function end(matchingPredicate, ns) {
+		for (let i = stack.length - 1; i >= 0; i--) {
+			const it = stack[i];
+			if (matchingPredicate(it)) {
+				stack.splice(i, 1);
+				const durationMs = (ns - it.ns) / 1e6;
+				const startMs = (it.ns - baseNs) / 1e6;
+				const endMs = startMs + durationMs;
+				events.push({ type: it.type, name: it.name, startMs, endMs, durationMs, meta: it.meta });
+				return true;
+			}
+		}
+		return false;
+	}
+
+	for (const r of records) {
+		switch (r.event) {
+			case 'CODE_UNIT_STARTED': {
+				const name = r.details?.split('|')[0] || 'CodeUnit';
+				start('Code Unit', name, r.ns);
+				break;
+			}
+			case 'CODE_UNIT_FINISHED': {
+				end(it => it.type === 'Code Unit', r.ns);
+				break;
+			}
+			case 'METHOD_ENTRY': {
+				const name = extractMethodName(r.details) || 'Method';
+				start('Method', name, r.ns);
+				break;
+			}
+			case 'METHOD_EXIT': {
+				end(it => it.type === 'Method', r.ns);
+				break;
+			}
+			case 'SOQL_EXECUTE_BEGIN': {
+				const name = extractSoql(r.details);
+				start('SOQL', name, r.ns);
+				break;
+			}
+			case 'SOQL_EXECUTE_END': {
+				end(it => it.type === 'SOQL', r.ns);
+				break;
+			}
+			case 'DML_BEGIN': {
+				const name = extractDml(r.details);
+				start('DML', name, r.ns);
+				break;
+			}
+			case 'DML_END': {
+				end(it => it.type === 'DML', r.ns);
+				break;
+			}
+			case 'FLOW_START_INTERVIEW':
+			case 'FLOW_ELEMENT_BEGIN': {
+				const name = (r.details || 'Flow');
+				start('Flow', name, r.ns);
+				break;
+			}
+			case 'FLOW_ELEMENT_END':
+			case 'FLOW_END_INTERVIEW': {
+				end(it => it.type === 'Flow', r.ns);
+				break;
+			}
+			case 'WF_RULE_EVAL_BEGIN':
+			case 'WF_RULE_FILTER': {
+				start('Workflow', r.details || 'Workflow', r.ns);
+				break;
+			}
+			case 'WF_RULE_EVAL_END': {
+				end(it => it.type === 'Workflow', r.ns);
+				break;
+			}
+			default:
+				// Ignore
+				break;
+		}
+	}
+
+	const totalDurationMs = (records[records.length - 1].ns - baseNs) / 1e6;
+	return { events, totalDurationMs, baseNs };
+}
+
+function extractMethodName(details) {
+	if (!details) return null;
+	const parts = details.split('|');
+	const candidate = parts.find(p => /\w+\.\w+/.test(p));
+	return candidate || parts[parts.length - 1] || 'Method';
+}
+
+function extractSoql(details) {
+	if (!details) return 'SOQL';
+	const m = details.match(/SELECT[\s\S]*/i);
+	let q = m ? m[0] : 'SOQL';
+	q = q.replace(/\s+/g, ' ').trim();
+	if (q.length > 120) q = q.slice(0, 117) + '...';
+	return q;
+}
+
+function extractDml(details) {
+	if (!details) return 'DML';
+	const op = details.split('|')[0] || 'DML';
+	return op;
+}
+
+function summarize(events, totalDurationMs) {
+	const byType = {};
+	for (const e of events) {
+		byType[e.type] = byType[e.type] || { count: 0, durationMs: 0 };
+		byType[e.type].count += 1;
+		byType[e.type].durationMs += e.durationMs;
+	}
+	const top = [...events].sort((a, b) => b.durationMs - a.durationMs).slice(0, 10);
+	return { totalDurationMs, byType, top };
+}
+
+function renderAsciiTimeline(events, totalDurationMs) {
+	const width = 100; // characters
+	const lines = [];
+	lines.push('ASCII timeline (relative to log start)');
+	for (const e of events) {
+		const startPos = Math.max(0, Math.floor((e.startMs / totalDurationMs) * width));
+		const endPos = Math.min(width, Math.floor((e.endMs / totalDurationMs) * width));
+		const bar = ' '.repeat(startPos) + '#'.repeat(Math.max(1, endPos - startPos));
+		const label = `[${e.type}] ${e.name}`;
+		lines.push(bar + ' ' + label);
+	}
+	return lines.join('\n');
+}
+
+function renderMermaidGantt(events, totalDurationMs) {
+	// Mermaid Gantt requires absolute seconds. Use current epoch as base and add offsets in seconds.
+	const baseEpoch = Math.floor(Date.now() / 1000);
+	let out = 'gantt\n';
+	out += '  title Apex Log Timeline (best-effort)\n';
+	out += '  dateFormat X\n';
+	out += '  axisFormat %S s\n';
+
+	const byType = new Map();
+	for (const e of events) {
+		if (!byType.has(e.type)) byType.set(e.type, []);
+		byType.get(e.type).push(e);
+	}
+
+	let id = 0;
+	for (const [type, group] of byType.entries()) {
+		out += `  section ${escapeMermaid(type)}\n`;
+		for (const e of group) {
+			id += 1;
+			const start = baseEpoch + Math.max(0, Math.floor(e.startMs / 1000));
+			const end = baseEpoch + Math.max(0, Math.ceil(e.endMs / 1000));
+			const name = escapeMermaid(truncate(`${e.name} (${e.durationMs.toFixed(1)} ms)`, 80));
+			out += `  ${name} :t${id}, ${start}, ${end}\n`;
+		}
+	}
+	return out;
+}
+
+function truncate(s, max) {
+	return s.length > max ? s.slice(0, max - 1) + '…' : s;
+}
+
+function escapeMermaid(s) {
+	return s.replace(/:/g, '-').replace(/\[/g, '(').replace(/\]/g, ')');
+}
+
+async function exportMermaidToPng(mermaidText, fileBaseName) {
+	try {
+		// Create tmp directory if it doesn't exist
+		const tmpDir = path.join(process.cwd(), 'tmp');
+		if (!fs.existsSync(tmpDir)) {
+			fs.mkdirSync(tmpDir, { recursive: true });
+		}
+
+		const pngPath = path.join(tmpDir, `${fileBaseName}.png`);
+
+		// Try to use mmdc (Mermaid CLI) if available
+		try {
+			execSync(`mmdc -i - -o "${pngPath}"`, {
+				input: mermaidText,
+				stdio: ['pipe', 'pipe', 'pipe'],
+				encoding: 'utf8'
+			});
+			log(`PNG exported to: ${pngPath}`, 'info');
+			return pngPath;
+
+		} catch (mmdcError) {
+			log(`mmdc not available, falling back to text file: ${mmdcError.message}`, 'warning');
+
+			// Fallback: save Mermaid text to tmp folder
+			const mermaidPath = path.join(tmpDir, `${fileBaseName}.mermaid`);
+			fs.writeFileSync(mermaidPath, mermaidText, 'utf8');
+			log(`Mermaid text saved to: ${mermaidPath}`, 'info');
+			return mermaidPath;
+		}
+
+	} catch (error) {
+		log(`Error exporting diagram: ${error.message}`, 'warning');
+		return null;
+	}
+}
+
+export async function apexDebugLogsTool({action, logId, minDurationMs = 0, maxEvents = 200, output = 'both'}) {
+	try {
+		if (!['status', 'on', 'off', 'list', 'get', 'analyze'].includes(action)) {
 			throw new Error(`Invalid action: ${action}`);
 		}
 
@@ -343,6 +669,84 @@ export async function apexDebugLogsTool({action, logId}) {
 			return {
 				content,
 				structuredContent: apexLog
+			};
+
+		} else if (action === 'analyze') {
+			if (!logId) {
+				if (client.supportsCapability('elicitation')) {
+					// Get the list of available logs for selection
+					let response = await runCliCommand('sf apex list log --json');
+					let logs = [];
+
+					try {
+						const parsedResponse = JSON.parse(response);
+						logs = parsedResponse?.result || [];
+					} catch (error) {
+						log(`Error parsing JSON response: ${error.message}`, 'error');
+						logs = [];
+					}
+
+					if (!logs || !Array.isArray(logs) || logs.length === 0) {
+						throw new Error('No Apex debug logs available for selection');
+					}
+
+					// Take only the first 50 logs and format them for selection
+					const availableLogs = logs.slice(0, 50).map(log => {
+						const startTime = formatDate(new Date(log.StartTime));
+						const user = log.ExecutedBy || log.User || 'Unknown';
+						const size = log.LogLength ?
+							(parseInt(log.LogLength) < 1024 * 1024 ?
+								`${Math.floor(parseInt(log.LogLength) / 1024)} KB` :
+								`${(parseInt(log.LogLength) / (1024 * 1024)).toFixed(1)} MB`) : 'N/A';
+
+						return {
+							id: log.Id,
+							description: `${startTime} · ${user} · ${size}`
+						};
+					});
+
+					const elicitResult = await mcpServer.server.elicitInput({
+						message: `Please select an Apex debug log to analyze. Available logs: ${availableLogs.length}`,
+						requestedSchema: {
+							type: "object",
+							title: `Select Apex debug log to analyze`,
+							properties: {
+								logId: {
+									type: "string",
+									enum: availableLogs.map(log => log.id),
+									enumNames: availableLogs.map(log => log.description),
+									description: 'Select the Apex debug log to analyze'
+								}
+							},
+							required: ["logId"]
+						}
+					});
+
+					if (elicitResult.action !== 'accept' || !elicitResult.content?.logId) {
+						return {
+							content: [{
+								type: 'text',
+								text: 'User has cancelled the log selection'
+							}],
+							structuredContent: elicitResult
+						};
+					}
+
+					logId = elicitResult.content.logId;
+				} else {
+					throw new Error('logId is required for the "analyze" action');
+				}
+			}
+
+			// Get the log content
+			const apexLog = await runCliCommand(`sf apex get log --log-id ${logId}`);
+
+			// Analyze the log using the integrated functionality
+			const analysisResult = await analyzeApexLog(apexLog, minDurationMs, maxEvents, output);
+
+			return {
+				content: analysisResult.content,
+				structuredContent: analysisResult.structuredContent
 			};
 		}
 
