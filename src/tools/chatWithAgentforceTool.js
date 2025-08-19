@@ -56,7 +56,7 @@ async function startSession() {
 			'REST',
 			`/agents/${process.env.SF_MCP_AGENTFORCE_AGENT_ID}/sessions`,
 			body,
-			{ baseUrl: 'https://api.salesforce.com/einstein/ai-agent/v1' }
+			{baseUrl: 'https://api.salesforce.com/einstein/ai-agent/v1'}
 		);
 
 
@@ -98,7 +98,7 @@ async function sendMessage(message) {
 				},
 				variables: []
 			},
-			{ baseUrl: 'https://api.salesforce.com/einstein/ai-agent/v1' }
+			{baseUrl: 'https://api.salesforce.com/einstein/ai-agent/v1'}
 		);
 
 		if (!response) {

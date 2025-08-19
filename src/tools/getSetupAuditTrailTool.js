@@ -41,7 +41,7 @@ export async function getSetupAuditTrailTool({lastDays = 90, createdByName = nul
 
 		// Check if already cached
 		if (resources[resourceName]) {
-			log(`Setup Audit Trail already cached, skipping fetch`, 'debug');
+			log('Setup Audit Trail already cached, skipping fetch', 'debug');
 			const cachedResult = JSON.parse(resources[resourceName].text);
 
 			const content = [{
@@ -131,13 +131,19 @@ export async function getSetupAuditTrailTool({lastDays = 90, createdByName = nul
 
 		const formattedResultString = JSON.stringify(formattedResult, null, 3);
 
-		const tmpDir = path.join(state.workspacePath, 'tmp');
-		const fileName = `SetupAuditTrail_${getTimestamp()}.json`;
-		const fullPath = path.join(tmpDir, fileName);
-		try {
-			await fs.writeFile(fullPath, formattedResultString, 'utf8');
-		} catch (err) {
-			log(`Failed to write formattedResult to ${tmpDir}: ${err.message}`, 'error');
+
+		// Try to save to tmp directory if workspace path is available
+		if (state.workspacePath) {
+			const tmpDir = path.join(state.workspacePath, 'tmp');
+			const fileName = `SetupAuditTrail_${getTimestamp()}.json`;
+			const fullPath = path.join(tmpDir, fileName);
+			try {
+				// Ensure tmp directory exists
+				await fs.mkdir(tmpDir, {recursive: true});
+				await fs.writeFile(fullPath, formattedResultString, 'utf8');
+			} catch (err) {
+				log(`Failed to write formattedResult to ${tmpDir}: ${err.message}`, 'error');
+			}
 		}
 
 		const content = [{
@@ -146,6 +152,7 @@ export async function getSetupAuditTrailTool({lastDays = 90, createdByName = nul
 		}];
 
 		// Cache the result for future use
+		// eslint-disable-next-line no-unused-vars
 		const cacheResource = newResource(
 			resourceName,
 			`Setup Audit Trail (${lastDays} days, ${createdByName || 'all users'}, ${metadataName || 'all metadata'})`,
@@ -187,10 +194,10 @@ function buildSoqlQuery(lastDays = 90, createdByName = null) {
 		'changedActionOverrideContent', 'filteredLookupEdit', 'createdRecordTypeCustom', 'createdQuickAction',
 		'changedQuickActionLayoutGlobal', 'createdApexPage', 'changedPicklistSortCustom', 'createServicePresenceStatus',
 		'changedQuickActionNameCustom', 'deletedQuickActionCustom', 'CustomPermissionCreate', 'deletedApexComponent',
-		'createdqueue', 'createdgroup', 'PermissionSetGroupCreate', 'changedStaticResource','deletedStaticResource',
-		'createdCustMdType', 'filteredLookupRequired', 'filteredLookupCreate','deleteSharingRule', 'changedApexTrigger',
+		'createdqueue', 'createdgroup', 'PermissionSetGroupCreate', 'changedStaticResource', 'deletedStaticResource',
+		'createdCustMdType', 'filteredLookupRequired', 'filteredLookupCreate', 'deleteSharingRule', 'changedApexTrigger',
 		'deletedAuraComponent', 'updateSharingRule', 'changedPicklist', 'changedPicklistCustom', 'changedRecordTypeName',
-		'changedValidationFormula','deletedLightningWebComponent', 'createdAuraComponent', 'deletedQuickAction',
+		'changedValidationFormula', 'deletedLightningWebComponent', 'createdAuraComponent', 'deletedQuickAction',
 		'changedQuickActionLayout', 'deletedprofile', 'changedPicklistValueApiNameCustom', 'createdLightningWebComponent',
 		'deletedApexPage', 'deletedApexClass', 'PermSetCreate', 'changedApexPage', 'caselayout', 'createduser',
 		'queueMembership', 'groupMembership', 'createdApexClass', 'PermSetDelete', 'profilePageLayoutChangedCustom',

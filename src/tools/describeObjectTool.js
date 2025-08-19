@@ -34,7 +34,7 @@ export async function describeObjectTool({sObjectName, includeFields = true, inc
 
 		// Check cache first
 		if (resources[resourceName]) {
-			log(`SObject schema already cached, skipping fetch`, 'debug');
+			log('SObject schema already cached, skipping fetch', 'debug');
 			const cached = JSON.parse(resources[resourceName].text);
 
 			// Apply filtering to cached data
@@ -201,7 +201,7 @@ function transformRecordTypes(uiRecordTypes) {
 		transformedRecordTypes.push({
 			recordTypeId: recordTypeId,
 			name: recordTypeInfo.name || '',
-			available: recordTypeInfo.available || false,
+			available: recordTypeInfo.available || false
 		});
 	}
 

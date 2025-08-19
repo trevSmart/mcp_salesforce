@@ -1,6 +1,6 @@
 import os from 'os';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
+import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
 	SetLevelRequestSchema,
 	InitializeRequestSchema,
@@ -11,29 +11,29 @@ import {
 
 } from '@modelcontextprotocol/sdk/types.js';
 
-import { log, validateUserPermissions } from './utils.js';
+import {log, validateUserPermissions} from './utils.js';
 import config from './config.js';
-import { fileURLToPath } from 'url';
+import {fileURLToPath} from 'url';
 import client from './client.js';
-import { getOrgAndUserDetails } from './salesforceServices.js';
+import {getOrgAndUserDetails} from './salesforceServices.js';
 import state from './state.js';
 import targetOrgWatcher from './OrgWatcher.js';
 
 // import { codeModificationPromptDefinition, codeModificationPrompt } from './prompts/codeModificationPrompt.js';
-import { salesforceMcpUtilsToolDefinition } from './tools/salesforceMcpUtilsTool.js';
-import { getOrgAndUserDetailsToolDefinition } from './tools/getOrgAndUserDetailsTool.js';
-import { dmlOperationToolDefinition } from './tools/dmlOperationTool.js';
-import { deployMetadataToolDefinition } from './tools/deployMetadataTool.js';
-import { describeObjectToolDefinition } from './tools/describeObjectTool.js';
-import { executeAnonymousApexToolDefinition } from './tools/executeAnonymousApexTool.js';
-import { getRecentlyViewedRecordsToolDefinition } from './tools/getRecentlyViewedRecordsTool.js';
-import { getRecordToolDefinition } from './tools/getRecordTool.js';
-import { getSetupAuditTrailToolDefinition } from './tools/getSetupAuditTrailTool.js';
-import { executeSoqlQueryToolDefinition } from './tools/executeSoqlQueryTool.js';
-import { runApexTestToolDefinition } from './tools/runApexTestTool.js';
-import { getApexClassCodeCoverageToolDefinition } from './tools/getApexClassCodeCoverageTool.js';
-import { apexDebugLogsToolDefinition } from './tools/apexDebugLogsTool.js';
-import { createMetadataToolDefinition } from './tools/createMetadataTool.js';
+import {salesforceMcpUtilsToolDefinition} from './tools/salesforceMcpUtilsTool.js';
+import {getOrgAndUserDetailsToolDefinition} from './tools/getOrgAndUserDetailsTool.js';
+import {dmlOperationToolDefinition} from './tools/dmlOperationTool.js';
+import {deployMetadataToolDefinition} from './tools/deployMetadataTool.js';
+import {describeObjectToolDefinition} from './tools/describeObjectTool.js';
+import {executeAnonymousApexToolDefinition} from './tools/executeAnonymousApexTool.js';
+import {getRecentlyViewedRecordsToolDefinition} from './tools/getRecentlyViewedRecordsTool.js';
+import {getRecordToolDefinition} from './tools/getRecordTool.js';
+import {getSetupAuditTrailToolDefinition} from './tools/getSetupAuditTrailTool.js';
+import {executeSoqlQueryToolDefinition} from './tools/executeSoqlQueryTool.js';
+import {runApexTestToolDefinition} from './tools/runApexTestTool.js';
+import {getApexClassCodeCoverageToolDefinition} from './tools/getApexClassCodeCoverageTool.js';
+import {apexDebugLogsToolDefinition} from './tools/apexDebugLogsTool.js';
+import {createMetadataToolDefinition} from './tools/createMetadataTool.js';
 // import { chatWithAgentforceToolDefinition } from './tools/chatWithAgentforceTool.js';
 // import { toolingApiRequestToolDefinition } from './tools/toolingApiRequestTool.js';
 // import { triggerExecutionOrderToolDefinition } from './tools/triggerExecutionOrderTool.js';
@@ -46,24 +46,24 @@ async function setWorkspacePath(workspacePath) {
 	if (typeof workspacePath === 'string' && workspacePath.startsWith('file://')) {
 		try {
 			// Robust conversion for any platform
-			config.workspacePath = fileURLToPath(workspacePath);
+			state.workspacePath = fileURLToPath(workspacePath);
 
-		} catch (error) { //Fallback: manual URI conversion
-			config.workspacePath = decodeURIComponent(workspacePath.replace(/^file:\/\//, ''));
-			process.platform === 'win32' && (config.workspacePath = config.workspacePath.replace(/^\/([a-zA-Z]):/, '$1:'));
+		} catch { //Fallback: manual URI conversion
+			state.workspacePath = decodeURIComponent(workspacePath.replace(/^file:\/\//, ''));
+			process.platform === 'win32' && (state.workspacePath = state.workspacePath.replace(/^\/([a-zA-Z]):/, '$1:'));
 		}
 	} else {
-		config.workspacePath = workspacePath;
+		state.workspacePath = workspacePath;
 	}
 
-	if (config.workspacePath) {
+	if (state.workspacePath) {
 		try {
-			process.chdir(config.workspacePath);
+			process.chdir(state.workspacePath);
 		} catch (error) {
 			log(error, 'error', 'Failed to change working directory');
 		}
 
-		log(`Workspace path set to: "${config.workspacePath}"`, 'info');
+		log(`Workspace path set to: "${state.workspacePath}"`, 'info');
 	}
 }
 
@@ -78,13 +78,15 @@ async function updateOrgAndUserDetails() {
 		}
 
 	} catch (error) {
+		log(error, 'error', 'Error updating org and user details');
 		state.org = {};
 		state.userValidated = false;
+
 	}
 }
 
 //Create the MCP server instance
-const { protocolVersion, serverInfo, capabilities, instructions } = config.SERVER_CONSTANTS;
+const {protocolVersion, serverInfo, capabilities, instructions} = config.SERVER_CONSTANTS;
 const mcpServer = new McpServer(serverInfo, {capabilities, instructions, debouncedNotificationMethods: [
 	'notifications/tools/list_changed',
 	'notifications/resources/list_changed',
@@ -94,7 +96,7 @@ const mcpServer = new McpServer(serverInfo, {capabilities, instructions, debounc
 export function newResource(uri, name, description, mimeType = 'text/plain', content, annotations = {}) {
 	try {
 		log(`New resource: ${uri}`, 'debug');
-		annotations = { ...annotations, lastModified: new Date().toISOString() };
+		annotations = {...annotations, lastModified: new Date().toISOString()};
 		const resource = {
 			uri,
 			name,
@@ -123,6 +125,7 @@ const readyPromise = new Promise(resolve => resolveServerReady = resolve);
 
 //Add a promise to track directory change completion
 let resolveDirectoryChange;
+// eslint-disable-next-line no-unused-vars
 const directoryChangePromise = new Promise(resolve => resolveDirectoryChange = resolve);
 
 //Server initialization function
@@ -140,7 +143,7 @@ export async function setupServer() {
 			}
 
 			//Alguns clients fan servir el primer root per establir el directori del workspace
-			if (!config.workspacePath && listRootsResult.roots?.[0]?.uri.startsWith('file://')) {
+			if (!state.workspacePath && listRootsResult.roots?.[0]?.uri.startsWith('file://')) {
 				setWorkspacePath(listRootsResult.roots[0].uri);
 			}
 
@@ -153,9 +156,9 @@ export async function setupServer() {
 		}
 	});
 
-	mcpServer.server.setRequestHandler(ListResourcesRequestSchema, async () => ({ resources: Object.values(resources) }));
-	mcpServer.server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({ resourceTemplates: [] }));
-	mcpServer.server.setRequestHandler(ReadResourceRequestSchema, async ({ params: { uri } }) => ({ contents: [{ uri, ...resources[uri] }] }));
+	mcpServer.server.setRequestHandler(ListResourcesRequestSchema, async () => ({resources: Object.values(resources)}));
+	mcpServer.server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({resourceTemplates: []}));
+	mcpServer.server.setRequestHandler(ReadResourceRequestSchema, async ({params: {uri}}) => ({contents: [{uri, ...resources[uri]}]}));
 
 	// mcpServer.registerPrompt('code-modification', codeModificationPromptDefinition, codeModificationPrompt);
 
@@ -163,7 +166,7 @@ export async function setupServer() {
 		return async params => {
 			if (tool !== 'getOrgAndUserDetailsTool' && tool !== 'salesforceMcpUtilsTool') {
 				if (!state.org.user.id) {
-					const errorMessage = `❌ Org and user details not available. The server may still be initializing.`;
+					const errorMessage = '❌ Org and user details not available. The server may still be initializing.';
 					log(errorMessage, 'critical');
 					return {
 						isError: true,
@@ -213,16 +216,16 @@ export async function setupServer() {
 	// mcpServer.registerTool('triggerExecutionOrder', triggerExecutionOrderToolDefinition, callToolHandler('triggerExecutionOrderTool'));
 
 	//Set up request handlers
-	mcpServer.server.setRequestHandler(SetLevelRequestSchema, async ({ params }) => {
+	mcpServer.server.setRequestHandler(SetLevelRequestSchema, async ({params}) => {
 		state.currentLogLevel = params.level;
 		log(`Log level set to ${params.level}`, 'debug');
 		return {};
 	});
 
-	mcpServer.server.setRequestHandler(InitializeRequestSchema, async ({ params }) => {
+	mcpServer.server.setRequestHandler(InitializeRequestSchema, async ({params}) => {
 		try {
-			const { clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion } = params;
-			client.initialize({ clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion });
+			const {clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion} = params;
+			client.initialize({clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion});
 
 			log(`IBM Salesforce MCP server (v${config.SERVER_CONSTANTS.serverInfo.version})`, 'info');
 			log(`Current log level: ${state.currentLogLevel}`, 'info');
@@ -261,15 +264,15 @@ export async function setupServer() {
 					log(error, 'error', 'Error during async org setup');
 					throw error;
 
-				// } finally { TODO
-				// 	//Mark server as ready after org setup is complete (or failed)
-				// 	/*if (typeof resolveServerReady === 'function') {
-				// 		resolveServerReady();
-				// 	}
+					// } finally { TODO
+					// 	//Mark server as ready after org setup is complete (or failed)
+					// 	/*if (typeof resolveServerReady === 'function') {
+					// 		resolveServerReady();
+					// 	}
 				}
 			})();
 
-			return { protocolVersion, serverInfo, capabilities };
+			return {protocolVersion, serverInfo, capabilities};
 
 		} catch (error) {
 			log(error, 'error', 'Error initializing server');
@@ -282,10 +285,10 @@ export async function setupServer() {
 		resolveServerReady();
 	}
 
-	return { protocolVersion, serverInfo, capabilities };
+	return {protocolVersion, serverInfo, capabilities};
 }
 
 //Export the ready promise for external use
-export { readyPromise };
+export {readyPromise};
 
-export { mcpServer };
+export {mcpServer};

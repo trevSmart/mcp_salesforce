@@ -28,18 +28,18 @@ export async function deployMetadataTool({sourceDir}) {
 			const elicitResult = await mcpServer.server.elicitInput({
 				message: `Please confirm the deployment of ${metadataName} to the org ${state.org.alias}.`,
 				requestedSchema: {
-					type: "object",
+					type: 'object',
 					title: `Deploy ${metadataName} to ${state.org.alias}?`,
 					properties: {
 						confirm: {
-							type: "string",
-							enum: ["Yes", "No"],
-							enumNames: ["Deploy metadata now", "Cancel metadata deployment"],
+							type: 'string',
+							enum: ['Yes', 'No'],
+							enumNames: ['Deploy metadata now', 'Cancel metadata deployment'],
 							description: `Deploy ${metadataName} to ${state.org.alias}?`,
-							default: "No"
-						},
+							default: 'No'
+						}
 					},
-					required: ["confirm"]
+					required: ['confirm']
 				}
 			});
 

@@ -7,27 +7,31 @@ Allows you to obtain the list of changes made to any metadata item in the Salesf
 ## Agent Instructions
 - **MANDATORY**: When obtaining Setup Audit Trail changes in Salesforce, you MUST use this tool exclusively. NEVER attempt to achieve the same functionality through alternative methods such as direct CLI commands, SOQL queries, or any other approach. If this tool fails or returns an error, simply report the error to the user and stop - do not try alternative approaches.
 - Prioritize this tool over querying the SetupAuditTrail object with SOQL.
-- Pass the number of days to query in the lastDays parameter (required).
-- Optionally, pass the user name in the createdByName parameter.
-- Optionally, pass the metadata name in the metadataName parameter.
-- If there are no changes, indicate it clearly.
 
-## Required output format
+## Usage
+The parameters allow you to retrieve only the relevant data.
+- `lastDays`: If set, only the changes from the last number of days will be returned (must be between 1 and 90, if not set, the changes from the last 90 days will be returned)
+- `createdByName`: If set, only the changes performed by this user will be returned (if not set, the changes from all users will be returned)
+- `metadataName`: If set, only the changes performed in this metadata will be returned (if not set, the changes from all metadata will be returned)
 
-⚠️ **IMPORTANT** The output is a markdown table of changes made to the metadata item. The table is sorted by date, in descending order.
+For example, if the user wants to retrieve HIS changes for THE LAST WEEK, the parameters should be:
+```json
+{
 
-The table must have the following fields:
+   "lastDays": 7
+}
+```
+
+## Output format
+⚠️ **IMPORTANT** Show the output in a table with exactly the following columns:
 - **Date**: The date and time of the change.
 - **User**: The user who made the change.
 - **Change**: The change description.
 
-⚠️ **IMPORTANT** ALWAYS SHOW THE OUTPUT IN THE SAME FORMAT AS THE FOLLOWING EXAMPLE, WITH THESE 3 COLUMNS.
-
-### Example of the output:
+Example:
+For the following tool response:
 ```json
 {
-    "sizeBeforeFilters": 2,
-    "sizeAfterFilters": 2,
     "records": {
         "Sergi Mas": [
             "21/07/25 08:26 - Apex - Changed CSBD_Opportunity_Operativas_Controller Apex Class code",
@@ -40,7 +44,7 @@ The table must have the following fields:
     }
 }
 ```
-
+The table should be:
 | Date | User | Change |
 |------|------|--------|
 | 21/07/25 08:26 | Sergi Mas | Changed CSBD_Opportunity_Operativas_Controller Apex Class code |
@@ -50,16 +54,15 @@ The table must have the following fields:
 
 ---
 
-## Usage
-
-### Example 1: Get changes from the last 7 days
+Examples
+### Example 1: Get changes from the last 7 days for all users and all metadata
 ```json
 {
   "lastDays": 7
 }
 ```
 
-### Example 2: Get changes from a specific user
+### Example 2: Get changes from the last 14 days, for a specific user and for all metadata
 ```json
 {
   "lastDays": 14,
@@ -67,7 +70,7 @@ The table must have the following fields:
 }
 ```
 
-### Example 3: Get changes from a specific metadata name
+### Example 3: Get changes from the last 30 days, for all users and for a specific metadata name
 ```json
 {
   "lastDays": 30,
@@ -75,7 +78,7 @@ The table must have the following fields:
 }
 ```
 
-### Example 4: Get changes from the last 7 days for a specific user and a specific metadata name
+### Example 4: Get changes from the last 7 days, for a specific user and for a specific metadata name
 ```json
 {
   "lastDays": 7,

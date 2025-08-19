@@ -6,6 +6,8 @@ Allows you to execute utility actions like clearing the cache, getting the curre
 ## Agent Instructions
 - **MANDATORY**: When executing utility actions on the IBM Salesforce MCP server, you MUST use this tool exclusively. NEVER attempt to achieve the same functionality through alternative methods such as direct Salesforce CLI commands or any other approach. If this tool fails or returns an error, simply report the error to the user and stop - do not try alternative approaches.
 
+- To get the user name, use the tool getOrgAndUserDetails instead of this tool.
+
 - Use only the following allowed action values:
   - **"clearCache"**:
     - Clears the internal cache of the MCP server.

@@ -1,12 +1,11 @@
-import { log } from './utils.js';
-import config from './config.js';
-import { exec as execCb } from 'child_process';
-import { promisify } from 'node:util';
+import {log} from './utils.js';
+import {exec as execCb} from 'child_process';
+import {promisify} from 'node:util';
 import fs from 'fs/promises';
 import path from 'path';
 import state from './state.js';
 import os from 'os';
-import { newResource } from './mcp-server.js';
+import {newResource} from './mcp-server.js';
 const exec = promisify(execCb);
 
 //Helper function to generate timestamp in YYMMDDHHMMSS format
@@ -49,7 +48,7 @@ export async function runCliCommand(command) {
 		let stdout = null;
 		try {
 			const response = await exec(command, {
-				maxBuffer: 100 * 1024 * 1024, cwd: config.workspacePath, windowsHide: true
+				maxBuffer: 100 * 1024 * 1024, cwd: state.workspacePath, windowsHide: true
 			});
 			stdout = response.stdout;
 		} catch (error) {
@@ -86,7 +85,7 @@ export async function executeSoqlQuery(query, useToolingApi = false) {
 
 		// Use the new callSalesforceApi function
 		const apiType = useToolingApi ? 'TOOLING' : 'REST';
-		const response = await callSalesforceApi('GET', apiType, '/query', null, { queryParams: { q: query } });
+		const response = await callSalesforceApi('GET', apiType, '/query', null, {queryParams: {q: query}});
 
 		// Validate response structure
 		if (!response || typeof response !== 'object') {
@@ -111,7 +110,7 @@ export async function executeSoqlQuery(query, useToolingApi = false) {
 export async function getOrgAndUserDetails(skipCache = false) {
 	try {
 		if (state?.org?.alias && !skipCache) {
-			log(`Org and user details already cached, skipping fetch`, 'debug');
+			log('Org and user details already cached, skipping fetch', 'debug');
 			return state.org;
 		}
 
@@ -119,7 +118,7 @@ export async function getOrgAndUserDetails(skipCache = false) {
 		let orgResult;
 		try {
 			orgResult = JSON.parse(orgResultString).result;
-		} catch (error) {
+		} catch {
 			throw new Error(`Error parsing JSON response: ${orgResultString}`);
 		}
 
@@ -376,11 +375,11 @@ export async function dmlOperation(operations, options = {}) {
 			};
 
 			log(`Final Tooling API payload: ${JSON.stringify(payload, null, 2)}`, 'debug');
-			log(`Executing batch DML operation via Tooling API Composite endpoint`, 'debug');
+			log('Executing batch DML operation via Tooling API Composite endpoint', 'debug');
 
 			// Use Tooling API Composite endpoint for batch operations
 			const result = await callSalesforceApi('POST', 'TOOLING', '/composite', payload);
-			log(`=== Tooling API Raw Response ===`, 'debug');
+			log('=== Tooling API Raw Response ===', 'debug');
 			log(`Response type: ${typeof result}`, 'debug');
 			log(`Response keys: ${result ? Object.keys(result).join(', ') : 'N/A'}`, 'debug');
 			log(`Full response: ${JSON.stringify(result, null, 2)}`, 'debug');
@@ -470,7 +469,7 @@ export async function dmlOperation(operations, options = {}) {
 				requestOperations.push({
 					type: 'Delete',
 					records: operations.delete.map(record => ({
-						fields: { Id: record.recordId }
+						fields: {Id: record.recordId}
 					}))
 				});
 			}
@@ -762,7 +761,7 @@ export async function describeObject(sObjectName) {
 		let response;
 		try {
 			response = JSON.parse(responseString);
-		} catch (error) {
+		} catch {
 			throw new Error(`Error parsing JSON response: ${responseString}`);
 		}
 
@@ -770,7 +769,7 @@ export async function describeObject(sObjectName) {
 
 	} catch (error) {
 		log(error, 'error', `Error describing object ${sObjectName}`);
-		 throw error;
+		throw error;
 	}
 }
 
@@ -798,7 +797,7 @@ export async function runApexTest(classNames = [], methodNames = [], suiteNames 
 		let responseObj;
 		try {
 			responseObj = JSON.parse(responseString);
-		} catch (error) {
+		} catch {
 			throw new Error(`Error parsing JSON response: ${responseString}`);
 		}
 
@@ -820,11 +819,11 @@ export async function getApexClassCodeCoverage(classNames = []) {
 		const requestedNames = Array.isArray(classNames) ? classNames : [classNames];
 		const filteredNames = requestedNames.filter(n => typeof n === 'string' && n.trim().length);
 		if (!filteredNames.length) {
-			return { success: true, classes: [] };
+			return {success: true, classes: []};
 		}
 
 		// Escape single quotes in names for SOQL
-		const escapedNames = filteredNames.map(n => `'${String(n).replace(/'/g, `\\'`)}'`).join(',');
+		const escapedNames = filteredNames.map(n => `'${String(n).replace(/'/g, '\\\'')}'`).join(',');
 
 		// Ensure all requested classes exist in the org (use Tooling API ApexClass)
 		const soqlExistingClasses = `SELECT Id, Name FROM ApexClass WHERE Name IN (${escapedNames})`;
@@ -883,13 +882,13 @@ export async function getApexClassCodeCoverage(classNames = []) {
 		// Only proceed with coverage queries if we have existing classes
 		if (existingNames.length > 0) {
 			// Include relationship Name explicitly in the SELECT
-			const soqlCoverageAggregates = `SELECT ApexClassOrTriggerId, ApexClassOrTrigger.Name, NumLinesCovered, NumLinesUncovered FROM ApexCodeCoverageAggregate WHERE ApexClassOrTrigger.Name IN (${existingNames.map(n => `'${n.replace(/'/g, `\\'`)}'`).join(',')})`;
+			const soqlCoverageAggregates = `SELECT ApexClassOrTriggerId, ApexClassOrTrigger.Name, NumLinesCovered, NumLinesUncovered FROM ApexCodeCoverageAggregate WHERE ApexClassOrTrigger.Name IN (${existingNames.map(n => `'${n.replace(/'/g, '\\\'')}'`).join(',')})`;
 			const responseCoverageAggregates = await executeSoqlQuery(soqlCoverageAggregates, true);
 			const coverageAggregates = responseCoverageAggregates?.records || [];
 			const aggregateByName = {};
 			for (const agg of coverageAggregates) {
 				const name = agg?.ApexClassOrTrigger?.Name;
-				if (name) aggregateByName[name] = agg;
+				if (name) { aggregateByName[name] = agg; }
 			}
 
 			// Update existing classes with coverage data
@@ -927,7 +926,7 @@ export async function getApexClassCodeCoverage(classNames = []) {
 				const coverages = responseCoverages?.records || [];
 				for (const cov of coverages) {
 					const entry = classesById[cov.ApexClassOrTriggerId];
-					if (!entry) continue;
+					if (!entry) { continue; }
 					const covCovered = cov.NumLinesCovered || 0;
 					const covUncovered = cov.NumLinesUncovered || 0;
 					const covTotal = covCovered + covUncovered;
@@ -955,8 +954,8 @@ export async function getApexClassCodeCoverage(classNames = []) {
 		// Compute summary and sort classes (worst coverage first, then missing classes)
 		classes.sort((a, b) => {
 			// Missing classes go to the end
-			if (a.coverageStatus === 'class not found' && b.coverageStatus !== 'class not found') return 1;
-			if (b.coverageStatus === 'class not found' && a.coverageStatus !== 'class not found') return -1;
+			if (a.coverageStatus === 'class not found' && b.coverageStatus !== 'class not found') { return 1; }
+			if (b.coverageStatus === 'class not found' && a.coverageStatus !== 'class not found') { return -1; }
 			// For existing classes, sort by coverage percentage
 			return a.percentage - b.percentage;
 		});
@@ -1004,7 +1003,7 @@ export async function executeAnonymousApex(apexCode) {
 	let tmpFile;
 	try {
 		//Assegura que la carpeta tmp existeix
-		await fs.mkdir(tmpDir, { recursive: true });
+		await fs.mkdir(tmpDir, {recursive: true});
 
 		//Get username from state or use 'unknown' as fallback
 		const username = state.org?.user?.name || 'unknown';
@@ -1024,7 +1023,7 @@ export async function executeAnonymousApex(apexCode) {
 			output = await runCliCommand(command);
 			try {
 				response = JSON.parse(output);
-			} catch (parseError) {
+			} catch {
 				throw new Error(`Error parsing JSON response: ${output}`);
 			}
 		} catch (cliErr) {
@@ -1091,62 +1090,62 @@ export async function deployMetadata(sourceDir) {
 	}
 }
 
-export async function generateMetadata({ type, name, outputDir, sobjectName, events = [] }) {
-    try {
-        if (!type || typeof type !== 'string') {
-            throw new Error('type is required and must be a string');
-        }
-        if (!name || typeof name !== 'string') {
-            throw new Error('name is required and must be a string');
-        }
+export async function generateMetadata({type, name, outputDir, sobjectName, events = []}) {
+	try {
+		if (!type || typeof type !== 'string') {
+			throw new Error('type is required and must be a string');
+		}
+		if (!name || typeof name !== 'string') {
+			throw new Error('name is required and must be a string');
+		}
 
-        const defaultDirs = {
-            apexClass: 'force-app/main/default/classes',
-            apexTestClass: 'force-app/main/default/classes',
-            apexTrigger: 'force-app/main/default/triggers',
-            lwc: 'force-app/main/default/lwc'
-        };
+		const defaultDirs = {
+			apexClass: 'force-app/main/default/classes',
+			apexTestClass: 'force-app/main/default/classes',
+			apexTrigger: 'force-app/main/default/triggers',
+			lwc: 'force-app/main/default/lwc'
+		};
 
-        const resolvedOutputDir = outputDir || defaultDirs[type];
-        let command;
+		const resolvedOutputDir = outputDir || defaultDirs[type];
+		let command;
 
-        if (type === 'apexClass' || type === 'apexTestClass') {
-            command = `sf apex generate class --name "${name}"`;
-            if (resolvedOutputDir) command += ` --output-dir "${resolvedOutputDir}"`;
-            // No template parameter from tool; we'll inject content later for test class
+		if (type === 'apexClass' || type === 'apexTestClass') {
+			command = `sf apex generate class --name "${name}"`;
+			if (resolvedOutputDir) { command += ` --output-dir "${resolvedOutputDir}"`; }
+			// No template parameter from tool; we'll inject content later for test class
 
-        } else if (type === 'apexTrigger') {
-            if (!sobjectName || typeof sobjectName !== 'string') {
-                throw new Error('sobjectName is required and must be a string when type is apexTrigger');
-            }
-            command = `sf apex generate trigger --name "${name}" --sobject "${sobjectName}"`;
-            if (Array.isArray(events) && events.length) command += ` --events ${events.join(',')}`;
-            if (resolvedOutputDir) command += ` --output-dir "${resolvedOutputDir}"`;
-            // templates not supported via tool anymore
+		} else if (type === 'apexTrigger') {
+			if (!sobjectName || typeof sobjectName !== 'string') {
+				throw new Error('sobjectName is required and must be a string when type is apexTrigger');
+			}
+			command = `sf apex generate trigger --name "${name}" --sobject "${sobjectName}"`;
+			if (Array.isArray(events) && events.length) { command += ` --events ${events.join(',')}`; }
+			if (resolvedOutputDir) { command += ` --output-dir "${resolvedOutputDir}"`; }
+			// templates not supported via tool anymore
 
-        } else if (type === 'lwc') {
-            command = `sf lightning generate component --type lwc --name "${name}"`;
-            if (resolvedOutputDir) command += ` --output-dir "${resolvedOutputDir}"`;
+		} else if (type === 'lwc') {
+			command = `sf lightning generate component --type lwc --name "${name}"`;
+			if (resolvedOutputDir) { command += ` --output-dir "${resolvedOutputDir}"`; }
 
-        } else {
-            throw new Error(`Unsupported type: ${type}`);
-        }
+		} else {
+			throw new Error(`Unsupported type: ${type}`);
+		}
 
-        const stdout = await runCliCommand(command);
+		const stdout = await runCliCommand(command);
 
-        const resolvedDir = path.resolve(config.workspacePath || process.cwd(), resolvedOutputDir || '.');
-        let files = [];
-        let folder = null;
+		const resolvedDir = path.resolve(state.workspacePath || process.cwd(), resolvedOutputDir || '.');
+		let files = [];
+		let folder = null;
 
-        if (type === 'apexClass' || type === 'apexTestClass') {
-            const classFilePath = path.join(resolvedDir, `${name}.cls`);
-            const metaFilePath = path.join(resolvedDir, `${name}.cls-meta.xml`);
-            try { await fs.access(classFilePath); files.push(classFilePath); } catch {}
-            try { await fs.access(metaFilePath); files.push(metaFilePath); } catch {}
+		if (type === 'apexClass' || type === 'apexTestClass') {
+			const classFilePath = path.join(resolvedDir, `${name}.cls`);
+			const metaFilePath = path.join(resolvedDir, `${name}.cls-meta.xml`);
+			try { await fs.access(classFilePath); files.push(classFilePath); } catch { /* File not accessible */ }
+			try { await fs.access(metaFilePath); files.push(metaFilePath); } catch { /* File not accessible */ }
 
-            // Overwrite content for Apex test classes with a fixed template
-            if (type === 'apexTestClass') {
-                const testClassContent = `@isTest
+			// Overwrite content for Apex test classes with a fixed template
+			if (type === 'apexTestClass') {
+				const testClassContent = `@isTest
 public class ${name} {
 
 	@isTest
@@ -1164,31 +1163,31 @@ public class ${name} {
 		}
 	}
 }`;
-                try {
-                    await fs.writeFile(classFilePath, testClassContent, 'utf8');
-                } catch {}
-            }
+				try {
+					await fs.writeFile(classFilePath, testClassContent, 'utf8');
+				} catch { /* Error writing file */ }
+			}
 
-        } else if (type === 'apexTrigger') {
-            const triggerFilePath = path.join(resolvedDir, `${name}.trigger`);
-            const metaFilePath = path.join(resolvedDir, `${name}.trigger-meta.xml`);
-            try { await fs.access(triggerFilePath); files.push(triggerFilePath); } catch {}
-            try { await fs.access(metaFilePath); files.push(metaFilePath); } catch {}
+		} else if (type === 'apexTrigger') {
+			const triggerFilePath = path.join(resolvedDir, `${name}.trigger`);
+			const metaFilePath = path.join(resolvedDir, `${name}.trigger-meta.xml`);
+			try { await fs.access(triggerFilePath); files.push(triggerFilePath); } catch { /* File not accessible */ }
+			try { await fs.access(metaFilePath); files.push(metaFilePath); } catch { /* File not accessible */ }
 
-        } else if (type === 'lwc') {
-            folder = path.join(resolvedDir, name);
-            try {
-                const entries = await fs.readdir(folder);
-                files = entries.map(f => path.join(folder, f));
-            } catch {}
-        }
+		} else if (type === 'lwc') {
+			folder = path.join(resolvedDir, name);
+			try {
+				const entries = await fs.readdir(folder);
+				files = entries.map(f => path.join(folder, f));
+			} catch { /* Error reading directory */ }
+		}
 
-        return { success: true, type, name, sobjectName, outputDir: resolvedDir, folder, files, stdout };
+		return {success: true, type, name, sobjectName, outputDir: resolvedDir, folder, files, stdout};
 
-    } catch (error) {
-        log(error, 'error', `Error generating metadata ${name} of type ${type}`);
-        throw error;
-    }
+	} catch (error) {
+		log(error, 'error', `Error generating metadata ${name} of type ${type}`);
+		throw error;
+	}
 }
 
 export async function callSalesforceApi(operation, apiType, service, body = null, options = {}) {

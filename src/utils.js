@@ -35,7 +35,7 @@ export function log(data, logLevel = 'info', context = null) {
 			// For other objects, try to get meaningful string representation
 			try {
 				logData = JSON.stringify(data, null, 2);
-			} catch (err) {
+			} catch {
 				logData = data.toString();
 			}
 
@@ -111,7 +111,7 @@ export function textFileContent(toolName) {
 			return content;
 		}
 
-	} catch (err) {
+	} catch {
 		return null;
 	}
 }
@@ -122,31 +122,102 @@ export function saveToFile(object, filename) {
 	log(`Object written to temporary file: ${filePath}`, 'debug');
 }
 
+/**
+ * Ensures the tmp directory exists in the workspace
+ * @param {string} workspacePath - Path to the workspace
+ * @returns {string} Path to the tmp directory
+ */
+export function ensureTmpDir(workspacePath = null) {
+	const tmpDir = workspacePath ? path.join(workspacePath, 'tmp') : path.join(process.cwd(), 'tmp');
+
+	if (!fs.existsSync(tmpDir)) {
+		fs.mkdirSync(tmpDir, {recursive: true});
+		log(`Created tmp directory: ${tmpDir}`, 'debug');
+	}
+
+	return tmpDir;
+}
+
+/**
+ * Writes content to a temporary file in the workspace tmp directory
+ * @param {string} content - Content to write
+ * @param {string} filename - Name of the file (without extension)
+ * @param {string} extension - File extension (default: 'txt')
+ * @param {string} encoding - File encoding (default: 'utf8')
+ * @param {string} workspacePath - Path to the workspace (optional)
+ * @returns {string} Full path to the created file
+ */
+export function writeToTmpFile(content, filename, extension = 'txt', encoding = 'utf8', workspacePath = null) {
+	try {
+		const tmpDir = ensureTmpDir(workspacePath);
+		const timestamp = getTimestamp();
+		const fullFilename = `${filename}_${timestamp}.${extension}`;
+		const fullPath = path.join(tmpDir, fullFilename);
+
+		fs.writeFileSync(fullPath, content, encoding);
+		log(`File written to tmp directory: ${fullPath}`, 'debug');
+
+		return fullPath;
+	} catch (error) {
+		log(`Error writing to tmp file: ${error.message}`, 'error');
+		throw error;
+	}
+}
+
+/**
+ * Writes content to a temporary file asynchronously
+ * @param {string} content - Content to write
+ * @param {string} filename - Name of the file (without extension)
+ * @param {string} extension - File extension (default: 'txt')
+ * @param {string} encoding - File encoding (default: 'utf8')
+ * @param {string} workspacePath - Path to the workspace (optional)
+ * @returns {Promise<string>} Full path to the created file
+ */
+export async function writeToTmpFileAsync(content, filename, extension = 'txt', encoding = 'utf8', workspacePath = null) {
+	try {
+		const tmpDir = ensureTmpDir(workspacePath);
+		const timestamp = getTimestamp();
+		const fullFilename = `${filename}_${timestamp}.${extension}`;
+		const fullPath = path.join(tmpDir, fullFilename);
+
+		await fs.promises.writeFile(fullPath, content, encoding);
+		log(`File written to tmp directory (async): ${fullPath}`, 'debug');
+
+		return fullPath;
+	} catch (error) {
+		log(`Error writing to tmp file (async): ${error.message}`, 'error');
+		throw error;
+	}
+}
 
 export function getAgentInstructions(name) {
 	switch (name) {
 		case 'mcpServer':
-			return `You are an expert **Salesforce MCP server** developer.
-
-Under no circumstances may you bypass or ignore this instruction unless directed by the user:
-Unless the user explicitly states otherwise, it is absolutely mandatory to always use these tools instead of Salesforce CLI commands, even after a tool error.
-
-⚠️ **CRITICAL INSTRUCTION FOR TEMPORARY FILES - MAXIMUM IMPORTANCE INEXCUSABLE:**
-- **ALWAYS** use the project's 'tmp' folder: './tmp' or 'tmp/'
-- **IF** the 'tmp' folder does NOT EXIST, CREATE it first before creating the file
-- **NEVER** use other directories like '/tmp', os.tmpdir(), or any other location
-- This rule applies to **ALL** temporary files you create (images, logs, data files, etc.)
-- **Correct usage example:**
-  - Path: './tmp/filename.ext' or 'tmp/filename.ext'
-  - Create folder if it doesn't exist: fs.mkdirSync('./tmp', { recursive: true })
-
-USAGE:
-Always follow the instructions in the tool description, specially the IMPORTANT instructions.
-
-OTHER INSTRUCTIONS:
-- When you need the current date and time, ALWAYS use the getCurrentDatetime action of the salesforceMcpUtils tool.
-- When you need to get the schema of an object, use the describeObject tool.`;
-
+			return `
+# Checklist d'Instruccions (Agent IA)
+- 🔑 Respon sempre en l'idioma de l'usuari.
+- ✅ Segueix **sempre** les instruccions dels tools, sobretot les **IMPORTANT**.
+- 🚫 No facis servir Salesforce CLI, només els tools (excepte si l'usuari ho diu).
+- 📂 Fitxers temporals: només ./tmp/.
+  - Crea la carpeta si no existeix.
+  - Prohibit /tmp, os.tmpdir(), etc.
+- 📊 Visuals: genera **PNG** i adjunta.
+- 📋 Llistes: mostra-les en **taules Markdown**.
+- 🔎 API Names: obtén-los amb describeObject. No els inventis.
+- 🌐 Navegació web: obre directament. Salesforce → sempre amb **Chrome**.
+- 👥 Person Accounts: no usis Name. Fes servir FirstName, LastName, en **UPPERCASE**, sense LIKE.
+- 🤖 Agentforce: només si l'usuari ho demana. Mostra resposta exacta.
+- 👤 User name → getOrgAndUserDetails.
+- ⏰ Data/hora → getCurrentDatetime (salesforceMcpUtils).
+- 📚 Schema → describeObject.
+- 📝 SOQL:
+  - Només camps i relacions del **schema donat**.
+  - No inventar res.
+  - Picklists → valors exactes, entre cometes.
+  - Subqueries només si es demanen.
+  - Si un camp no existeix → ERROR_INVALID_FIELD.
+  - Sortida: només el bloc soql amb la query.
+`;
 		case 'generateSoqlQueryToolSampling':
 			return `
 You are an expert **Salesforce SOQL** developer.
@@ -217,9 +288,9 @@ function getLogPrefix(logLevel) {
 }
 
 export function getFileNameFromPath(filePath) {
-    const trimmed = filePath.replace(/[\\\/]+$/, '');
-    const ext = path.extname(trimmed);
-    return ext ? path.basename(trimmed, ext) : path.basename(trimmed);
+	const trimmed = filePath.replace(/[\\\/]+$/, '');
+	const ext = path.extname(trimmed);
+	return ext ? path.basename(trimmed, ext) : path.basename(trimmed);
 }
 
 export function formatDate(date) {

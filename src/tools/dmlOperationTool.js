@@ -1,9 +1,9 @@
 import state from '../state.js';
-import { log, textFileContent } from '../utils.js';
-import { dmlOperation } from '../salesforceServices.js';
-import { mcpServer } from '../mcp-server.js';
+import {log, textFileContent} from '../utils.js';
+import {dmlOperation} from '../salesforceServices.js';
+import {mcpServer} from '../mcp-server.js';
 import client from '../client.js';
-import { z } from 'zod';
+import {z} from 'zod';
 
 export const dmlOperationToolDefinition = {
 	name: 'dmlOperation',
@@ -28,7 +28,7 @@ export const dmlOperationToolDefinition = {
 				sObjectName: z.string().describe('The SObject type for the record to delete'),
 				recordId: z.string().describe('The ID of the record to delete')
 			}))
-				.optional().describe('Array of records to delete'),
+				.optional().describe('Array of records to delete')
 		})
 			.describe('DML operations to perform'),
 		options: z.object({
@@ -50,7 +50,7 @@ export const dmlOperationToolDefinition = {
 	}
 };
 
-export async function dmlOperationTool({ operations, options = {} }) {
+export async function dmlOperationTool({operations, options = {}}) {
 	try {
 		// Check for destructive operations and require confirmation if needed
 		if (options.bypassUserConfirmation !== true
@@ -62,18 +62,18 @@ export async function dmlOperationTool({ operations, options = {} }) {
 			const elicitResult = await mcpServer.server.elicitInput({
 				message: `Please confirm the operation in ${state.org.alias}. The request includes ${deleteCount} delete(s) and ${updateCount} update(s).`,
 				requestedSchema: {
-					type: "object",
+					type: 'object',
 					title: `Confirm DML operations in ${state.org.alias}?`,
 					properties: {
 						confirm: {
-							type: "string",
-							enum: ["Yes", "No"],
-							enumNames: ["✅ Execute DML operations now", "❌ Cancel DML operations"],
+							type: 'string',
+							enum: ['Yes', 'No'],
+							enumNames: ['✅ Execute DML operations now', '❌ Cancel DML operations'],
 							description: `Execute DML operations in ${state.org.alias}?`,
-							default: "No"
+							default: 'No'
 						}
 					},
-					required: ["confirm"]
+					required: ['confirm']
 				}
 			});
 
@@ -83,7 +83,7 @@ export async function dmlOperationTool({ operations, options = {} }) {
 						type: 'text',
 						text: 'User has cancelled the operations'
 					}],
-					structuredContent: { cancelled: true, reason: 'user_cancelled' }
+					structuredContent: {cancelled: true, reason: 'user_cancelled'}
 				};
 			}
 		}
