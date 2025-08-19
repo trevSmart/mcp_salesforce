@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Constants
+const TEST_ORG_ALIAS = 'DEVSERVICE'; // Canvia aquest valor per l'àlies de la teva org de test
 
 // Colors for console output
 const COLORS = {
@@ -238,11 +241,69 @@ class MCPClient {
     }
 }
 
+// Org management utilities
+class OrgManager {
+    static getCurrentOrg() {
+        try {
+            const result = execSync('sf config get target-org --json', { encoding: 'utf8' }).result.alias || '';
+            const config = JSON.parse(result);
+            return config.result?.value || null;
+        } catch (error) {
+            console.error(`${COLORS.red}Error getting current org:${COLORS.reset}`, error.message);
+            return null;
+        }
+    }
+
+    static setTargetOrg(alias) {
+        try {
+            execSync(`sf config set target-org "${alias}" --global`, { encoding: 'utf8' });
+            console.log(`${COLORS.green}✓ Switched to org: ${alias}${COLORS.reset}`);
+            return true;
+        } catch (error) {
+            console.error(`${COLORS.red}Error switching to org ${alias}:${COLORS.reset}`, error.message);
+            return false;
+        }
+    }
+
+    static async ensureTestOrg() {
+        const currentOrg = this.getCurrentOrg();
+        console.log(`${COLORS.blue}Current org: ${currentOrg || 'none'}${COLORS.reset}`);
+        console.log(`${COLORS.blue}Test org: ${TEST_ORG_ALIAS}${COLORS.reset}`);
+
+        if (currentOrg === TEST_ORG_ALIAS) {
+            console.log(`${COLORS.green}✓ Already in test org${COLORS.reset}`);
+            return null; // No need to restore
+        }
+
+        console.log(`${COLORS.yellow}Switching to test org...${COLORS.reset}`);
+        if (this.setTargetOrg(TEST_ORG_ALIAS)) {
+            return currentOrg; // Return original org to restore later
+        } else {
+            throw new Error(`Failed to switch to test org: ${TEST_ORG_ALIAS}`);
+        }
+    }
+
+    static restoreOriginalOrg(originalOrg) {
+        if (!originalOrg) {
+            console.log(`${COLORS.blue}No original org to restore${COLORS.reset}`);
+            return;
+        }
+
+        console.log(`${COLORS.yellow}Restoring original org: ${originalOrg}${COLORS.reset}`);
+        if (this.setTargetOrg(originalOrg)) {
+            console.log(`${COLORS.green}✓ Restored original org${COLORS.reset}`);
+        } else {
+            console.error(`${COLORS.red}Failed to restore original org${COLORS.reset}`);
+        }
+    }
+}
+
 // Test runner
 class MCPTestRunner {
     constructor() {
         this.client = new MCPClient();
         this.testResults = [];
+        this.originalOrg = null;
     }
 
     async runTest(name, testFunction) {
@@ -280,6 +341,10 @@ class MCPTestRunner {
     async runAllTests() {
 
         try {
+            // Ensure we're in the test org
+            console.log(`${COLORS.orange}Managing Salesforce org...${COLORS.reset}`);
+            this.originalOrg = await OrgManager.ensureTestOrg();
+
             // Start server
             console.log(`${COLORS.bright}Starting MCP Client Tests${COLORS.reset}\n\n`);
             await this.client.startServer();
@@ -409,6 +474,12 @@ class MCPTestRunner {
         } finally {
             // Stop server
             await this.client.stopServer();
+
+            // Restore original org
+            if (this.originalOrg) {
+                console.log(`${COLORS.orange}Restoring Salesforce org...${COLORS.reset}`);
+                OrgManager.restoreOriginalOrg(this.originalOrg);
+            }
         }
 
         // Print summary

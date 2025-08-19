@@ -2,12 +2,43 @@
 A Model Context Protocol (MCP) server that provides Salesforce org context to your IDE AI agent
 
 ### Key features
-Pending...
+- **Salesforce Integration**: Seamless connection to Salesforce orgs for AI-powered development
+- **MCP Protocol**: Built on the Model Context Protocol for IDE integration
+- **Automated Code Review**: GitHub Actions workflows for continuous code quality
+- **Security Scanning**: Automated vulnerability detection and dependency management
+- **Code Quality**: ESLint integration with comprehensive rule sets
 
 ### Requirements
-- Node.js v18 or newer
+- Node.js v22.7.5 or newer
 - Salesforce CLI connected to an org (only for internal testing)
 - VS Code, Cursor, Windsurf, Claude Desktop or any other IDE supporting MCP
+
+### 🚀 Automated Code Review System
+
+This project includes a comprehensive automated code review system powered by GitHub Actions:
+
+#### **Pull Request Workflows**
+- **Automated Checks**: Runs on every PR with linting, testing, and security scans
+- **Code Quality Analysis**: ESLint integration with detailed reporting
+- **Security Audits**: Automated vulnerability detection and dependency scanning
+- **Multi-Node Testing**: Ensures compatibility across Node.js versions
+
+#### **Code Review Features**
+- **Automated Feedback**: Bot comments with detailed analysis and recommendations
+- **Quality Metrics**: Code complexity, maintainability, and best practices checks
+- **Issue Templates**: Standardized reporting for bugs, features, and code quality issues
+- **Pull Request Templates**: Structured PR submissions with comprehensive checklists
+
+#### **Security & Monitoring**
+- **CodeQL Analysis**: Advanced security scanning for JavaScript vulnerabilities
+- **Dependabot Integration**: Automated dependency updates with security focus
+- **Scheduled Health Checks**: Weekly automated code quality assessments
+- **Vulnerability Reporting**: Automatic issue creation for security concerns
+
+#### **Workflow Triggers**
+- Pull requests and pushes to main branches
+- Weekly scheduled health checks
+- Manual workflow triggering for on-demand analysis
 
 ### Getting started
 

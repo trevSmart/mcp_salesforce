@@ -11,9 +11,13 @@ export const describeObjectToolDefinition = {
 		sObjectName: z
 			.string()
 			.describe('The name of the SObject to describe'),
-		excludeFields: z
+		includeFields: z
 			.boolean()
-			.describe('If true, excludes fields from the response (faster processing, smaller response). If false, includes all data including fields.')
+			.describe('If true, includes fields in the response. If false, excludes fields for faster processing and smaller response.')
+			.default(true),
+		includePicklistValues: z
+			.boolean()
+			.describe('If true, includes picklist values for picklist and multipicklist fields. If false, only field metadata is returned.')
 			.default(false)
 	},
 	annotations: {
@@ -24,7 +28,7 @@ export const describeObjectToolDefinition = {
 	}
 };
 
-export async function describeObjectTool({sObjectName, excludeFields = false}) {
+export async function describeObjectTool({sObjectName, includeFields = true, includePicklistValues = false}) {
 	try {
 		const resourceName = 'mcp://mcp/sobject-ui-schema-' + sObjectName.toLowerCase() + '.json';
 
@@ -34,7 +38,7 @@ export async function describeObjectTool({sObjectName, excludeFields = false}) {
 			const cached = JSON.parse(resources[resourceName].text);
 
 			// Apply filtering to cached data
-			const filteredData = applyFiltering(cached, excludeFields);
+			const filteredData = applyFiltering(cached, includeFields, includePicklistValues);
 
 			return {
 				content: [{
@@ -53,10 +57,10 @@ export async function describeObjectTool({sObjectName, excludeFields = false}) {
 		}
 
 		// Transform UI API response to match our expected format
-		const transformedData = transformUIApiResponse(response, 'all'); // Always get all data
+		const transformedData = transformUIApiResponse(response, 'all', includePicklistValues); // Pass includePicklistValues
 
 		// Apply filtering
-		const filteredData = applyFiltering(transformedData, excludeFields);
+		const filteredData = applyFiltering(transformedData, includeFields, includePicklistValues);
 
 		// Cache the result (always cache the full data)
 		newResource(
@@ -90,12 +94,20 @@ export async function describeObjectTool({sObjectName, excludeFields = false}) {
 	}
 }
 
-function applyFiltering(data, excludeFields) {
-	if (!excludeFields) {
-		return data; // Include everything
+function applyFiltering(data, includeFields, includePicklistValues) {
+	if (includeFields) {
+		// Include everything including fields
+		const result = {...data};
+
+		// If includePicklistValues is true, ensure picklist values are included
+		if (includePicklistValues && result.fields) {
+			result.fields = transformFields(result.fields, includePicklistValues);
+		}
+
+		return result;
 	}
 
-	// Exclude fields when excludeFields is true
+	// Exclude fields when includeFields is false
 	const result = {
 		name: data.name,
 		label: data.label,
@@ -110,13 +122,19 @@ function applyFiltering(data, excludeFields) {
 		// Include record types and relationships (lightweight)
 		recordTypeInfos: data.recordTypeInfos || [],
 		childRelationships: data.childRelationships || []
-		// Fields are excluded when excludeFields is true
+		// Fields are excluded when includeFields is false
 	};
+
+	// If includePicklistValues is true, we need to include fields to get picklist values
+	// This overrides the includeFields behavior for picklist values
+	if (includePicklistValues && data.fields) {
+		result.fields = transformFields(data.fields, includePicklistValues);
+	}
 
 	return result;
 }
 
-function transformUIApiResponse(uiApiResponse, include) {
+function transformUIApiResponse(uiApiResponse, include, includePicklistValues) {
 	const result = {
 		name: uiApiResponse.apiName,
 		label: uiApiResponse.label || '',
@@ -132,7 +150,7 @@ function transformUIApiResponse(uiApiResponse, include) {
 
 	// Include fields if requested
 	if (include === 'fields' || include === 'all') {
-		result.fields = transformFields(uiApiResponse.fields || {});
+		result.fields = transformFields(uiApiResponse.fields || {}, includePicklistValues);
 	}
 
 	// Include record types if requested
@@ -148,7 +166,7 @@ function transformUIApiResponse(uiApiResponse, include) {
 	return result;
 }
 
-function transformFields(uiFields) {
+function transformFields(uiFields, includePicklistValues) {
 	const transformedFields = [];
 
 	for (const [fieldName, fieldInfo] of Object.entries(uiFields)) {
@@ -164,6 +182,11 @@ function transformFields(uiFields) {
 			unique: fieldInfo.unique || false,
 			externalId: fieldInfo.externalId || false
 		};
+
+		// Include picklist values if requested
+		if (includePicklistValues && (fieldInfo.dataType === 'Picklist' || fieldInfo.dataType === 'MultiselectPicklist')) {
+			transformedField.picklistValues = transformPicklistValues(fieldInfo.picklistValues || []);
+		}
 
 		transformedFields.push(transformedField);
 	}
@@ -228,4 +251,28 @@ function extractReferenceTo(fieldInfo) {
 	}
 
 	return fieldInfo.referenceToInfos.map(ref => ref.apiName);
+}
+
+function transformPicklistValues(uiPicklistValues) {
+	const transformedValues = [];
+
+	// UI API returns picklist values as an array of objects with 'value' and 'label' properties
+	if (Array.isArray(uiPicklistValues)) {
+		for (const picklistValue of uiPicklistValues) {
+			transformedValues.push({
+				value: picklistValue.value || '',
+				label: picklistValue.label || picklistValue.value || ''
+			});
+		}
+	} else if (typeof uiPicklistValues === 'object' && uiPicklistValues !== null) {
+		// Fallback: if it's an object, try to extract values
+		for (const [value, label] of Object.entries(uiPicklistValues)) {
+			transformedValues.push({
+				value: value,
+				label: label || value
+			});
+		}
+	}
+
+	return transformedValues;
 }
