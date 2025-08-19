@@ -21,7 +21,6 @@
     "research"
   ],
   "author": "Trevor Smart",
-  "license": "EUPL-1.2",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.3",
     "zod": "^3.24.2",
