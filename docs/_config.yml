@@ -4,7 +4,7 @@
 # Site settings
 title: Salesforce MCP
 description: Model Context Protocol Server for Salesforce Integration
-url: "https://your-username.github.io"
+url: "https://trevsmart.github.io"
 baseurl: "/mcp_salesforce"
 
 # Build settings
