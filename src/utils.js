@@ -416,7 +416,7 @@ function getLogPrefix(logLevel) {
  * @returns {string} File name without extension
  */
 export function getFileNameFromPath(filePath) {
-	const trimmed = filePath.replace(/[\\\/]+$/, '');
+	const trimmed = filePath.replace(/[\\/]+$/, '');
 	const ext = path.extname(trimmed);
 	return ext ? path.basename(trimmed, ext) : path.basename(trimmed);
 }

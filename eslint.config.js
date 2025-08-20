@@ -32,7 +32,7 @@ export default [
 	// Main rules
 	{
 		rules: {
-			'no-console': 'error',
+			'no-console': ['error', {allow: ['error']}],
 			'no-debugger': 'warn',
 			'no-dupe-args': 'error',
 			'no-dupe-keys': 'error',
@@ -99,5 +99,20 @@ export default [
 				'ignoreStrings': true
 			}]
 		}
+	},
+
+	// Ignore patterns for non-JavaScript files and directories
+	{
+		ignores: [
+			'venv/**',
+			'node_modules/**',
+			'notebooks/**',
+			'*.py',
+			'*.pyc',
+			'__pycache__/**',
+			'.venv/**',
+			'env/**',
+			'.env/**'
+		]
 	}
 ];
