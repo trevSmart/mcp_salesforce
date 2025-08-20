@@ -9,7 +9,7 @@ A Model Context Protocol (MCP) server that provides Salesforce org context to yo
 - **Code Quality**: ESLint integration with comprehensive rule sets
 
 ### Requirements
-- Node.js v22.7.5 or newer
+- Node.js v22.7.0 or newer
 - Salesforce CLI connected to an org (only for internal testing)
 - VS Code, Cursor, Windsurf, Claude Desktop or any other IDE supporting MCP
 
