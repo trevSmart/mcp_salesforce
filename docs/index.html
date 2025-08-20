@@ -29,7 +29,7 @@
 
 <body class="leading-normal tracking-normal text-white gradient" style="font-family: 'Source Sans Pro', sans-serif;">
 	<!--Nav-->
-	<nav id="header" class="fixed w-full z-30 top-0 text-header-custom">
+	<nav id="header" class="fixed w-full z-30 top-0 text-white">
 		<div class="w-full container mx-auto flex flex-wrap items-center justify-end mt-0 py-2">
 			<div class="w-full flex-grow lg:flex lg:items-center lg:w-auto hidden mt-2 lg:mt-0 bg-white lg:bg-transparent text-black p-4 lg:p-0 z-20" id="nav-content">
 				<ul class="list-reset lg:flex justify-end flex-1 items-center">
@@ -332,7 +332,7 @@
 				navaction.classList.add("text-white");
 				for (var i = 0; i < toToggle.length; i++) {
 					toToggle[i].classList.add("text-gray-800");
-					toToggle[i].classList.remove("text-header-custom");
+					toToggle[i].classList.remove("text-white");
 				}
 				header.classList.add("shadow");
 				navcontent.classList.remove("bg-gray-100");
@@ -344,7 +344,7 @@
 				navaction.classList.remove("text-white");
 				navaction.classList.add("text-gray-800");
 				for (var i = 0; i < toToggle.length; i++) {
-					toToggle[i].classList.add("text-header-custom");
+					toToggle[i].classList.add("text-white");
 					toToggle[i].classList.remove("text-gray-800");
 				}
 
