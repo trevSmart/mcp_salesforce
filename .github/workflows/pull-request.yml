@@ -35,33 +35,37 @@ jobs:
         # Check if code is properly formatted
         npm run lint --
 
-  # test:
-  #   runs-on: ubuntu-latest
+  test:
+    runs-on: ubuntu-latest
 
-  #   strategy:
-  #     matrix:
-  #       node-version: [22.17.1]
+    strategy:
+      matrix:
+        node-version: [22.17.1]
 
-  #   steps:
-  #   - name: Checkout code
-  #     uses: actions/checkout@v4
+    steps:
+    - name: Install Salesforce CLI
+      run: |
+        echo "Tests steps disabled"
 
-  #   - name: Setup Node.js ${{ matrix.node-version }}
-  #     uses: actions/setup-node@v4
-  #     with:
-  #       node-version: ${{ matrix.node-version }}
-  #       cache: 'npm'
+    # - name: Checkout code
+    #   uses: actions/checkout@v4
 
-  #   - name: Install Salesforce CLI
-  #     run: |
-  #       npm install --global @salesforce/cli
-  #       sf --version
+    # - name: Setup Node.js ${{ matrix.node-version }}
+    #   uses: actions/setup-node@v4
+    #   with:
+    #     node-version: ${{ matrix.node-version }}
+    #     cache: 'npm'
 
-  #   - name: Install dependencies
-  #     run: npm ci
+    # - name: Install Salesforce CLI
+    #   run: |
+    #     npm install --global @salesforce/cli
+    #     sf --version
 
-  #   - name: Run tests
-  #     run: npm test
+    # - name: Install dependencies
+    #   run: npm ci
+
+    # - name: Run tests
+    #   run: npm test
 
   security:
     runs-on: ubuntu-latest
