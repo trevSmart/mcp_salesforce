@@ -218,6 +218,7 @@ body::before {
 .text-blue-200 { color: #bfdbfe; }
 
 .bg-white { background-color: white; }
+.centre.bg-white { background-color: #ffffff99; }
 .bg-gray-100 { background-color: #f3f4f6; }
 .bg-gray-800 { background-color: #1f2937; }
 
