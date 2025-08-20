@@ -28,7 +28,7 @@ jobs:
       id: eslint
       run: |
         echo "Running ESLint analysis..."
-        npm run lint -- --format=unix --max-warnings=0 > eslint-report.txt 2>&1 || true
+        npm run lint -- --max-warnings=0 > eslint-report.txt 2>&1 || true
         echo "ESLint analysis completed"
 
     - name: Check code complexity
