@@ -14,8 +14,8 @@
 			"presentation": {
 				"showReuseMessage": false,
 				"close": false,
-				"panel": "new",
-				"focus": true
+				"panel": "dedicated",
+				"focus": false
 			}
 		},
 		{

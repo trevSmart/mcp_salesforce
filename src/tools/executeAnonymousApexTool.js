@@ -1,10 +1,9 @@
 import state from '../state.js';
-import {log, textFileContent, getTimestamp, writeToTmpFileAsync, ensureTmpDir} from '../utils.js';
+import {log, textFileContent, getTimestamp, writeToTmpFileAsync} from '../utils.js';
 import {executeAnonymousApex} from '../salesforceServices.js';
 import {mcpServer, newResource} from '../mcp-server.js';
 import client from '../client.js';
 import {z} from 'zod';
-import path from 'path';
 
 export const executeAnonymousApexToolDefinition = {
 	name: 'executeAnonymousApex',
@@ -83,7 +82,7 @@ export async function executeAnonymousApexTool({apexCode, mayModify}) {
 		//Use the same naming format as the main execution
 		const username = state.org?.user?.name || 'unknown';
 
-		const logPath = await writeToTmpFileAsync(result.logs, 'ApexRun', 'log', 'utf8', state.workspacePath);
+		// const logPath = await writeToTmpFileAsync(result.logs, 'ApexRun', 'log', 'utf8', state.workspacePath);
 		const logSize = (Buffer.byteLength(result.logs, 'utf8') / 1024).toFixed(1);
 
 		if (client.supportsCapability('embeddedResources') && result?.logs) {

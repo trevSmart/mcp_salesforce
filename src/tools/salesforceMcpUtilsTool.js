@@ -249,7 +249,7 @@ Return only the tool name or "Unknown" without any explanation.`;
 						return {
 							content: [{
 								type: 'text',
-								text: `Issue ${issueId} successfully created`
+								text: `Issue ${result.issueId} successfully created`
 							}],
 							structuredContent: result
 						};

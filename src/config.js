@@ -4,6 +4,10 @@ const pkg = require('../package.json');
 
 import {getAgentInstructions} from './utils.js';
 
+/**
+ * Configuration object for the MCP server
+ * @module config
+ */
 export default {
 	logPrefix: '👁🐝Ⓜ️',
 	SERVER_CONSTANTS: {

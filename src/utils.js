@@ -8,6 +8,12 @@ import client from './client.js';
 import {executeSoqlQuery} from './salesforceServices.js';
 import state from './state.js';
 
+/**
+ * Logs data with specified level and context
+ * @param {any} data - Data to log (string, object, or Error)
+ * @param {string} logLevel - Log level (emergency, alert, critical, error, warning, notice, info, debug)
+ * @param {string|null} context - Optional context information
+ */
 export function log(data, logLevel = 'info', context = null) {
 	try {
 		const LEVEL_PRIORITIES = {emergency: 0, alert: 1, critical: 2, error: 3, warning: 4, notice: 5, info: 6, debug: 7};
@@ -30,17 +36,27 @@ export function log(data, logLevel = 'info', context = null) {
 		if (data instanceof Error) {
 			const errorMessage = context ? `${context}: ${data.message}` : data.message;
 			logData = `${errorMessage}\nStack: ${data.stack}`;
-
-		} else if (typeof data === 'object') {
-			// For other objects, try to get meaningful string representation
-			try {
-				logData = JSON.stringify(data, null, 2);
-			} catch {
-				logData = data.toString();
+		} else {
+			// Add context prefix to any type of log if available
+			if (context) {
+				if (typeof data === 'string') {
+					logData = `${context}: ${data}`;
+				} else {
+					// For non-string data, we'll add context after conversion to string
+					logData = `${context}: ${logData}`;
+				}
 			}
 
-		} else if (typeof data === 'string') {
-			logData = data;
+			if (typeof data === 'object') {
+				// For other objects, try to get meaningful string representation
+				try {
+					logData = JSON.stringify(data, null, 2);
+				} catch {
+					logData = data.toString();
+				}
+			} else if (typeof data === 'string') {
+				logData = data;
+			}
 		}
 
 		// Truncate if too long
@@ -67,6 +83,11 @@ export function log(data, logLevel = 'info', context = null) {
 	}
 }
 
+/**
+ * Validates if the user has the required permissions
+ * @param {string} username - The username to validate
+ * @returns {Promise<void>}
+ */
 export async function validateUserPermissions(username) {
 	const query = await executeSoqlQuery(`SELECT Id FROM PermissionSetAssignment WHERE Assignee.Username = '${username}' AND PermissionSet.Name = 'IBM_SalesforceMcpUser'`);
 	if (query?.records?.length) {
@@ -89,6 +110,11 @@ export function notifyProgressChange(progressToken, total, progress, message) {
 }
 */
 
+/**
+ * Reads content from a tool's description file (.md or .b64)
+ * @param {string} toolName - Name of the tool
+ * @returns {string|null} Content of the file or null if not found
+ */
 export function textFileContent(toolName) {
 	try {
 		//Calcular __dirname localment dins la funció
@@ -116,6 +142,88 @@ export function textFileContent(toolName) {
 	}
 }
 
+/**
+ * Unified function to write files with consolidated functionality
+ * @param {string|object} file - Either a full file path or filename (without extension)
+ * @param {string|object} data - Content to write (string or object to be JSON.stringify'd)
+ * @param {object} options - Configuration options
+ * @param {boolean} options.async - Whether to write asynchronously (default: false)
+ * @param {string} options.extension - File extension (default: 'json' if object, 'txt' if string)
+ * @param {string} options.encoding - File encoding (default: 'utf8')
+ * @param {string} options.workspacePath - Workspace path for tmp directory (optional)
+ * @returns {string|Promise<string>} Full path to the created file (Promise if async=true)
+ */
+export function writeToFile(file, data, options = {}) {
+	const {
+		async = false,
+		extension,
+		encoding = 'utf8',
+		workspacePath = null
+	} = options;
+
+	try {
+		// Determine if file is a full path or just filename
+		const isFullPath = file.includes('/') || file.includes('\\') || file.includes(path.sep);
+		let fullPath;
+
+		if (isFullPath) {
+			// File is a full path
+			fullPath = file;
+			// Ensure directory exists
+			const dir = path.dirname(fullPath);
+			if (!fs.existsSync(dir)) {
+				fs.mkdirSync(dir, {recursive: true});
+				log(`Created directory: ${dir}`, 'debug');
+			}
+		} else {
+			// File is just a filename, use tmp directory
+			const tmpDir = ensureTmpDir(workspacePath);
+			const timestamp = getTimestamp();
+
+			// Determine extension based on content type if not provided
+			let finalExtension = extension;
+			if (!finalExtension) {
+				finalExtension = typeof data === 'object' ? 'json' : 'txt';
+			}
+
+			const fullFilename = `${file}_${timestamp}.${finalExtension}`;
+			fullPath = path.join(tmpDir, fullFilename);
+		}
+
+		// Prepare content
+		let content;
+		if (typeof data === 'object' && !Buffer.isBuffer(data)) {
+			content = JSON.stringify(data, null, 3);
+		} else {
+			content = data;
+		}
+
+		// Write file
+		if (async) {
+			return fs.promises.writeFile(fullPath, content, encoding).then(() => {
+				log(`File written to: ${fullPath}`, 'debug');
+				return fullPath;
+			}).catch(error => {
+				log(`Error writing to file: ${error.message}`, 'error');
+				throw error;
+			});
+		} else {
+			fs.writeFileSync(fullPath, content, encoding);
+			log(`File written to: ${fullPath}`, 'debug');
+			return fullPath;
+		}
+
+	} catch (error) {
+		log(`Error writing to file: ${error.message}`, 'error');
+		throw error;
+	}
+}
+
+/**
+ * Saves an object to a temporary JSON file
+ * @param {object} object - Object to save
+ * @param {string} filename - Base name for the file (without extension)
+ */
 export function saveToFile(object, filename) {
 	const filePath = path.join(os.tmpdir(), `${filename}_${Date.now()}.json`);
 	fs.writeFileSync(filePath, JSON.stringify(object, null, 3), 'utf8');
@@ -190,6 +298,11 @@ export async function writeToTmpFileAsync(content, filename, extension = 'txt', 
 	}
 }
 
+/**
+ * Returns predefined instructions for different agent types
+ * @param {string} name - Name of the agent type
+ * @returns {string} Instructions text
+ */
 export function getAgentInstructions(name) {
 	switch (name) {
 		case 'mcpServer':
@@ -258,6 +371,11 @@ If any check fails, respond with **ERROR_INVALID_FIELD** instead of a query.
 	}
 }
 
+/**
+ * Generates a timestamp string
+ * @param {boolean} long - Whether to use long format (DD-MM-YY, HH:MM:SS) instead of compact format (YYMMDDHHMMSS)
+ * @returns {string} Formatted timestamp
+ */
 export function getTimestamp(long = false) {
 	const now = new Date();
 	const year = String(now.getFullYear()).slice(-2); //Get last 2 digits of year
@@ -273,6 +391,12 @@ export function getTimestamp(long = false) {
 	}
 }
 
+/**
+ * Generates a prefix for log messages with emoji based on log level
+ * @param {string} logLevel - Log level (emergency, alert, critical, error, warning, notice, info, debug)
+ * @returns {string} Formatted log prefix
+ * @private
+ */
 function getLogPrefix(logLevel) {
 	const logLevelEmojis = {
 		emergency: '🔥', alert: '⛔️', critical: '❗️', error: '❌', warning: '⚠️', notice: '✉️', info: '💡', debug: '🐞'
@@ -287,12 +411,22 @@ function getLogPrefix(logLevel) {
 	return `(${logLevelPrefix})`;
 }
 
+/**
+ * Extracts the file name without extension from a file path
+ * @param {string} filePath - Path to the file
+ * @returns {string} File name without extension
+ */
 export function getFileNameFromPath(filePath) {
 	const trimmed = filePath.replace(/[\\\/]+$/, '');
 	const ext = path.extname(trimmed);
 	return ext ? path.basename(trimmed, ext) : path.basename(trimmed);
 }
 
+/**
+ * Formats a date object to a localized string (includes time if date is today)
+ * @param {Date} date - Date object to format
+ * @returns {string} Formatted date string
+ */
 export function formatDate(date) {
 	let formattedDate = date.toLocaleDateString('es-ES', {day: 'numeric', month: 'numeric', year: 'numeric'});
 	if (date.toDateString() === new Date().toDateString()) {

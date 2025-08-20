@@ -1,5 +1,5 @@
-import {executeSoqlQuery} from '../salesforceServices.js';
-import {textFileContent} from '../utils.js';
+//import {executeSoqlQuery} from '../salesforceServices.js';
+import {textFileContent, log} from '../utils.js';
 import {z} from 'zod';
 
 export const triggerExecutionOrderToolDefinition = {
@@ -21,6 +21,7 @@ export const triggerExecutionOrderToolDefinition = {
 
 export async function triggerExecutionOrder(args) {
 	try {
+		/*
 		const sObjectName = args.sObjectName;
 		const operation = args.operation.toLowerCase();
 
@@ -47,7 +48,9 @@ export async function triggerExecutionOrder(args) {
 			delete: '(\'Delete\')'
 		}[operation];
 
-		const flowQuery = `SELECT Id, ApiName, Label, TriggerType, TriggerOrder, TriggerObjectOrEventLabel, TriggerObjectOrEventId, RecordTriggerType, Description, VersionNumber, LastModifiedBy.Name, LastModifiedDate FROM FlowDefinitionView WHERE IsActive = TRUE AND ProcessType = 'AutoLaunchedFlow' AND NamespacePrefix = NULL AND TriggerObjectOrEventId.QualifiedApiName = '${sObjectName}' AND TriggerType IN ('RecordBeforeSave', 'RecordAfterSave', 'RecordBeforeDelete') AND RecordTriggerType IN ${recordTriggerType} AND IsTemplate = FALSE`;
+		let flowQuery = 'SELECT Id, ApiName, Label, TriggerType, TriggerOrder, TriggerObjectOrEventLabel, TriggerObjectOrEventId, RecordTriggerType, Description, VersionNumber, LastModifiedBy.Name, LastModifiedDate';
+		florQuery += ` FROM FlowDefinitionView WHERE IsActive = TRUE AND ProcessType = 'AutoLaunchedFlow' AND NamespacePrefix = NULL AND TriggerObjectOrEventId.QualifiedApiName = '${sObjectName}'`;
+		flowQuery += ` AND TriggerType IN ('RecordBeforeSave', 'RecordAfterSave', 'RecordBeforeDelete') AND RecordTriggerType IN ${recordTriggerType} AND IsTemplate = FALSE`;
 		const flowsRes = await executeSoqlQuery(flowQuery);
 		const flows = flowsRes.records;
 
@@ -227,6 +230,7 @@ export async function triggerExecutionOrder(args) {
 			}],
 			structuredContent: executionOrder
 		};
+		*/
 
 	} catch (error) {
 		log(error, 'error');
