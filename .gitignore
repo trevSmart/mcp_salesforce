@@ -1,6 +1,6 @@
 # Dependencies
 node_modules/
-package-lock.json
+# package-lock.json  # Uncomment to include lock file in version control
 
 # Logs
 logs
