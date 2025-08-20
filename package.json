@@ -28,7 +28,7 @@
     "zod": "^3.24.2"
   },
   "engines": {
-    "node": ">=22.7.5"
+    "node": ">=22.7.0 <23"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
