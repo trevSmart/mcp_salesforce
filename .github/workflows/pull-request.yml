@@ -53,9 +53,7 @@ jobs:
         cache: 'npm'
 
     - name: Install Salesforce CLI
-      uses: salesforce/setup-sf@v1
-      with:
-        sf-version: latest
+      uses: patrykacc/sf-cli-setup@v1.1.1
 
     - name: Install dependencies
       run: npm ci
