@@ -1,8 +1,6 @@
-name: Pull Request Checks
+name: Push checks
 
 on:
-  pull_request:
-    branches: [ main, master, develop ]
   push:
     branches: [ main, master, develop ]
 
