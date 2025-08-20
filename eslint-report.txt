@@ -1,0 +1,17 @@
+
+> test_research4@0.2.81 lint
+> eslint . --max-warnings=0
+
+
+/Users/marcpla/Documents/Feina/Projectes/mcp/mcp_salesforce/eslint.config.js
+  12:7  warning  'compat' is assigned a value but never used  no-unused-vars
+
+/Users/marcpla/Documents/Feina/Projectes/mcp/mcp_salesforce/src/tools/executeAnonymousApexTool.js
+  2:45  warning  'writeToTmpFileAsync' is defined but never used  no-unused-vars
+
+/Users/marcpla/Documents/Feina/Projectes/mcp/mcp_salesforce/src/tools/triggerExecutionOrderTool.js
+  22:45  warning  'args' is defined but never used  no-unused-vars
+
+✖ 3 problems (0 errors, 3 warnings)
+
+ESLint found too many warnings (maximum: 0).
