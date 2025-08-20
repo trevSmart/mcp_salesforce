@@ -210,7 +210,6 @@ body::before {
 .leading-normal { line-height: 1.6; }
 .leading-loose { line-height: 2; }
 
-.leading-tight, .leading-normal, .leading-loose { text-shadow: 0 0 3px rgba(0, 0, 0, 0.35); }
 .tracking-loose { letter-spacing: 0.05em; }
 .tracking-normal { letter-spacing: 0; }
 
