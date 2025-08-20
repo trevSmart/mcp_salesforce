@@ -33,7 +33,7 @@ jobs:
     - name: Check code formatting
       run: |
         # Check if code is properly formatted
-        npm run lint -- --format=compact
+        npm run lint --
 
   test:
     runs-on: ubuntu-latest
