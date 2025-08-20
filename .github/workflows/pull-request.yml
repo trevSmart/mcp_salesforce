@@ -110,7 +110,7 @@ jobs:
       run: npm ci
 
     - name: Run ESLint with detailed output
-      run: npm run lint -- --format=unix --max-warnings=0
+      run: npm run lint --max-warnings=0
 
     - name: Check bundle size (if applicable)
       run: |
