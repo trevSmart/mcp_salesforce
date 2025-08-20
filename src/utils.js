@@ -157,7 +157,7 @@ export function writeToFile(file, data, options = {}) {
 		async = false,
 		extension,
 		encoding = 'utf8',
-		workspacePath = 'tmp'
+		workspacePath = `${process.cwd()}/tmp`
 	} = options;
 
 	try {
