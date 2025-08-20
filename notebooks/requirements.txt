@@ -1,5 +1,8 @@
 # Dependències per als Jupyter Notebooks del projecte MCP Salesforce
 
+# SDK oficial de MCP per a Python
+mcp[cli]>=1.13.0
+
 # Jupyter i kernels
 jupyter>=1.0.0
 notebook>=6.0.0
