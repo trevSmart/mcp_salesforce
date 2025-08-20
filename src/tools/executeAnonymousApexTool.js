@@ -86,6 +86,7 @@ export async function executeAnonymousApexTool({apexCode, mayModify}) {
 		const logSize = (Buffer.byteLength(result.logs, 'utf8') / 1024).toFixed(1);
 
 		if (client.supportsCapability('embeddedResources') && result?.logs) {
+			const logFileName = `apex_run_${getTimestamp(true)}.log`;
 			const resourceApexLog = newResource(
 				`file://apex/${logFileName}`,
 				logFileName,

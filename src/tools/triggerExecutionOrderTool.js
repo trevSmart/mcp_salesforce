@@ -234,12 +234,12 @@ export async function triggerExecutionOrder(args) {
 
 	} catch (error) {
 		log(error, 'error');
-		return {
+		/* return {
 			isError: true,
 			content: [{
 				type: 'text',
 				text: `Error in calling Salesforce Tooling API (${method} ${endpoint}): ${error.message}`
 			}]
-		};
+		}; */
 	}
 }

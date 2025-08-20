@@ -132,10 +132,12 @@ export async function getSetupAuditTrailTool({lastDays = 90, createdByName = nul
 		const formattedResultString = JSON.stringify(formattedResult, null, 3);
 
 
+		// Generate fileName for resources (used regardless of workspace path availability)
+		const fileName = `SetupAuditTrail_${getTimestamp()}.json`;
+
 		// Try to save to tmp directory if workspace path is available
 		if (state.workspacePath) {
 			const tmpDir = path.join(state.workspacePath, 'tmp');
-			const fileName = `SetupAuditTrail_${getTimestamp()}.json`;
 			const fullPath = path.join(tmpDir, fileName);
 			try {
 				// Ensure tmp directory exists
