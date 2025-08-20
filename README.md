@@ -1,4 +1,7 @@
 ## <img src="assets/images/ibm-logo.webp" alt="IBM logo" width="52" style="position: relative; margin-right: 4px; top: 4px;"/> Salesforce MCP
+
+[![Push Checks](https://github.com/marcpla/mcp_salesforce/actions/workflows/push-checks.yml/badge.svg)](https://github.com/marcpla/mcp_salesforce/actions/workflows/push-checks.yml)
+
 A Model Context Protocol (MCP) server that provides Salesforce org context to your IDE AI agent
 
 ### Key features
