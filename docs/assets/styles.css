@@ -216,6 +216,7 @@ body::before {
 .text-blue-600 { color: #2563eb; }
 .text-blue-800 { color: #1e40af; }
 .text-blue-200 { color: #bfdbfe; }
+.text-header-custom { color: #081138; }
 
 .bg-white { background-color: white; }
 #features.bg-white { background-color: #ffffff99; }
