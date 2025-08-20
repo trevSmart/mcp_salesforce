@@ -149,7 +149,6 @@ export function textFileContent(toolName) {
  * @param {object} options - Configuration options
  * @param {boolean} options.async - Whether to write asynchronously (default: false)
  * @param {string} options.extension - File extension (default: 'json' if object, 'txt' if string)
- * @param {string} options.encoding - File encoding (default: 'utf8')
  * @param {string} options.workspacePath - Workspace path for tmp directory (optional)
  * @returns {string|Promise<string>} Full path to the created file (Promise if async=true)
  */
@@ -158,7 +157,7 @@ export function writeToFile(file, data, options = {}) {
 		async = false,
 		extension,
 		encoding = 'utf8',
-		workspacePath = null
+		workspacePath = 'tmp'
 	} = options;
 
 	try {
