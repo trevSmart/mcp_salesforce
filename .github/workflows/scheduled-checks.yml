@@ -28,7 +28,7 @@ jobs:
     - name: Run comprehensive linting
       run: |
         echo "Running comprehensive code analysis..."
-        npm run lint -- --format=unix --max-warnings=0 > full-lint-report.txt 2>&1 || true
+        npm run lint -- --max-warnings=0 > full-lint-report.txt 2>&1 || true
 
     - name: Check dependency vulnerabilities
       run: |
