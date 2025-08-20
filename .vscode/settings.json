@@ -77,18 +77,18 @@
     "actionButtons": {
         "commands": [
             {
-                "name": "$(test-view-icon) Inspect",
-                "useVsCodeApi": true,
-                "command": "workbench.action.tasks.runTask",
-                "args": ["npm: startMcpInspector"],
-                "color": "#a0a0d0"
-            },
-            {
                 "name": "$(edit) Lint",
                 "useVsCodeApi": true,
                 "command": "workbench.action.tasks.runTask",
                 "args": ["npm: lint:fix"],
-                "color": "#4354a8"
+                "color": "#6D81fA"
+            },
+            {
+                "name": "$(test-view-icon) Inspect",
+                "useVsCodeApi": true,
+                "command": "workbench.action.tasks.runTask",
+                "args": ["npm: startMcpInspector"],
+                "color": "#8F77c9"
             },
             {
                 "name": "$(testing-debug-icon) Test",

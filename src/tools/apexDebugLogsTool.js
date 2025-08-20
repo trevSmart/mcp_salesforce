@@ -2,11 +2,9 @@ import {newResource} from '../mcp-server.js';
 import {mcpServer} from '../mcp-server.js';
 import state from '../state.js';
 import client from '../client.js';
-import {log, textFileContent, formatDate, writeToTmpFile, ensureTmpDir} from '../utils.js';
+import {log, textFileContent, formatDate} from '../utils.js';
 import {executeSoqlQuery, dmlOperation, runCliCommand} from '../salesforceServices.js';
 import {z} from 'zod';
-import path from 'path';
-import {execSync} from 'child_process';
 
 export const apexDebugLogsToolDefinition = {
 	name: 'apexDebugLogs',
@@ -42,7 +40,7 @@ export const apexDebugLogsToolDefinition = {
 	}
 };
 
-async function analyzeApexLog(logContent, minDurationMs = 0, maxEvents = 200, output = 'both') {
+/* async function analyzeApexLog(logContent, minDurationMs = 0, maxEvents = 200, output = 'both') {
 	try {
 		if (!logContent) {
 			throw new Error('No log content provided');
@@ -239,7 +237,7 @@ function extractMethodName(details) {
 
 function extractSoql(details) {
 	if (!details) { return 'SOQL'; }
-	const m = details.match(/SELECT[\s\S]*/i);
+	const m = details.match(new RegExp('SELECT[\\s\\S]*', 'i'));
 	let q = m ? m[0] : 'SOQL';
 	q = q.replace(/\s+/g, ' ').trim();
 	if (q.length > 120) { q = q.slice(0, 117) + '...'; }
@@ -343,8 +341,8 @@ async function exportMermaidToPng(mermaidText, fileBaseName) {
 		return null;
 	}
 }
-
-export async function apexDebugLogsTool({action, logId, minDurationMs = 0, maxEvents = 200, output = 'both'}) {
+ */
+export async function apexDebugLogsTool({action, logId}) {
 	try {
 		if (!['status', 'on', 'off', 'list', 'get', 'analyze'].includes(action)) {
 			throw new Error(`Invalid action: ${action}`);
