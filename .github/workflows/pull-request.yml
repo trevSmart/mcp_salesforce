@@ -43,7 +43,7 @@ jobs:
         node-version: [22.17.1]
 
     steps:
-    - name: Install Salesforce CLI
+    - name: Run tests
       run: |
         echo "Tests steps disabled"
 
