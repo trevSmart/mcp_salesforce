@@ -349,7 +349,7 @@ export async function apexDebugLogsTool({action, logId}) {
 		}
 
 		const user = state?.org?.user;
-		log(`User data: ${JSON.stringify(user)}`, 'debug');
+		log(`User data: ${JSON.stringify(user)}`, 'debug') ;
 		if (!user) {
 			throw new Error('User data not found');
 		}
