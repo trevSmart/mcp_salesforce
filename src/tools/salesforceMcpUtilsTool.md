@@ -1,6 +1,11 @@
 # IBM Salesforce MCP Utils Tool
 
-Allows you to execute utility actions like clearing the cache, getting the current date and time, getting the internal state of the MCP server, or reporting problems to the product team.
+Allows you to execute utility actions like:
+  - clearCache: Clears the internal cache of the MCP server.
+  - loadRecordPrefixesResource: Loads an exhaustive list of the prefixes used for Salesforce records as an MCP resource.
+  - getCurrentDatetime: Returns the current date and time
+  - getState: Returns the internal state of the MCP server
+  - reportIssue: Reports a bug or issue with the MCP server to the product team.
 
 ---
 ## Agent Instructions
@@ -12,6 +17,8 @@ Allows you to execute utility actions like clearing the cache, getting the curre
   - **"clearCache"**:
     - Clears the internal cache of the MCP server.
     - **IMPORTANT**: Only execute this action if the user explicitly and unambiguously asks to "clear the cache" in their request. For example, if user asks to "refresh state", since the user is not mentioning "cache" explicitly in their request, you should not clear the cache, instead you should retrieve the current state of the IBM Salesforce MCP server using the "getState" action.
+  - **"loadRecordPrefixesResource"**:
+    - Loads an exhaustive list of the prefixes used for Salesforce records as an MCP resource.
   - **"getCurrentDatetime"**:
     - Returns the current date and time
   - **"getState"**:
@@ -75,5 +82,11 @@ When an issue is successfully reported, the tool returns:
   "action": "reportIssue",
   "issueDescription": "The DML tool currently only supports single operations. Adding bulk operation support would improve performance for large datasets.",
   "issueToolName": "dmlOperation"
+}
+```
+### Example 7: Load the record prefixes resource
+```json
+{
+  "action": "loadRecordPrefixesResource"
 }
 ```
