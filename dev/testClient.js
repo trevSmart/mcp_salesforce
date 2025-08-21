@@ -559,7 +559,7 @@ async function main() {
 
 		// Esperem un moment abans de començar amb el següent client
 		console.log(`\n${COLORS.gray}Esperant abans d'iniciar el següent test...${COLORS.reset}`);
-		await new Promise(resolve => setTimeout(resolve, 3000));
+		await new Promise(resolveTimeout => setTimeout(resolveTimeout, 3000));
 	}
 }
 
