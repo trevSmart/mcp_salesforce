@@ -1,4 +1,3 @@
-import {executeSoqlQuery} from '../salesforceServices.js';
 import {log, textFileContent, getTimestamp} from '../utils.js';
 import {newResource, resources} from '../mcp-server.js';
 import fs from 'fs/promises';
@@ -6,6 +5,7 @@ import path from 'path';
 import {z} from 'zod';
 import state from '../state.js';
 import client from '../client.js';
+import {retrieveSetupAuditTrailFile} from '../auditTrailDownloader.js';
 
 export const getSetupAuditTrailToolDefinition = {
 	name: 'getSetupAuditTrail',
@@ -60,123 +60,63 @@ export async function getSetupAuditTrailTool({lastDays = 90, createdByName = nul
 			};
 		}
 
-		const soqlQuery = buildSoqlQuery(lastDays, createdByName);
-		const response = await executeSoqlQuery(soqlQuery);
+		// Utilitzar auditTrailDownloader.js per obtenir el contingut del CSV
+		const fileContent = await retrieveSetupAuditTrailFile();
+		log('Contingut CSV obtingut correctament', 'info');
 
-		if (!response || !Array.isArray(response.records)) {
-			throw new Error('No response or invalid response from Salesforce CLI');
-		}
+		// Crear el directori tmp si no existeix
+		const tmpDir = path.join(state.workspacePath, 'tmp');
+		await fs.mkdir(tmpDir, {recursive: true});
 
-		//Validate and transform each record
-		const validRecords = response.records.map(record => {
-			if (record && typeof record === 'object'
-				&& record.Section
-				&& record.CreatedDate
-				&& record.CreatedBy
-				&& record.CreatedBy.Name) {
-				return record;
-			}
-		}).filter(record => record !== null);
+		// Guardar el contingut del CSV a un fitxer al directori tmp
+		const fileName = `setupAuditTrail_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
+		const csvFilePath = path.join(tmpDir, fileName);
+		await fs.writeFile(csvFilePath, fileContent, 'utf8');
 
-		const ignoredSections = [
-			'Manage Users', 'Customize Activities', 'Connected App Session Policy',
-			'Translation Workbench', 'CBK Configs', 'Security Controls'
-		];
+		log(`CSV guardat a: ${csvFilePath}`, 'info');
 
-		let shouldFilterByMetadataName = metadataName && metadataName.trim() !== '';
-
-		let results = validRecords.filter(r => {
-			if (!r || typeof r !== 'object'
-			|| !r.Section || ignoredSections.includes(r.Section)
-			|| shouldFilterByMetadataName && r.Display && !r.Display.toLowerCase().includes(metadataName.toLowerCase())
-			) {
-				return false;
-			}
-			return true;
-		});
-
-		const transformedResults = results.reduce((acc, record) => {
-			if (!record || typeof record !== 'object') {
-				return acc;
-			}
-
-			const userName = record.CreatedBy.Name || 'Unknown';
-			if (!acc[userName]) {
-				acc[userName] = [];
-			}
-
-			const d = new Date(record.CreatedDate);
-			if (isNaN(d.getTime())) {
-				return acc;
-			}
-
-			const day = d.getDate().toString().padStart(2, '0');
-			const month = (d.getMonth() + 1).toString().padStart(2, '0');
-			const year = d.getFullYear().toString().slice(-2);
-			const hour = d.getHours().toString().padStart(2, '0');
-			const minute = d.getMinutes().toString().padStart(2, '0');
-
-			let section = (record.Section || '').replace(/Apex Class/g, 'Apex');
-			let display = (record.Display || '').replace(/Lightning Web Component/g, 'LWC');
-			display = display.replace(/Aura Component/g, 'Aura');
-
-			acc[userName].push(`${day}/${month}/${year} ${hour}:${minute} - ${section} - ${display}`);
-
-			return acc;
-		}, {});
-
-		let formattedResult = {
-			records: transformedResults
-		};
-
-		const formattedResultString = JSON.stringify(formattedResult, null, 3);
-
-
-		// Generate fileName for resources (used regardless of workspace path availability)
-		const fileName = `SetupAuditTrail_${getTimestamp()}.json`;
+		// Convertir CSV a JSON sense processar
+		const structuredContent = csvToJson(fileContent);
 
 		// Try to save to tmp directory if workspace path is available
 		if (state.workspacePath) {
-			const tmpDir = path.join(state.workspacePath, 'tmp');
 			const fullPath = path.join(tmpDir, fileName);
 			try {
-				// Ensure tmp directory exists
-				await fs.mkdir(tmpDir, {recursive: true});
-				await fs.writeFile(fullPath, formattedResultString, 'utf8');
+				await fs.writeFile(fullPath, JSON.stringify(structuredContent, null, 2), 'utf8');
+				log(`JSON guardat a: ${fullPath}`, 'debug');
 			} catch (err) {
-				log(`Failed to write formattedResult to ${tmpDir}: ${err.message}`, 'error');
+				log(`Failed to write JSON to ${tmpDir}: ${err.message}`, 'error');
 			}
 		}
 
-		const content = [{
-			type: 'text',
-			text: `Display this data in a Markdown table with "Date", "User" and "Change description" columns, sorted by date in descending order: ${formattedResultString}`
-		}];
-
 		// Cache the result for future use
-		// eslint-disable-next-line no-unused-vars
 		const cacheResource = newResource(
 			resourceName,
 			`Setup Audit Trail (${lastDays} days, ${createdByName || 'all users'}, ${metadataName || 'all metadata'})`,
 			'Setup Audit Trail cached query results',
 			'application/json',
-			formattedResultString,
+			JSON.stringify(structuredContent, null, 2),
 			{audience: ['assistant', 'user']}
 		);
+
+		const content = [{
+			type: 'text',
+			text: `Successfully retrieved setup audit trail data for the last ${lastDays} days.`
+		}];
 
 		if (client.supportsCapability('embeddedResources')) {
 			const resource = newResource(
 				`file://setup-audit-trail/${fileName}`,
 				fileName,
 				'Setup audit trail history',
-				'application/json',
-				formattedResultString,
+				'text/csv',
+				fileContent,
 				{audience: ['user', 'assistant']}
 			);
 			content.push({type: 'resource', resource});
 		}
 
-		return {content, structuredContent: formattedResult};
+		return {content, structuredContent};
 
 	} catch (error) {
 		log(error, 'error');
@@ -190,26 +130,57 @@ export async function getSetupAuditTrailTool({lastDays = 90, createdByName = nul
 	}
 }
 
-function buildSoqlQuery(lastDays = 90, createdByName = null) {
-	let soqlQuery = 'SELECT FORMAT (CreatedDate), Section, CreatedBy.Name, Display FROM SetupAuditTrail';
-	const actions = [
-		'changedActionOverrideContent', 'filteredLookupEdit', 'createdRecordTypeCustom', 'createdQuickAction',
-		'changedQuickActionLayoutGlobal', 'createdApexPage', 'changedPicklistSortCustom', 'createServicePresenceStatus',
-		'changedQuickActionNameCustom', 'deletedQuickActionCustom', 'CustomPermissionCreate', 'deletedApexComponent',
-		'createdqueue', 'createdgroup', 'PermissionSetGroupCreate', 'changedStaticResource', 'deletedStaticResource',
-		'createdCustMdType', 'filteredLookupRequired', 'filteredLookupCreate', 'deleteSharingRule', 'changedApexTrigger',
-		'deletedAuraComponent', 'updateSharingRule', 'changedPicklist', 'changedPicklistCustom', 'changedRecordTypeName',
-		'changedValidationFormula', 'deletedLightningWebComponent', 'createdAuraComponent', 'deletedQuickAction',
-		'changedQuickActionLayout', 'deletedprofile', 'changedPicklistValueApiNameCustom', 'createdLightningWebComponent',
-		'deletedApexPage', 'deletedApexClass', 'PermSetCreate', 'changedApexPage', 'caselayout', 'createduser',
-		'queueMembership', 'groupMembership', 'createdApexClass', 'PermSetDelete', 'profilePageLayoutChangedCustom',
-		'PermSetRecordTypeRemoved', 'PermSetAssign', 'PermSetUnassign', 'changedFlexiPage', 'PermSetRecordTypeAdded',
-		'changedAuraComponent', 'PermSetFlsChanged', 'changedApexClass', 'changedLightningWebComponent'
-	];
-	let conditions = ['Action IN (' + actions.map(a => `'${a}'`).join(',') + ')'];
-	lastDays && conditions.push(`CreatedDate = LAST_N_DAYS:${lastDays}`);
-	createdByName && conditions.push(`CreatedBy.Name = '${createdByName.replace(/'/g, '\\\'')}'`);
-	soqlQuery += ' WHERE ' + conditions.join(' AND ') + ' ORDER BY CreatedDate DESC';
+/**
+ * Converteix CSV a JSON sense processament addicional
+ */
+function csvToJson(csvContent) {
+	const lines = csvContent.split('\n').filter(line => line.trim());
+	if (lines.length === 0) {
+		return [];
+	}
 
-	return soqlQuery.replace(/[\n\t\r]+/g, ' ').trim();
+	const headers = parseCsvLine(lines[0]).map(h => h.trim().replace(/"/g, ''));
+	const jsonData = [];
+
+	for (let i = 1; i < lines.length; i++) {
+		if (!lines[i]?.trim()) { continue; }
+
+		const values = parseCsvLine(lines[i]);
+		const obj = {};
+
+		for (let j = 0; j < headers.length; j++) {
+			obj[headers[j]] = values[j] || '';
+		}
+
+		jsonData.push(obj);
+	}
+
+	return jsonData;
+}
+
+/**
+ * Parseja una línia CSV tenint en compte les cometes
+ */
+function parseCsvLine(line) {
+	const values = [];
+	let inQuotes = false;
+	let currentValue = '';
+
+	for (let i = 0; i < line.length; i++) {
+		const char = line[i];
+
+		if (char === '"') {
+			inQuotes = !inQuotes;
+		} else if (char === ',' && !inQuotes) {
+			values.push(currentValue.replace(/"/g, '').trim());
+			currentValue = '';
+		} else {
+			currentValue += char;
+		}
+	}
+
+	// Afegir l'últim valor
+	values.push(currentValue.replace(/"/g, '').trim());
+
+	return values;
 }
