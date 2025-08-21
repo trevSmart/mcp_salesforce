@@ -127,5 +127,9 @@
     "typescript.workspaceSymbols.excludeLibrarySymbols": false,
     "todohighlight.keywords": [
         "TODO",
+    ],
+    "github-actions.workflows.pinned.workflows": [
+        ".github/workflows/deploy-gh-pages.yml",
+        ".github/workflows/push-checks.yml"
     ]
 }
