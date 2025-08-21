@@ -411,9 +411,8 @@ export async function apexDebugLogsTool({action, logId}) {
 						sObjectName: 'TraceFlag',
 						recordId: activeTraceFlag.Id,
 						fields: {ExpirationDate: newExpirationDate.toISOString()}
-					}],
-					useToolingApi: true
-				});
+					}]
+				}, {useToolingApi: true});
 
 				const startDate = new Date(activeTraceFlag.StartDate);
 
@@ -507,9 +506,8 @@ export async function apexDebugLogsTool({action, logId}) {
 					sObjectName: 'TraceFlag',
 					recordId: traceFlag.Id,
 					fields: {ExpirationDate: newExpirationDate.toISOString()}
-				}],
-				useToolingApi: true
-			});
+				}]
+			}, {useToolingApi: true});
 
 			return {
 				content: [{
