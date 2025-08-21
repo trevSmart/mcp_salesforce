@@ -144,7 +144,7 @@ class MCPClient {
 	}
 
 	// Initialize the MCP connection
-	async initialize() {
+	async initialize(clientConfig = {name: 'IBM Salesforce MCP Test Client', version: '1.0.0'}) {
 		try {
 			const result = await this.sendMessage('initialize', {
 				protocolVersion: '2025-06-18',
@@ -153,12 +153,13 @@ class MCPClient {
 					sampling: {},
 					elicitation: {}
 				},
-				clientInfo: {name: 'IBM Salesforce MCP Test Client', version: '1.0.0'}
+				clientInfo: clientConfig
 			});
 
 			console.log(`${COLORS.green}✓ Server initialized${COLORS.reset}`);
 			console.log(`  Protocol version: ${result.protocolVersion}`);
 			console.log(`  Server: ${result.serverInfo.name} v${result.serverInfo.version}`);
+			console.log(`  Client: ${clientConfig.name} v${clientConfig.version}`);
 
 			// Log server capabilities for debugging
 			if (result.capabilities) {
@@ -304,6 +305,7 @@ class MCPTestRunner {
 		this.client = new MCPClient();
 		this.testResults = [];
 		this.originalOrg = null;
+		this.clientConfig = {name: 'IBM Salesforce MCP Test Client', version: '1.0.0'};
 	}
 
 	async runTest(name, testFunction) {
@@ -352,7 +354,7 @@ class MCPTestRunner {
 			// Initialize connection
 			console.log(`${COLORS.orange}Initializing MCP connection...${COLORS.reset}`);
 			await this.runTest('Initialize MCP Connection', async () => {
-				await this.client.initialize();
+				await this.client.initialize(this.clientConfig);
 			});
 
 			// List tools
@@ -500,7 +502,7 @@ class MCPTestRunner {
 
 	printSummary() {
 		console.log(`\n${COLORS.cyan}${'='.repeat(50)}${COLORS.reset}`);
-		console.log(`${COLORS.bright}Test Summary${COLORS.reset}`);
+		console.log(`${COLORS.bright}Test Summary for Client: ${this.clientConfig.name} v${this.clientConfig.version}${COLORS.reset}`);
 		console.log(`${COLORS.cyan}${'='.repeat(50)}${COLORS.reset}`);
 
 		const total = this.testResults.length;
@@ -524,13 +526,40 @@ class MCPTestRunner {
 
 // Main execution
 async function main() {
-	const runner = new MCPTestRunner();
+	// Definim els diferents clients a provar
+	const clientConfigs = [
+		{
+			name: 'Visual Studio Code',
+			version: '1.104.0'
+		},
+		{
+			name: 'cursor-vscode',
+			version: '1.0.0'
+		},
+		{
+			name: 'IBM Salesforce MCP Test Client',
+			version: '1.0.0'
+		}
+	];
 
-	try {
-		await runner.runAllTests();
-	} catch (error) {
-		console.error(`${COLORS.red}Fatal error:${COLORS.reset}`, error);
-		process.exit(1);
+	// Executem les proves per cada client
+	for (const clientConfig of clientConfigs) {
+		console.log(`\n\n${COLORS.bright}${COLORS.magenta}${'='.repeat(80)}${COLORS.reset}`);
+		console.log(`${COLORS.bright}${COLORS.magenta}Executant proves amb client: ${clientConfig.name} v${clientConfig.version}${COLORS.reset}`);
+		console.log(`${COLORS.bright}${COLORS.magenta}${'='.repeat(80)}${COLORS.reset}\n`);
+
+		const runner = new MCPTestRunner();
+		runner.clientConfig = clientConfig; // Guardem la configuració del client per utilitzar-la després
+
+		try {
+			await runner.runAllTests();
+		} catch (error) {
+			console.error(`${COLORS.red}Fatal error amb client ${clientConfig.name}:${COLORS.reset}`, error);
+		}
+
+		// Esperem un moment abans de començar amb el següent client
+		console.log(`\n${COLORS.gray}Esperant abans d'iniciar el següent test...${COLORS.reset}`);
+		await new Promise(resolve => setTimeout(resolve, 3000));
 	}
 }
 

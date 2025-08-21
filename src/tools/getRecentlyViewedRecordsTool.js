@@ -17,12 +17,15 @@ export const getRecentlyViewedRecordsToolDefinition = {
 export async function getRecentlyViewedRecordsTool() {
 	try {
 		const response = await callSalesforceApi('GET', 'REST', '/recent', null, {queryParams: {limit: 80}});
+		log(response, 'debug', 'Recently viewed records');
 		return {
 			content: [{
 				type: 'text',
 				text: `Last ${response?.length || 0} recently viewed records retrieved successfully`
 			}],
-			structuredContent: response
+			structuredContent: {
+				records: response
+			}
 		};
 
 	} catch (error) {

@@ -2,7 +2,7 @@ import client from '../client.js';
 import state from '../state.js';
 import {log, textFileContent, formatDate} from '../utils.js';
 import {z} from 'zod';
-import {clearResources, resources} from '../mcp-server.js';
+import {resources, newResource, clearResources} from '../mcp-server.js';
 import config from '../config.js';
 
 export const salesforceMcpUtilsToolDefinition = {
@@ -11,8 +11,8 @@ export const salesforceMcpUtilsToolDefinition = {
 	description: textFileContent('salesforceMcpUtilsTool'),
 	inputSchema: {
 		action: z
-			.enum(['clearCache', 'getCurrentDatetime', 'getState', 'reportIssue'])
-			.describe('The action to perform: "clearCache", "getCurrentDatetime", "getState", "reportIssue"'),
+			.enum(['clearCache', 'getCurrentDatetime', 'getState', 'reportIssue', 'loadRecordPrefixesResource'])
+			.describe('The action to perform: "clearCache", "getCurrentDatetime", "getState", "reportIssue", "loadRecordPrefixesResource"'),
 		// Additional parameters for reportIssue action
 		issueDescription: z.string()
 			.optional()
@@ -84,6 +84,26 @@ export async function salesforceMcpUtilsTool({action, issueDescription, issueToo
 					text: JSON.stringify(output, null, 3)
 				}],
 				structuredContent: output
+			};
+
+		} else if (action === 'loadRecordPrefixesResource') {
+			const recordPrefixesModule = await import('../static/record-prefixes.js');
+			const recordPrefixes = recordPrefixesModule.default;
+			const resource = newResource(
+				'file://mcp/recordPrefixes.csv',
+				'List of Salesforce record prefixes',
+				'List of Salesforce record prefixes',
+				'text/csv',
+				recordPrefixes,
+				{audience: ['assistant']}
+			);
+
+			return {
+				content: [{
+					type: 'text',
+					text: '✅ Record prefixes resource loaded successfully'
+				}],
+				structuredContent: {resource}
 			};
 
 		} else if (action === 'reportIssue') {

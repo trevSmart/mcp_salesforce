@@ -30,7 +30,7 @@ export async function getApexClassCodeCoverageTool({classNames}) {
 		return {
 			content: [{
 				type: 'text',
-				text: `Code coverage retrieved successfully (${coverage.summary.totalClasses} classes, ${coverage.summary.classesWithCoverage} with coverage, ${coverage.summary.classesWithoutCoverage} without coverage, ${coverage.summary.missingClasses} missing)`
+				text: `Code coverage retrieved successfully (${coverage.summary.totalClasses} classes: ${coverage.summary.classesWithCoverage} with coverage, ${coverage.summary.classesWithoutCoverage} without coverage, ${coverage.summary.missingClasses} not found)`
 			}],
 			structuredContent: coverage
 		};
