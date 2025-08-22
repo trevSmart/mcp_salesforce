@@ -13,7 +13,8 @@ export default {
 	SERVER_CONSTANTS: {
 		protocolVersion: '2025-06-18',
 		serverInfo: {
-			name: 'salesforce-mcp',
+			name: 'IBM Salesforce MCP Server',
+			alias: 'ibm-sf-mcp',
 			version: pkg.version
 		},
 		capabilities: {

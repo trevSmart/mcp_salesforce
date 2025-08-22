@@ -9,6 +9,24 @@ const __dirname = dirname(__filename);
 
 // Constants
 const TEST_ORG_ALIAS = 'DEVSERVICE'; // Canvia aquest valor per l'àlies de la teva org de test
+const DEFAULT_LOGGING_LEVEL = 'info'; // Nivell de log per defecte
+
+// Parse command line arguments
+function parseArgs() {
+	const args = {};
+	process.argv.slice(2).forEach(arg => {
+		if (arg.startsWith('--')) {
+			const [key, value] = arg.substring(2).split('=');
+			args[key] = value || true;
+		}
+	});
+	return args;
+}
+
+// Get command line arguments
+const cmdArgs = parseArgs();
+const LOG_LEVEL = cmdArgs.logLevel || DEFAULT_LOGGING_LEVEL;
+const TESTS_TO_RUN = cmdArgs.tests ? cmdArgs.tests.split(',').map(test => test.trim()) : null;
 
 // Colors for console output
 const COLORS = {
@@ -221,7 +239,7 @@ class MCPClient {
 	}
 
 	// Set logging level
-	async setLoggingLevel(level) {
+	async setLoggingLevel(level = DEFAULT_LOGGING_LEVEL) {
 		console.log(`${COLORS.blue}Setting logging level to: ${level}${COLORS.reset}`);
 
 		const result = await this.sendMessage('logging/setLevel', {
@@ -246,9 +264,9 @@ class MCPClient {
 class OrgManager {
 	static getCurrentOrg() {
 		try {
-			const result = execSync('sf config get target-org --json', {encoding: 'utf8'}).result.alias || '';
+			const result = execSync('sf config get target-org --json', {encoding: 'utf8'});
 			const config = JSON.parse(result);
-			return config.result?.value || null;
+			return config.result?.[0]?.value || null;
 		} catch (error) {
 			console.error(`${COLORS.red}Error getting current org:${COLORS.reset}`, error.message);
 			return null;
@@ -340,7 +358,169 @@ class MCPTestRunner {
 		return success;
 	}
 
-	async runAllTests() {
+	// Get all available tests
+	getAvailableTests() {
+		return [
+			{
+				name: 'Initialize MCP Connection',
+				run: async () => {
+					await this.client.initialize(this.clientConfig);
+				},
+				required: true // Required test that always runs
+			},
+			{
+				name: 'List Available Tools',
+				run: async () => {
+					await this.client.listTools();
+				},
+				required: true // Required test that always runs
+			},
+			{
+				name: 'Set Logging Level',
+				run: async () => {
+					await this.client.setLoggingLevel(LOG_LEVEL);
+				},
+				required: true // Required test that always runs
+			},
+			{
+				name: 'getOrgAndUserDetails',
+				run: async () => {
+					await this.client.callTool('getOrgAndUserDetails', {});
+				}
+			},
+			{
+				name: 'salesforceMcpUtils getState',
+				run: async () => {
+					await this.client.callTool('salesforceMcpUtils', {action: 'getState'});
+				}
+			},
+			{
+				name: 'salesforceMcpUtils getCurrentDatetime',
+				run: async () => {
+					await this.client.callTool('salesforceMcpUtils', {action: 'getCurrentDatetime'});
+				}
+			},
+			{
+				name: 'salesforceMcpUtils clearCache',
+				run: async () => {
+					await this.client.callTool('salesforceMcpUtils', {action: 'clearCache'});
+				}
+			},
+			{
+				name: 'apexDebugLogs status',
+				run: async () => {
+					await this.client.callTool('apexDebugLogs', {action: 'status'});
+				}
+			},
+			{
+				name: 'apexDebugLogs on',
+				run: async () => {
+					await this.client.callTool('apexDebugLogs', {action: 'on'});
+				}
+			},
+			{
+				name: 'apexDebugLogs list',
+				run: async () => {
+					await this.client.callTool('apexDebugLogs', {action: 'list'});
+				}
+			},
+			{
+				name: 'apexDebugLogs get',
+				run: async () => {
+					// First get a log ID from the list operation
+					const listResult = await this.client.callTool('apexDebugLogs', {action: 'list'});
+					if (listResult.structuredContent && listResult.structuredContent.length > 0) {
+						const firstLog = listResult.structuredContent[0];
+						await this.client.callTool('apexDebugLogs', {
+							action: 'get',
+							logId: firstLog.Id
+						});
+					} else {
+						console.log('No logs available to test get operation');
+					}
+				}
+			},
+			{
+				name: 'apexDebugLogs off',
+				run: async () => {
+					await this.client.callTool('apexDebugLogs', {action: 'off'});
+				}
+			},
+			{
+				name: 'describeObject Account',
+				run: async () => {
+					await this.client.callTool('describeObject', {
+						sObjectName: 'Account',
+						include: 'fields'
+					});
+				}
+			},
+			{
+				name: 'executeSoqlQuery',
+				run: async () => {
+					await this.client.callTool('executeSoqlQuery', {
+						query: 'SELECT Id, Name FROM Account LIMIT 3'
+					});
+				}
+			},
+			{
+				name: 'getRecentlyViewedRecords',
+				run: async () => {
+					return await this.client.callTool('getRecentlyViewedRecords', {});
+				}
+			},
+			{
+				name: 'getRecord',
+				run: async () => {
+					// Get a record ID from recently viewed records
+					const recentlyViewed = await this.client.callTool('getRecentlyViewedRecords', {});
+					if (recentlyViewed.records && recentlyViewed.records.length > 0) {
+						const firstRecord = recentlyViewed.records[0];
+						await this.client.callTool('getRecord', {
+							sObjectName: firstRecord.SobjectType,
+							recordId: firstRecord.Id
+						});
+					} else {
+						// Fallback to a known Account ID if no recently viewed records
+						await this.client.callTool('getRecord', {
+							sObjectName: 'Account',
+							recordId: '001KN00000Il3uUYAR'
+						});
+					}
+				}
+			},
+			{
+				name: 'getApexClassCodeCoverage',
+				run: async () => {
+					await this.client.callTool('getApexClassCodeCoverage', {
+						classNames: ['TestMCPTool']
+					});
+				}
+			}
+		];
+	}
+
+	// Run selected tests or all tests
+	async runTests(testsToRun = null) {
+		const availableTests = this.getAvailableTests();
+
+		// Filter tests to run
+		let testsToExecute = availableTests;
+		if (testsToRun && testsToRun.length > 0) {
+			// Always include required tests
+			const requiredTests = availableTests.filter(test => test.required);
+
+			// Filter selected tests
+			const selectedTests = availableTests.filter(test =>
+				!test.required && testsToRun.some(testName =>
+					test.name.toLowerCase().includes(testName.toLowerCase())
+				)
+			);
+
+			testsToExecute = [...requiredTests, ...selectedTests];
+
+			console.log(`${COLORS.cyan}Running ${selectedTests.length} selected tests plus ${requiredTests.length} required tests${COLORS.reset}`);
+		}
 
 		try {
 			// Ensure we're in the test org
@@ -351,139 +531,16 @@ class MCPTestRunner {
 			console.log(`${COLORS.bright}Starting MCP Client Tests${COLORS.reset}\n\n`);
 			await this.client.startServer();
 
-			// Initialize connection
-			console.log(`${COLORS.orange}Initializing MCP connection...${COLORS.reset}`);
-			await this.runTest('Initialize MCP Connection', async () => {
-				await this.client.initialize(this.clientConfig);
-			});
+			// Wait for server to fully start
+			await new Promise(resolveTimeout => setTimeout(resolveTimeout, 1000));
 
-			// List tools
-			await this.runTest('List Available Tools', async () => {
-				await this.client.listTools();
-			});
+			// Execute tests
+			for (const test of testsToExecute) {
+				await this.runTest(`Test ${test.name}`, test.run);
+			}
 
-			// Set logging level to info
-			await this.runTest('Set Logging Level to Info', async () => {
-				await this.client.setLoggingLevel('info');
-			});
-
-			// Test basic tools - commented out for now to focus on connection
-			await this.runTest('Test getOrgAndUserDetails', async () => {
-				await this.client.callTool('getOrgAndUserDetails', {});
-				// console.log('Result:', JSON.stringify(result, null, 2));
-
-			});
-
-			// Wait for server to fully retrieve the org and user details
-			await new Promise(resolveTimeout => setTimeout(resolveTimeout, 3000));
-
-			await this.runTest('Test salesforceMcpUtils getState', async () => {
-				await this.client.callTool('salesforceMcpUtils', {action: 'getState'});
-				// console.log('Result:', JSON.stringify(result, null, 2));
-
-			});
-
-			await this.runTest('Test salesforceMcpUtils getCurrentDatetime', async () => {
-				await this.client.callTool('salesforceMcpUtils', {action: 'getCurrentDatetime'});
-				// console.log('Result:', JSON.stringify(result, null, 2));
-
-			});
-
-			await this.runTest('Test salesforceMcpUtils clearCache', async () => {
-				await this.client.callTool('salesforceMcpUtils', {action: 'clearCache'});
-				// console.log('Result:', JSON.stringify(result, null, 2));
-
-			});
-
-			await this.runTest('Test apexDebugLogs status', async () => {
-				await this.client.callTool('apexDebugLogs', {action: 'status'});
-				// console.log('Result:', JSON.stringify(result, null, 2));
-
-			});
-
-			await this.runTest('Test apexDebugLogs on', async () => {
-				await this.client.callTool('apexDebugLogs', {action: 'on'});
-				// console.log('Result:', JSON.stringify(result, null, 2));
-
-			});
-
-			await this.runTest('Test apexDebugLogs list', async () => {
-				await this.client.callTool('apexDebugLogs', {action: 'list'});
-				// console.log('Result:', JSON.stringify(result, null, 2));
-
-			});
-
-			await this.runTest('Test apexDebugLogs get', async () => {
-				// First get a log ID from the list operation
-				const listResult = await this.client.callTool('apexDebugLogs', {action: 'list'});
-				if (listResult.structuredContent && listResult.structuredContent.length > 0) {
-					const firstLog = listResult.structuredContent[0];
-					await this.client.callTool('apexDebugLogs', {
-						action: 'get',
-						logId: firstLog.Id
-					});
-					// console.log('Result:', JSON.stringify(result, null, 2));
-
-				} else {
-					console.log('No logs available to test get operation');
-				}
-			});
-
-			await this.runTest('Test apexDebugLogs off', async () => {
-				await this.client.callTool('apexDebugLogs', {action: 'off'});
-				// console.log('Result:', JSON.stringify(result, null, 2));
-
-			});
-
-			await this.runTest('Test describeObject Account', async () => {
-				await this.client.callTool('describeObject', {
-					sObjectName: 'Account',
-					include: 'fields'
-				});
-
-			});
-
-			await this.runTest('Test executeSoqlQuery', async () => {
-				await this.client.callTool('executeSoqlQuery', {
-					query: 'SELECT Id, Name FROM Account LIMIT 3'
-				});
-				// console.log('Result:', JSON.stringify(result, null, 2));
-
-			});
-
-			await this.runTest('Test getRecentlyViewedRecords', async () => {
-				const result = await this.client.callTool('getRecentlyViewedRecords', {});
-				// console.log('Result:', JSON.stringify(result, null, 2));
-				return result; // Return result to use in next test
-			});
-
-			await this.runTest('Test getRecord', async () => {
-				// Get a record ID from recently viewed records
-				const recentlyViewed = await this.client.callTool('getRecentlyViewedRecords', {});
-				if (recentlyViewed.records && recentlyViewed.records.length > 0) {
-					const firstRecord = recentlyViewed.records[0];
-					await this.client.callTool('getRecord', {
-						sObjectName: firstRecord.SobjectType,
-						recordId: firstRecord.Id
-					});
-					// console.log('Result:', JSON.stringify(result, null, 2));
-
-				} else {
-					// Fallback to a known Account ID if no recently viewed records
-					await this.client.callTool('getRecord', {
-						sObjectName: 'Account',
-						recordId: '001KN00000Il3uUYAR'
-					});
-					// console.log('Result:', JSON.stringify(result, null, 2));
-				}
-			});
-
-			await this.runTest('Test getApexClassCodeCoverage', async () => {
-				await this.client.callTool('getApexClassCodeCoverage', {
-					classNames: ['TestMCPTool']
-				});
-				// console.log('Result:', JSON.stringify(result, null, 2));
-			});
+			// Wait for any pending operations
+			await new Promise(resolveTimeout => setTimeout(resolveTimeout, 1000));
 
 		} finally {
 			// Stop server
@@ -498,6 +555,11 @@ class MCPTestRunner {
 
 		// Print summary
 		this.printSummary();
+	}
+
+	// For backwards compatibility
+	async runAllTests() {
+		await this.runTests();
 	}
 
 	printSummary() {
@@ -526,6 +588,9 @@ class MCPTestRunner {
 
 // Main execution
 async function main() {
+	// Mostrem el nivell de log que s'està utilitzant
+	console.log(`${COLORS.cyan}Using log level: ${LOG_LEVEL}${COLORS.reset}`);
+
 	// Definim els diferents clients a provar
 	const clientConfigs = [
 		{
@@ -542,6 +607,13 @@ async function main() {
 		}
 	];
 
+	// Mostrem els tests a executar si s'han especificat
+	if (TESTS_TO_RUN) {
+		console.log(`${COLORS.cyan}Selected tests to run: ${TESTS_TO_RUN.join(', ')}${COLORS.reset}`);
+	} else {
+		console.log(`${COLORS.cyan}Running all available tests${COLORS.reset}`);
+	}
+
 	// Executem les proves per cada client
 	for (const clientConfig of clientConfigs) {
 		console.log(`\n\n${COLORS.bright}${COLORS.magenta}${'='.repeat(80)}${COLORS.reset}`);
@@ -552,7 +624,7 @@ async function main() {
 		runner.clientConfig = clientConfig; // Guardem la configuració del client per utilitzar-la després
 
 		try {
-			await runner.runAllTests();
+			await runner.runTests(TESTS_TO_RUN);
 		} catch (error) {
 			console.error(`${COLORS.red}Fatal error amb client ${clientConfig.name}:${COLORS.reset}`, error);
 		}
@@ -563,9 +635,35 @@ async function main() {
 	}
 }
 
+// Show help if requested
+function showHelp() {
+	console.log(`
+${COLORS.bright}IBM Salesforce MCP Test Client${COLORS.reset}
+
+${COLORS.cyan}Usage:${COLORS.reset}
+  node testClient.js [options]
+
+${COLORS.cyan}Options:${COLORS.reset}
+  --logLevel=<level>  Set the logging level (default: ${DEFAULT_LOGGING_LEVEL})
+                    Valid values: emergency, alert, critical, error, warning, notice, info, debug
+  --tests=<tests>     Comma-separated list of test names to run (partial matching)
+                    Example: "apexDebugLogs,getRecord"
+  --help              Show this help message
+
+${COLORS.cyan}Examples:${COLORS.reset}
+  node testClient.js --logLevel=debug
+  node testClient.js --tests=apexDebugLogs,getRecord
+  node testClient.js --logLevel=debug --tests=salesforceMcpUtils
+`);
+}
+
 // Run if this file is executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-	main();
+	if (cmdArgs.help) {
+		showHelp();
+	} else {
+		main();
+	}
 }
 
 export {MCPClient, MCPTestRunner};

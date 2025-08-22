@@ -1,4 +1,3 @@
-import os from 'os';
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
 import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
@@ -21,7 +20,6 @@ import targetOrgWatcher from './OrgWatcher.js';
 
 // import { codeModificationPromptDefinition, codeModificationPrompt } from './prompts/codeModificationPrompt.js';
 import {salesforceMcpUtilsToolDefinition} from './tools/salesforceMcpUtilsTool.js';
-import {getOrgAndUserDetailsToolDefinition} from './tools/getOrgAndUserDetailsTool.js';
 import {dmlOperationToolDefinition} from './tools/dmlOperationTool.js';
 import {deployMetadataToolDefinition} from './tools/deployMetadataTool.js';
 import {describeObjectToolDefinition} from './tools/describeObjectTool.js';
@@ -142,7 +140,7 @@ export async function setupServer() {
 				}
 			}
 
-			//Alguns clients fan servir el primer root per establir el directori del workspace
+			//Some clients use the first root to establish the workspace directory
 			if (!state.workspacePath && listRootsResult.roots?.[0]?.uri.startsWith('file://')) {
 				setWorkspacePath(listRootsResult.roots[0].uri);
 			}
@@ -164,7 +162,7 @@ export async function setupServer() {
 
 	const callToolHandler = tool => {
 		return async params => {
-			if (tool !== 'getOrgAndUserDetailsTool' && tool !== 'salesforceMcpUtilsTool') {
+			if (tool !== 'salesforceMcpUtilsTool') {
 				if (!state.org.user.id) {
 					const errorMessage = '❌ Org and user details not available. The server may still be initializing.';
 					log(errorMessage, 'critical');
@@ -198,7 +196,6 @@ export async function setupServer() {
 	};
 
 	mcpServer.registerTool('salesforceMcpUtils', salesforceMcpUtilsToolDefinition, callToolHandler('salesforceMcpUtilsTool'));
-	mcpServer.registerTool('getOrgAndUserDetails', getOrgAndUserDetailsToolDefinition, callToolHandler('getOrgAndUserDetailsTool'));
 	mcpServer.registerTool('dmlOperation', dmlOperationToolDefinition, callToolHandler('dmlOperationTool'));
 	mcpServer.registerTool('deployMetadata', deployMetadataToolDefinition, callToolHandler('deployMetadataTool'));
 	mcpServer.registerTool('describeObject', describeObjectToolDefinition, callToolHandler('describeObjectTool'));
@@ -254,7 +251,7 @@ export async function setupServer() {
 					// Wait for directory change to complete before proceeding with org setup
 					// await directoryChangePromise;
 
-					process.env.HOME = process.env.HOME || os.homedir();
+					// process.env.HOME = process.env.HOME ;
 					targetOrgWatcher.start(updateOrgAndUserDetails);
 					await updateOrgAndUserDetails();
 

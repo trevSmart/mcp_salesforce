@@ -4,7 +4,6 @@ import {promisify} from 'node:util';
 import fs from 'fs/promises';
 import path from 'path';
 import state from './state.js';
-import os from 'os';
 import {newResource} from './mcp-server.js';
 const exec = promisify(execCb);
 
@@ -998,7 +997,7 @@ export async function executeAnonymousApex(apexCode) {
 	if (!apexCode || typeof apexCode !== 'string') {
 		throw new Error('apexCode is required and must be a string');
 	}
-	const tmpDir = os.tmpdir() || path.join(process.cwd(), 'tmp');
+	const tmpDir = state.tempPath;
 
 	let tmpFile;
 	try {
@@ -1190,6 +1189,24 @@ public class ${name} {
 	}
 }
 
+/**
+ * Refreshes the access token by running any CLI command to trigger token refresh
+ * and then updates the state with the new token
+ */
+async function refreshAccessToken() {
+	try {
+		log('Access token expired, refreshing...', 'debug');
+		const userDetails = await runCliCommand('sf org display user --json');
+		const newAccessToken = userDetails.result.accessToken;
+		state.org.accessToken = newAccessToken;
+		return true;
+
+	} catch (error) {
+		log(`Failed to refresh access token: ${error.message}`, 'error');
+		return false;
+	}
+}
+
 export async function callSalesforceApi(operation, apiType, service, body = null, options = {}) {
 	// Validate required parameters
 	if (!operation || !apiType || !service) {
@@ -1245,7 +1262,8 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 		}
 	}
 
-	try {
+	// Function to make the actual API call
+	const makeApiCall = async () => {
 		const requestOptions = {
 			method: operation.toUpperCase(),
 			headers: {
@@ -1272,7 +1290,16 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 			try {
 				const errorBody = await response.text();
 				errorDetails = `Status: ${response.status} ${response.statusText}\nResponse body: ${errorBody}`;
+
+				// Check if this is an INVALID_SESSION_ID error
+				if (errorBody.includes('INVALID_SESSION_ID')) {
+					throw new Error('INVALID_SESSION_ID');
+				}
+
 			} catch (parseError) {
+				if (parseError.message === 'INVALID_SESSION_ID') {
+					throw parseError;
+				}
 				errorDetails = `Status: ${response.status} ${response.statusText}\nCould not parse response body: ${parseError.message}`;
 			}
 
@@ -1286,9 +1313,39 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 			log(`Could not parse JSON response: ${parseError.message}`, 'warning');
 			return (await response.text());
 		}
+	};
 
-	} catch (error) {
-		log(error, 'error', `Error calling Salesforce API: ${operation} ${endpoint}`);
-		throw error;
+	// Try to make the API call, with automatic token refresh if needed
+	// Maximum retry attempts to prevent infinite loops
+	const maxRetries = 2; // Allow 1 token refresh + 1 retry
+	let retryCount = 0;
+
+	while (retryCount <= maxRetries) {
+		try {
+			return await makeApiCall();
+		} catch (error) {
+			// Check if this is an INVALID_SESSION_ID error
+			if (error.message === 'INVALID_SESSION_ID' && retryCount < maxRetries) {
+				retryCount++;
+				const refreshSuccess = await refreshAccessToken();
+
+				if (refreshSuccess) {
+					// Continue to next iteration to retry with new token
+					log('Token refreshed successfully, retrying API call...', 'debug');
+					continue;
+				} else {
+					throw new Error('Failed to refresh access token. Please re-authenticate with Salesforce CLI.');
+				}
+			}
+
+			// If we've exhausted retries or it's not an INVALID_SESSION_ID error, throw the error
+			if (retryCount >= maxRetries && error.message === 'INVALID_SESSION_ID') {
+				throw new Error(`Maximum retry attempts (${maxRetries}) exceeded for INVALID_SESSION_ID. Please re-authenticate with Salesforce CLI.`);
+			}
+
+			// Re-throw other errors
+			log(error, 'error', `Error calling Salesforce API: ${operation} ${endpoint}`);
+			throw error;
+		}
 	}
 }

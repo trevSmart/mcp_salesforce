@@ -6,12 +6,13 @@ Allows you to execute utility actions like:
   - getCurrentDatetime: Returns the current date and time
   - getState: Returns the internal state of the MCP server
   - reportIssue: Reports a bug or issue with the MCP server to the product team.
+  - getOrgAndUserDetails: Obtains the details of the Salesforce organization and the current user (Id, name, URL, profile, etc.).
 
 ---
 ## Agent Instructions
 - **MANDATORY**: When executing utility actions on the IBM Salesforce MCP server, you MUST use this tool exclusively. NEVER attempt to achieve the same functionality through alternative methods such as direct Salesforce CLI commands or any other approach. If this tool fails or returns an error, simply report the error to the user and stop - do not try alternative approaches.
 
-- To get the user name, use the tool getOrgAndUserDetails instead of this tool.
+- To get the user name, use the "getOrgAndUserDetails" action of this tool.
 
 - Use only the following allowed action values:
   - **"clearCache"**:
@@ -23,6 +24,8 @@ Allows you to execute utility actions like:
     - Returns the current date and time
   - **"getState"**:
     - Returns the internal state of the MCP server
+  - **"getOrgAndUserDetails"**:
+    - Obtains the details of the Salesforce organization and the current user (Id, name, URL, profile, etc.).
   - **"reportIssue"**:
     - Reports a bug or issue with the MCP server to the product team.
     - **Parameters** (only for this action):
@@ -88,5 +91,11 @@ When an issue is successfully reported, the tool returns:
 ```json
 {
   "action": "loadRecordPrefixesResource"
+}
+```
+### Example 8: Get org and user details
+```json
+{
+  "action": "getOrgAndUserDetails"
 }
 ```
