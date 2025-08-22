@@ -1,6 +1,6 @@
 # Get Setup Audit Trail changes
 
-Allows you to obtain the list of changes made to any metadata item in the Salesforce org.
+Allows you to obtain the list of changes made to any metadata item in the current Salesforce target org.
 
 ---
 
@@ -9,10 +9,12 @@ Allows you to obtain the list of changes made to any metadata item in the Salesf
 - Prioritize this tool over querying the SetupAuditTrail object with SOQL.
 
 ## Usage
-The parameters allow you to retrieve only the relevant data.
+You don't need to select an org -the tool will query the current target org- and you don't need to retrieve the org details beforehand.
+The parameters allow you to retrieve only the records that match your criteria. You can use none and all the records will be returned.
 - `lastDays`: If set, only the changes from the last number of days will be returned (must be between 1 and 90, if not set, the changes from the last 90 days will be returned)
 - `createdByName`: If set, only the changes performed by this user will be returned (if not set, the changes from all users will be returned)
 - `metadataName`: If set, only the changes performed in this metadata will be returned (if not set, the changes from all metadata will be returned)
+- `downloadCsv`: If set to true, the tool will return the raw CSV file for download instead of the processed data
 
 For example, if the user wants to retrieve HIS changes for THE LAST WEEK, the parameters should be:
 ```json
@@ -84,6 +86,13 @@ Examples
   "lastDays": 7,
   "createdByName": "Joan García",
   "metadataName": "FOO_AlertMessages_Controller"
+}
+```
+
+### Example 5: Download the raw CSV file of the audit trail
+```json
+{
+  "downloadCsv": true
 }
 ```
 

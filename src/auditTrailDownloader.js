@@ -1,9 +1,8 @@
 import {chromium} from 'playwright';
 import fs from 'fs';
 import path from 'path';
-import os from 'os';
-import {log} from './utils.js';
 import state from './state.js';
+import {log} from './utils.js';
 
 /** Construeix el domini correcte de SETUP a partir de la URL on hem aterrat després del login */
 function computeSetupOrigin(landedUrl) {
@@ -54,38 +53,48 @@ async function waitForDownloadLink(page, totalTimeoutMs = 20000, intervalMs = 20
 }
 
 async function retrieveFile() {
-	const loginUrl = 'https://test.salesforce.com';
-	const password = 'trompeta5';
 	const setupSetupAuditTrailUrl = '/lightning/setup/SecurityEvents/home';
 
 	// Verificar que tenim les credencials necessàries
-	if (!state.org?.user?.username || !password) {
-		throw new Error('No s\'han trobat les credencials d\'usuari (username/password) a l\'estat. Assegura\'t que l\'usuari està connectat a Salesforce.');
+	if (!state.org?.user?.username) {
+		throw new Error('No s\'ha trobat l\'usuari a l\'estat. Assegura\'t que l\'usuari està connectat a Salesforce.');
 	}
 
-	const browser = await chromium.launch({headless: true});
+	// Obtenir la URL de la instància i l'accessToken des de l'estat
+	const instanceUrl = state.org?.instanceUrl;
+	const accessToken = state.org?.accessToken;
+	if (!instanceUrl || !accessToken) {
+		throw new Error('No s\'ha trobat la URL de la instància o l\'accessToken a l\'estat. Assegura\'t que l\'usuari està connectat a Salesforce.');
+	}
+
+	// Iniciar el navegador
+	const browser = await chromium.launch({headless: false});
 	const context = await browser.newContext({acceptDownloads: true});
 	const page = await context.newPage();
 
 	try {
+		// MODE TOKEN: salt directe via frontdoor.jsp
+		log('Iniciant sessió via frontdoor.jsp (OAuth token)...', 'debug');
+		const sid = encodeURIComponent(accessToken);
+		const retURL = encodeURIComponent(setupSetupAuditTrailUrl);
+		const frontdoorUrl = `${instanceUrl}/secur/frontdoor.jsp?sid=${sid}&retURL=${retURL}`;
+
+		log(`Accedint via frontdoor: ${frontdoorUrl}`, 'debug');
+		await page.goto(frontdoorUrl, {waitUntil: 'domcontentloaded'});
+		await page.waitForURL(url => url.pathname.includes(setupSetupAuditTrailUrl), {timeout: 60000});
+
+		log(`Sessió establerta. URL actual: ${page.url()}`, 'debug');
+
+		/* VERSIÓ AMB INPUTS (COMENTADA)
+		const loginUrl = 'https://test.salesforce.com';
+		const password = 'trompeta5';
+
+		// Verificar que tenim les credencials necessàries
+		if (!state.org?.user?.username || !password) {
+			throw new Error('No s\'han trobat les credencials d\'usuari (username/password) a l\'estat. Assegura\'t que l\'usuari està connectat a Salesforce.');
+		}
+
 		let landedUrl;
-
-		/*  TODO: descomentar per utilitzar el mode TOKEN
-		if (accessToken && instanceUrl) {
-			// MODE TOKEN: salt directe via frontdoor.jsp
-			log('Iniciant sessió via frontdoor.jsp (OAuth token)...', 'debug');
-			const sid = encodeURIComponent(accessToken);
-			const retURL = encodeURIComponent('/lightning/page/home'); // pàgina neutra per establir cookie
-			const frontdoor = `${instanceUrl}/secur/frontdoor.jsp?sid=${sid}&retURL=${retURL}`;
-
-			await page.goto(frontdoor, {waitUntil: 'domcontentloaded'});
-			await page.waitForURL(/\/lightning\//, {timeout: 60000});
-
-			landedUrl = page.url();
-			log(`Sessió establerta. URL aterrat: ${landedUrl}`, 'debug');
-
-		} else {
-		*/
 
 		log('Iniciant sessió a Salesforce via formulari...', 'debug');
 		// MODE FORMULARI: el de tota la vida
@@ -102,7 +111,6 @@ async function retrieveFile() {
 
 		landedUrl = page.url();
 		log(`Login completat. URL aterrat: ${landedUrl}`, 'debug');
-		// }
 
 		// Domini correcte del SETUP
 		const setupOrigin = computeSetupOrigin(landedUrl);
@@ -110,6 +118,7 @@ async function retrieveFile() {
 
 		log(`Domini Setup calculat: ${setupOrigin}`, 'debug');
 		log(`Anant a Setup Audit Trail: ${setupUrl}`, 'debug');
+		*/
 
 		await page.goto(setupUrl, {waitUntil: 'domcontentloaded'});
 		try {
@@ -139,7 +148,7 @@ async function retrieveFile() {
 		const download = await downloadPromise;
 
 		const fileName = `setupAuditTrail_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
-		const filePath = path.join(os.tmpdir(), fileName);
+		const filePath = path.join(state.tempPath, fileName);
 		await download.saveAs(filePath);
 
 		const fileContent = fs.readFileSync(filePath, 'utf8');

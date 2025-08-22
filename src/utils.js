@@ -1,12 +1,11 @@
 import config from './config.js';
 import fs from 'fs';
-import os from 'os';
+import state from './state.js';
 import path from 'path';
 import {fileURLToPath} from 'url';
 import {mcpServer} from './mcp-server.js';
 import client from './client.js';
 import {executeSoqlQuery} from './salesforceServices.js';
-import state from './state.js';
 
 /**
  * Logs data with specified level and context
@@ -224,7 +223,7 @@ export function writeToFile(file, data, options = {}) {
  * @param {string} filename - Base name for the file (without extension)
  */
 export function saveToFile(object, filename) {
-	const filePath = path.join(os.tmpdir(), `${filename}_${Date.now()}.json`);
+	const filePath = path.join(state.tempPath, `${filename}_${Date.now()}.json`);
 	fs.writeFileSync(filePath, JSON.stringify(object, null, 3), 'utf8');
 	log(`Object written to temporary file: ${filePath}`, 'debug');
 }
@@ -329,7 +328,7 @@ You are an expert **Salesforce full stack developer**.
   \`\`\`js
   fs.mkdirSync('./tmp', { recursive: true })
   \`\`\`
-- **NEVER** use \`/tmp\`, \`os.tmpdir()\`, or any other directory.
+- **NEVER** use \`/tmp\`, \`state.tempPath\`, or any other directory.
 - Applies to all temp files: images, logs, data, etc.
 
 ---

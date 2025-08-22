@@ -1,4 +1,4 @@
-import {callSalesforceApi} from '../salesforceServices.js';
+import {executeSoqlQuery} from '../salesforceServices.js';
 import {textFileContent, log} from '../utils.js';
 
 export const getRecentlyViewedRecordsToolDefinition = {
@@ -16,15 +16,24 @@ export const getRecentlyViewedRecordsToolDefinition = {
 
 export async function getRecentlyViewedRecordsTool() {
 	try {
-		const response = await callSalesforceApi('GET', 'REST', '/recent', null, {queryParams: {limit: 80}});
-		log(response, 'debug', 'Recently viewed records');
+		// Use executeSoqlQuery to get all recently viewed records
+		const query = 'SELECT Id, Name, Type, LastViewedDate, LastReferencedDate FROM RecentlyViewed ORDER BY LastViewedDate DESC';
+		const response = await executeSoqlQuery(query, false);
+
+		log(response, 'debug', 'Recently viewed records via SOQL');
+
+		// Extract records from the SOQL response
+		const records = response?.records || [];
+
 		return {
 			content: [{
 				type: 'text',
-				text: `Last ${response?.length || 0} recently viewed records retrieved successfully`
+				text: `Retrieved ${records.length} recently viewed records successfully`
 			}],
 			structuredContent: {
-				records: response
+				records: records,
+				totalSize: response?.totalSize || 0,
+				done: response?.done || true
 			}
 		};
 

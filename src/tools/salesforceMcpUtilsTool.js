@@ -4,16 +4,15 @@ import {log, textFileContent, formatDate} from '../utils.js';
 import {z} from 'zod';
 import {resources, newResource, clearResources} from '../mcp-server.js';
 import config from '../config.js';
+import {getOrgAndUserDetails} from '../salesforceServices.js';
 
 export const salesforceMcpUtilsToolDefinition = {
 	name: 'salesforceMcpUtils',
 	title: 'IBM Salesforce MCP Utils',
 	description: textFileContent('salesforceMcpUtilsTool'),
 	inputSchema: {
-		action: z
-			.enum(['clearCache', 'getCurrentDatetime', 'getState', 'reportIssue', 'loadRecordPrefixesResource'])
-			.describe('The action to perform: "clearCache", "getCurrentDatetime", "getState", "reportIssue", "loadRecordPrefixesResource"'),
-		// Additional parameters for reportIssue action
+		action: z.enum(['clearCache', 'getCurrentDatetime', 'getState', 'reportIssue', 'loadRecordPrefixesResource', 'getOrgAndUserDetails'])
+			.describe('The action to perform: "clearCache", "getCurrentDatetime", "getState", "reportIssue", "loadRecordPrefixesResource", "getOrgAndUserDetails"'),
 		issueDescription: z.string()
 			.optional()
 			.describe('Detailed description of the issue (required for reportIssue action)'),
@@ -105,6 +104,38 @@ export async function salesforceMcpUtilsTool({action, issueDescription, issueToo
 				}],
 				structuredContent: {resource}
 			};
+
+		} else if (action === 'getOrgAndUserDetails') {
+			try {
+				const result = await getOrgAndUserDetails();
+				const content = [{
+					type: 'text',
+					text: JSON.stringify(result, null, 2)
+				}];
+
+				if (client.supportsCapability('embeddedResources')) {
+					const resourceOrgAndUserDetails = newResource(
+						'mcp://org/orgAndUserDetail.json',
+						'Salesforce org and user details',
+						'Details of the current target Salesforce org and logged-in user. This resource can now be reused instead of making new calls to the getOrgAndUserDetails tool.',
+						'application/json',
+						JSON.stringify(result, null, 3),
+						{audience: ['user', 'assistant']}
+					);
+					content.push({type: 'resource', resource: resourceOrgAndUserDetails});
+				}
+				return {content, structuredContent: result};
+
+			} catch (error) {
+				log(error, 'error', 'Error getting org and user details');
+				return {
+					isError: true,
+					content: [{
+						type: 'text',
+						text: `❌ Error getting org and user details: ${error.message}`
+					}]
+				};
+			}
 
 		} else if (action === 'reportIssue') {
 			// Validate required fields for reportIssue

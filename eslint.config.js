@@ -112,7 +112,10 @@ export default [
 			'__pycache__/**',
 			'.venv/**',
 			'env/**',
-			'.env/**'
+			'.env/**',
+			'.eslint.config.js',
+			'tmp/**',
+			'eslint.config.js'
 		]
 	}
 ];
