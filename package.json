@@ -12,7 +12,8 @@
   },
   "scripts": {
     "publish-package": "sh dev/publish-package.sh",
-    "test": "node dev/testClient.js",
+    "test": "node test/runner.js",
+    "test:help": "node test/runner.js --help",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "startMcpInspector": "sh dev/startMcpInspector.sh"
