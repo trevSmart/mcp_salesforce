@@ -161,36 +161,24 @@ export async function setupServer() {
 
 	const callToolHandler = tool => {
 		return async params => {
-			if (tool !== 'salesforceMcpUtils') {
-				if (!state.org.user.id) {
-					const errorMessage = '❌ Org and user details not available. The server may still be initializing.';
-					log(errorMessage, 'critical');
-					return {
-						isError: true,
-						content: [{
-							type: 'text',
-							text: errorMessage
-						}]
-					};
-				} else if (!state.userValidated) {
-					const errorMessage = `🚫 Request blocked due to unsuccessful user validation for "${state.org.user.username}"`;
-					log(errorMessage, 'critical');
-					return {
-						isError: true,
-						content: [{
-							type: 'text',
-							text: errorMessage
-						}]
-					};
+			try {
+				if (tool !== 'salesforceMcpUtils') {
+					if (!state.org.user.id) {
+						throw new Error('❌ Org and user details not available. The server may still be initializing.');
+					} else if (!state.userValidated) {
+						throw new Error(`🚫 Request blocked due to unsuccessful user validation for "${state.org.user.username}".`);
+					}
 				}
+				const toolModule = await import(`./tools/${tool}.js`);
+				const toolHandler = toolModule?.[`${tool}ToolHandler`];
+				if (!toolHandler) {
+					throw new Error(`Tool ${tool} module does not export a tool handler.`);
+				}
+				return await toolHandler(params);
+			} catch (error) {
+				log(error.message, 'critical', `Error calling tool ${tool}`);
+				return {isError: true, content: [{type: 'text', text: error.message}]};
 			}
-
-			const toolModule = await import(`./tools/${tool}.js`);
-			const toolHandler = toolModule[`${tool}ToolHandler`];
-			if (!toolHandler) {
-				throw new Error(`Tool function ${tool}Tool not found in module`);
-			}
-			return await toolHandler(params);
 		};
 	};
 
@@ -208,10 +196,9 @@ export async function setupServer() {
 	mcpServer.registerTool('getApexClassCodeCoverage', getApexClassCodeCoverageToolDefinition, callToolHandler('getApexClassCodeCoverage'));
 	mcpServer.registerTool('createMetadata', createMetadataToolDefinition, callToolHandler('createMetadata'));
 	// mcpServer.registerTool('chatWithAgentforce', chatWithAgentforceDefinition, callToolHandler('chatWithAgentforce'));
-	// mcpServer.registerTool('toolingApiRequest', toolingApiRequestDefinition, callToolHandler('toolingApiRequest'));
 	// mcpServer.registerTool('triggerExecutionOrder', triggerExecutionOrderDefinition, callToolHandler('triggerExecutionOrder'));
+	// mcpServer.registerTool('generateSoqlQuery', generateSoqlQueryDefinition, callToolHandler('generateSoqlQuery'));
 
-	//Set up request handlers
 	mcpServer.server.setRequestHandler(SetLevelRequestSchema, async ({params}) => {
 		state.currentLogLevel = params.level;
 		log(`Log level set to ${params.level}`, 'debug');

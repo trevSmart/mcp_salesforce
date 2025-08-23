@@ -1,4 +1,4 @@
-# Chat With Agentforce
+# Chat With Agentforce Tool
 
 Allows you to chat with Agentforce to get help about Salesforce.
 

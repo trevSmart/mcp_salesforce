@@ -1,4 +1,4 @@
-# DML Operations (Batch)
+# DML Operation Tool
 
 Allows you to perform multiple Create, Update, and Delete operations in a single request.
 
