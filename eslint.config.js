@@ -101,6 +101,20 @@ export default [
 		}
 	},
 
+	// Special rules for test files
+	{
+		files: ['test/**/*.{js,mjs,cjs}'],
+		rules: {
+			'no-console': 'off',
+			'max-len': ['warn', {
+				'code': 300,
+				'ignoreTemplateLiterals': true,
+				'ignoreUrls': true,
+				'ignoreStrings': true
+			}]
+		}
+	},
+
 	// Ignore patterns for non-JavaScript files and directories
 	{
 		ignores: [
