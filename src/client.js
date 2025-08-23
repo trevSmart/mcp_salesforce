@@ -35,7 +35,7 @@ class Client {
 			case 'logging':
 				return this.isVsCode || this.clientInfo.name === 'IBM Salesforce MCP Test Client';
 
-			case 'resourceLinks':
+			case 'resource_links':
 				return this.isVsCode && semver.gte(this.clientInfo.version, '1.103.0');
 
 			default:
