@@ -4,7 +4,8 @@ import {log, textFileContent, formatDate} from '../utils.js';
 import {z} from 'zod';
 import {resources, newResource, clearResources} from '../mcp-server.js';
 import config from '../config.js';
-import {getOrgAndUserDetails} from '../salesforceServices.js';
+import {getOrgAndUserDetails, executeAnonymousApex} from '../salesforceServices.js';
+// Dynamic import for Apex script - only loaded when needed
 
 export const salesforceMcpUtilsToolDefinition = {
 	name: 'salesforceMcpUtils',
@@ -86,23 +87,45 @@ export async function salesforceMcpUtilsToolHandler({action, options}) {
 			};
 
 		} else if (action === 'loadRecordPrefixesResource') {
-			const recordPrefixesModule = await import('../static/record-prefixes.js');
-			const recordPrefixes = recordPrefixesModule.default;
-			const resource = newResource(
-				'file://mcp/recordPrefixes.csv',
-				'List of Salesforce record prefixes',
-				'List of Salesforce record prefixes',
-				'text/csv',
-				recordPrefixes,
-				{audience: ['assistant']}
-			);
+
+			if (resources['file://mcp/recordPrefixes.csv']) {
+				return {
+					content: [{
+						type: 'text',
+						text: '✅ Record prefixes resource already loaded'
+					}],
+					structuredContent: {recordPrefixes: resources['file://mcp/recordPrefixes.csv'].text}
+				};
+			}
+			const {recordPrefixesApexScript} = await import('../static/retrieve-sobject-prefixes.js');
+			const apexScript = recordPrefixesApexScript;
+			const apexResult = await executeAnonymousApex(apexScript);
+			const apexLog = apexResult.logs;
+
+			// Filter debug logs using regex
+			const debugLogs = apexLog.match(/(?<=\]\|DEBUG\|).*/g) || [];
+			const recordPrefixes = debugLogs.join('\n');
+
+			const content = [{
+				type: 'text',
+				text: '✅ List od record prefixes retrieved successfully'
+			}];
+
+			if (client.supportsCapability('resource_links')) {
+				const resourceLink = {type: 'resource_link', uri: newResource(
+					'file://mcp/recordPrefixes.csv',
+					'List of Salesforce SObject record prefixes',
+					'List of Salesforce SObject record prefixes',
+					'text/csv',
+					recordPrefixes,
+					{audience: ['user', 'assistant']}
+				).uri};
+				content.push(resourceLink);
+			}
 
 			return {
-				content: [{
-					type: 'text',
-					text: '✅ Record prefixes resource loaded successfully'
-				}],
-				structuredContent: {resource}
+				content,
+				structuredContent: {recordPrefixes}
 			};
 
 		} else if (action === 'getOrgAndUserDetails') {

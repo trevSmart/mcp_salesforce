@@ -22,6 +22,10 @@ pids
 .DS_Store
 Thumbs.db
 
+# Salesforce
+.sfdx/
+.sf/
+
 dist/
 .vscode/
 tmp/

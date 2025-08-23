@@ -112,6 +112,7 @@ export function newResource(uri, name, description, mimeType = 'text/plain', con
 }
 
 export function clearResources() {
+	log('Clearing resources...', 'debug');
 	resources = {};
 	mcpServer.server.sendResourceListChanged();
 }
