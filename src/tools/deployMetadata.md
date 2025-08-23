@@ -1,4 +1,4 @@
-# Deploy Metadata
+# Deploy Metadata Tool
 
 Allows you to deploy a local metadata file to the Salesforce org.
 

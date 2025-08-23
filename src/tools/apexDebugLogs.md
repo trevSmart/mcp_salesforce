@@ -1,4 +1,4 @@
-# Apex Debug Logs
+# Apex Debug Logs Tool
 
 Allows you to manage Apex debug logs in Salesforce.
 

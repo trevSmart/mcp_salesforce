@@ -1,4 +1,4 @@
-# Get Recently Viewed Records
+# Get Recently Viewed Records Tool
 
 Allows you to obtain the Salesforce records that the user has viewed most recently.
 

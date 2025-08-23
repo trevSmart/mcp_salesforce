@@ -1,4 +1,4 @@
-# Execute Anonymous Apex
+# Execute Anonymous Apex Tool
 
 Allows you to execute anonymous Apex code in Salesforce.
 

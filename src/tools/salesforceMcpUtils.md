@@ -1,12 +1,12 @@
 # IBM Salesforce MCP Utils Tool
 
 Allows you to execute utility actions like:
+  - getOrgAndUserDetails: Obtains the details of the Salesforce organization and the current user (Id, name, URL, profile, etc.).
+  - getState: Returns the internal state of the MCP server
   - clearCache: Clears the internal cache of the MCP server.
   - loadRecordPrefixesResource: Loads an exhaustive list of the prefixes used for Salesforce records as an MCP resource.
   - getCurrentDatetime: Returns the current date and time
-  - getState: Returns the internal state of the MCP server
   - reportIssue: Reports a bug or issue with the MCP server to the product team.
-  - getOrgAndUserDetails: Obtains the details of the Salesforce organization and the current user (Id, name, URL, profile, etc.).
 
 ---
 ## Agent Instructions
@@ -15,17 +15,17 @@ Allows you to execute utility actions like:
 - To get the user name, use the "getOrgAndUserDetails" action of this tool.
 
 - Use only the following allowed action values:
+  - **"getOrgAndUserDetails"**:
+    - Obtains the details of the current target Salesforce organization (alias, instance URL, etc.) and the current user (Name, User Id, username, etc...).
+  - **"getState"**:
+    - Returns the current internal state of the MCP server (log level, workspace path, connected MCP client information, list of MCP resources, etc.).
   - **"clearCache"**:
     - Clears the internal cache of the MCP server.
     - **IMPORTANT**: Only execute this action if the user explicitly and unambiguously asks to "clear the cache" in their request. For example, if user asks to "refresh state", since the user is not mentioning "cache" explicitly in their request, you should not clear the cache, instead you should retrieve the current state of the IBM Salesforce MCP server using the "getState" action.
   - **"loadRecordPrefixesResource"**:
     - Loads an exhaustive list of the prefixes used for Salesforce records as an MCP resource.
   - **"getCurrentDatetime"**:
-    - Returns the current date and time
-  - **"getState"**:
-    - Returns the internal state of the MCP server
-  - **"getOrgAndUserDetails"**:
-    - Obtains the details of the Salesforce organization and the current user (Id, name, URL, profile, etc.).
+    - Returns the current date and time.
   - **"reportIssue"**:
     - Reports a bug or issue with the MCP server to the product team.
     - **Parameters** (only for this action):

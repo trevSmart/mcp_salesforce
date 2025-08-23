@@ -1,4 +1,4 @@
-# Trigger Execution Order
+# Trigger Execution Order Tool
 
 Allows you to obtain the execution order of triggers for a given SObject.
 

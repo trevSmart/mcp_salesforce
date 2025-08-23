@@ -1,4 +1,4 @@
-# Get Record
+# Get Record Tool
 
 Allows you to obtain a Salesforce record by its Id and object type.
 

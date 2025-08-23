@@ -1,4 +1,4 @@
-# Run Apex Test
+# Run Apex Test Tool
 
 Allows you to run Apex text classes, or specific Apex test classes methods, or full Apex test suites.
 

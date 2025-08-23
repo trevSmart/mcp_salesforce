@@ -1,4 +1,4 @@
-# Create Metadata (Apex Class, Apex Test Class, Apex Trigger or LWC)
+# Create Metadata (Apex Class, Apex Test Class, Apex Trigger or LWC) Tool
 Generate a new Apex Class, a new Apex Test Class, a new Apex Trigger or a new LWC.
 
 ## Agent Instructions

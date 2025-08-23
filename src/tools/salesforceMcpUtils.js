@@ -80,7 +80,7 @@ export async function salesforceMcpUtilsToolHandler({action, options}) {
 			return {
 				content: [{
 					type: 'text',
-					text: JSON.stringify(output, null, 3)
+					text: 'Successfully retrieved the internal state of the MCP server'
 				}],
 				structuredContent: output
 			};

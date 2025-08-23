@@ -1,4 +1,4 @@
-# Get Apex Classes Code Coverage
+# Get Apex Classes Code Coverage Tool
 
 Retrieves the code coverage information for specific Apex classes using the Tooling API. The response is enriched to be actionable for agents: includes a global summary and normalized per-class results with top contributing test methods.
 

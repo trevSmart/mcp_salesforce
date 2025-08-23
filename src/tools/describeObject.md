@@ -1,4 +1,4 @@
-# Describe Object
+# Describe Object Tool
 
 Allows you to obtain SObject schema information.
 

@@ -1,4 +1,4 @@
-# Get Setup Audit Trail changes
+# Get Setup Audit Trail changes Tool
 
 Allows you to obtain the list of changes made to any metadata item in the current Salesforce target org.
 
