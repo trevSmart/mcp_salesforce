@@ -7,10 +7,10 @@ import {z} from 'zod';
 import state from '../state.js';
 import client from '../client.js';
 
-export const getSetupAuditTrailToolDefinition = {
-	name: 'getSetupAuditTrail',
+export const getSetupAuditTrailCopyToolDefinition = {
+	name: 'getSetupAuditTrailCopy',
 	title: 'Get the changes in the Salesforce org metadata performed in the last days from the Salesforce Setup Audit Trail data',
-	description: textFileContent('getSetupAuditTrailTool'),
+	description: textFileContent('getSetupAuditTrailCopy'),
 	inputSchema: {
 		lastDays: z.number()
 			.int()
@@ -34,7 +34,7 @@ export const getSetupAuditTrailToolDefinition = {
 	}
 };
 
-export async function getSetupAuditTrailTool({lastDays = 90, createdByName = null, metadataName = null}) {
+export async function getSetupAuditTrailCopyToolHandler({lastDays = 90, createdByName = null, metadataName = null}) {
 	try {
 		// Generate unique resource name based on parameters
 		const resourceName = `mcp://mcp/setup-audit-trail-${lastDays}-${createdByName || 'all'}-${metadataName || 'all'}.json`;

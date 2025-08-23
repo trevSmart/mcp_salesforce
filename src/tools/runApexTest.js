@@ -7,7 +7,7 @@ import {z} from 'zod';
 export const runApexTestToolDefinition = {
 	name: 'runApexTest',
 	title: 'Run Apex Tests',
-	description: textFileContent('runApexTestTool'),
+	description: textFileContent('runApexTest'),
 	inputSchema: {
 		classNames: z
 			.array(z.string())
@@ -71,7 +71,7 @@ async function classNameElicitation() {
 	});
 }
 
-export async function runApexTestTool({classNames = [], methodNames = [], suiteNames = []}) {
+export async function runApexTestToolHandler({classNames = [], methodNames = [], suiteNames = []}) {
 	try {
 		// Validate that only one input array has items
 		const hasClassNames = classNames && classNames.length > 0;

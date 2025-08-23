@@ -6,7 +6,7 @@ import {mcpServer} from '../mcp-server.js';
 export const generateSoqlQueryToolDefinition = {
 	name: 'generateSoqlQuery',
 	title: 'Generate SOQL Query',
-	description: textFileContent('generateSoqlQueryTool'),
+	description: textFileContent('generateSoqlQuery'),
 	inputSchema: {
 		soqlQueryDescription: z
 			.string()
@@ -28,7 +28,7 @@ export const generateSoqlQueryToolDefinition = {
 	}
 };
 
-export async function generateSoqlQueryTool({soqlQueryDescription, involvedFields}) {
+export async function generateSoqlQueryToolHandler({soqlQueryDescription, involvedFields}) {
 
 	try {
 		if (!soqlQueryDescription) {

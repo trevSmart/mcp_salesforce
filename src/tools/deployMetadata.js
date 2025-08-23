@@ -8,7 +8,7 @@ import {z} from 'zod';
 export const deployMetadataToolDefinition = {
 	name: 'deployMetadata',
 	title: 'Deploy Metadata',
-	description: textFileContent('deployMetadataTool'),
+	description: textFileContent('deployMetadata'),
 	inputSchema: {
 		sourceDir: z.string().describe('The path to the local metadata file to deploy.')
 	},
@@ -21,7 +21,7 @@ export const deployMetadataToolDefinition = {
 	}
 };
 
-export async function deployMetadataTool({sourceDir}) {
+export async function deployMetadataToolHandler({sourceDir}) {
 	try {
 		if (client.supportsCapability('elicitation')) {
 			const metadataName = getFileNameFromPath(sourceDir);

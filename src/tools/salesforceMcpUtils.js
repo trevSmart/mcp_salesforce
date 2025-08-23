@@ -9,7 +9,7 @@ import {getOrgAndUserDetails} from '../salesforceServices.js';
 export const salesforceMcpUtilsToolDefinition = {
 	name: 'salesforceMcpUtils',
 	title: 'IBM Salesforce MCP Utils',
-	description: textFileContent('salesforceMcpUtilsTool'),
+	description: textFileContent('salesforceMcpUtils'),
 	inputSchema: {
 		action: z.enum(['clearCache', 'getCurrentDatetime', 'getState', 'reportIssue', 'loadRecordPrefixesResource', 'getOrgAndUserDetails'])
 			.describe('The action to perform: "clearCache", "getCurrentDatetime", "getState", "reportIssue", "loadRecordPrefixesResource", "getOrgAndUserDetails"'),
@@ -41,7 +41,7 @@ function generateManualTitle(description, toolName) {
 	return title;
 }
 
-export async function salesforceMcpUtilsTool({action, issueDescription, issueToolName}) {
+export async function salesforceMcpUtilsToolHandler({action, options}) {
 	try {
 		if (action === 'clearCache') {
 			clearResources();
@@ -139,17 +139,17 @@ export async function salesforceMcpUtilsTool({action, issueDescription, issueToo
 
 		} else if (action === 'reportIssue') {
 			// Validate required fields for reportIssue
-			if (!issueDescription || issueDescription.trim().length < 10) {
+			if (!options?.issueDescription || options.issueDescription.trim().length < 10) {
 				throw new Error('For the reportIssue action, issueDescription is required and must be at least 10 characters long');
 			}
 
 			// Fix issue type as "bug" and derive title from description
 			const issueType = 'bug';
-			const cleanDescription = issueDescription.trim();
+			const cleanDescription = options.issueDescription.trim();
 
 			// Try to generate title using sampling capability if available
 			let title;
-			let detectedToolName = issueToolName;
+			let detectedToolName = options.issueToolName;
 
 			// Fix severity to medium
 			const issueSeverity = 'medium';
@@ -169,10 +169,10 @@ export async function salesforceMcpUtilsTool({action, issueDescription, issueToo
 					// If no tool name specified, try to detect it from description
 					if (!detectedToolName || detectedToolName === 'Unknown') {
 						const toolDetectionPrompt = `## Issue Description ##
-${issueDescription}
+${options.issueDescription}
 
 ## Task ##
-Analyze this issue description and determine which of the IBM Salesforce MCP tools is most likely affected. Look for:
+Analyze this issue description and determine which one of the MCP server's tools is most likely affected. Look for:
 - Tool names mentioned (e.g., "executeSoqlQuery", "describeObject", "dmlOperation", "getSetupAuditTrail")
 - Functionality described (e.g., "query execution", "object description", "record creation", "audit trail", "setup audit")
 - Error messages that might indicate the tool
@@ -185,7 +185,7 @@ Return only the tool name or "Unknown" without any explanation.`;
 
 						const toolDetectionResponse = await mcpServer.server.createMessage({
 							messages: [{role: 'user', content: {type: 'text', text: toolDetectionPrompt}}],
-							systemPrompt: 'You are a Model Context Protocol expert. Analyze issue descriptions to identify which specific tool is affected.',
+							systemPrompt: 'You are a Model Context Protocol expert. Analyze issue descriptions to identify which of the MCP server\'s tools is most likely affected.',
 							modelPreferences: {speedPriority: 0, intelligencePriority: 1},
 							maxTokens: 50
 						});
@@ -197,7 +197,7 @@ Return only the tool name or "Unknown" without any explanation.`;
 					}
 
 					// Create sampling prompt for title generation
-					const samplingPrompt = `## Issue Description ##\n${issueDescription}\n\n## Tool Information ##\nTool: ${detectedToolName}\nSeverity: ${issueSeverity || 'medium'}\n\n## Task ##\nGenerate a concise, descriptive title for this issue report. The title should be:\n- Clear and specific\n- Under 60 characters\n- Professional and technical\n- Focus on the main problem\n\nReturn only the title without any explanation or formatting.`;
+					const samplingPrompt = `## Issue Description ##\n${options.issueDescription}\n\n## Tool Information ##\nTool: ${detectedToolName}\nSeverity: ${issueSeverity || 'medium'}\n\n## Task ##\nGenerate a concise, descriptive title for this issue report. The title should be:\n- Clear and specific\n- Under 60 characters\n- Professional and technical\n- Focus on the main problem\n\nReturn only the title without any explanation or formatting.`;
 
 					// Generate title using sampling capability
 					const samplingResponse = await mcpServer.server.createMessage({
@@ -259,7 +259,7 @@ Return only the tool name or "Unknown" without any explanation.`;
 			const issueData = {
 				type: issueType,
 				title: title,
-				description: issueDescription,
+				description: options.issueDescription,
 				toolName: detectedToolName,
 				severity: 'medium',
 				date: formatDate(new Date()),

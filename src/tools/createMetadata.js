@@ -5,7 +5,7 @@ import {z} from 'zod';
 export const createMetadataToolDefinition = {
 	name: 'createMetadata',
 	title: 'Create Metadata (Apex Class, Apex Test Class, Apex Trigger or LWC)',
-	description: textFileContent('createMetadataTool'),
+	description: textFileContent('createMetadata'),
 	inputSchema: {
 		type: z.enum(['apexClass', 'apexTestClass', 'apexTrigger', 'lwc'])
 			.describe('The metadata type to generate: "apexClass", "apexTestClass", "apexTrigger" or "lwc".'),
@@ -30,7 +30,7 @@ export const createMetadataToolDefinition = {
 	}
 };
 
-export async function createMetadataTool({type, name, outputDir, sobjectName, events = []}) {
+export async function createMetadataToolHandler({type, name, outputDir, sobjectName, events = []}) {
 	try {
 		const result = await generateMetadata({type, name, outputDir, sobjectName, events});
 

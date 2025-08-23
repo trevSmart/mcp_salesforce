@@ -8,7 +8,7 @@ import {z} from 'zod';
 export const executeAnonymousApexToolDefinition = {
 	name: 'executeAnonymousApex',
 	title: 'Execute Anonymous Apex',
-	description: textFileContent('executeAnonymousApexTool'),
+	description: textFileContent('executeAnonymousApex'),
 	inputSchema: {
 		apexCode: z
 			.string()
@@ -42,7 +42,7 @@ function formatApexCode(code) {
 	}
 }
 
-export async function executeAnonymousApexTool({apexCode, mayModify}) {
+export async function executeAnonymousApexToolHandler({apexCode, mayModify}) {
 	try {
 		if (mayModify && client.supportsCapability('elicitation')) {
 			const elicitResult = await mcpServer.server.elicitInput({

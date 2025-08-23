@@ -19,23 +19,22 @@ import state from './state.js';
 import targetOrgWatcher from './OrgWatcher.js';
 
 // import { codeModificationPromptDefinition, codeModificationPrompt } from './prompts/codeModificationPrompt.js';
-import {salesforceMcpUtilsToolDefinition} from './tools/salesforceMcpUtilsTool.js';
-import {dmlOperationToolDefinition} from './tools/dmlOperationTool.js';
-import {deployMetadataToolDefinition} from './tools/deployMetadataTool.js';
-import {describeObjectToolDefinition} from './tools/describeObjectTool.js';
-import {executeAnonymousApexToolDefinition} from './tools/executeAnonymousApexTool.js';
-import {getRecentlyViewedRecordsToolDefinition} from './tools/getRecentlyViewedRecordsTool.js';
-import {getRecordToolDefinition} from './tools/getRecordTool.js';
-import {getSetupAuditTrailToolDefinition} from './tools/getSetupAuditTrailTool.js';
-import {executeSoqlQueryToolDefinition} from './tools/executeSoqlQueryTool.js';
-import {runApexTestToolDefinition} from './tools/runApexTestTool.js';
-import {getApexClassCodeCoverageToolDefinition} from './tools/getApexClassCodeCoverageTool.js';
-import {apexDebugLogsToolDefinition} from './tools/apexDebugLogsTool.js';
-import {createMetadataToolDefinition} from './tools/createMetadataTool.js';
-// import { chatWithAgentforceToolDefinition } from './tools/chatWithAgentforceTool.js';
-// import { toolingApiRequestToolDefinition } from './tools/toolingApiRequestTool.js';
-// import { triggerExecutionOrderToolDefinition } from './tools/triggerExecutionOrderTool.js';
-//import {generateSoqlQueryToolDefinition} from './tools/generateSoqlQueryTool.js';
+import {salesforceMcpUtilsToolDefinition} from './tools/salesforceMcpUtils.js';
+import {dmlOperationToolDefinition} from './tools/dmlOperation.js';
+import {deployMetadataToolDefinition} from './tools/deployMetadata.js';
+import {describeObjectToolDefinition} from './tools/describeObject.js';
+import {executeAnonymousApexToolDefinition} from './tools/executeAnonymousApex.js';
+import {getRecentlyViewedRecordsToolDefinition} from './tools/getRecentlyViewedRecords.js';
+import {getRecordToolDefinition} from './tools/getRecord.js';
+import {getSetupAuditTrailToolDefinition} from './tools/getSetupAuditTrail.js';
+import {executeSoqlQueryToolDefinition} from './tools/executeSoqlQuery.js';
+import {runApexTestToolDefinition} from './tools/runApexTest.js';
+import {getApexClassCodeCoverageToolDefinition} from './tools/getApexClassCodeCoverage.js';
+import {apexDebugLogsToolDefinition} from './tools/apexDebugLogs.js';
+import {createMetadataToolDefinition} from './tools/createMetadata.js';
+// import { chatWithAgentforceDefinition } from './tools/chatWithAgentforce.js';
+// import { triggerExecutionOrderToolDefinition } from './tools/triggerExecutionOrder.js';
+//import {generateSoqlQueryToolDefinition} from './tools/generateSoqlQuery.js';
 
 export let resources = {};
 
@@ -162,7 +161,7 @@ export async function setupServer() {
 
 	const callToolHandler = tool => {
 		return async params => {
-			if (tool !== 'salesforceMcpUtilsTool') {
+			if (tool !== 'salesforceMcpUtils') {
 				if (!state.org.user.id) {
 					const errorMessage = '❌ Org and user details not available. The server may still be initializing.';
 					log(errorMessage, 'critical');
@@ -187,30 +186,30 @@ export async function setupServer() {
 			}
 
 			const toolModule = await import(`./tools/${tool}.js`);
-			const toolFunction = toolModule[`${tool}`];
-			if (!toolFunction) {
+			const toolHandler = toolModule[`${tool}ToolHandler`];
+			if (!toolHandler) {
 				throw new Error(`Tool function ${tool}Tool not found in module`);
 			}
-			return await toolFunction(params);
+			return await toolHandler(params);
 		};
 	};
 
-	mcpServer.registerTool('salesforceMcpUtils', salesforceMcpUtilsToolDefinition, callToolHandler('salesforceMcpUtilsTool'));
-	mcpServer.registerTool('dmlOperation', dmlOperationToolDefinition, callToolHandler('dmlOperationTool'));
-	mcpServer.registerTool('deployMetadata', deployMetadataToolDefinition, callToolHandler('deployMetadataTool'));
-	mcpServer.registerTool('describeObject', describeObjectToolDefinition, callToolHandler('describeObjectTool'));
-	mcpServer.registerTool('executeAnonymousApex', executeAnonymousApexToolDefinition, callToolHandler('executeAnonymousApexTool'));
-	mcpServer.registerTool('getRecentlyViewedRecords', getRecentlyViewedRecordsToolDefinition, callToolHandler('getRecentlyViewedRecordsTool'));
-	mcpServer.registerTool('getRecord', getRecordToolDefinition, callToolHandler('getRecordTool'));
-	mcpServer.registerTool('getSetupAuditTrail', getSetupAuditTrailToolDefinition, callToolHandler('getSetupAuditTrailTool'));
-	mcpServer.registerTool('executeSoqlQuery', executeSoqlQueryToolDefinition, callToolHandler('executeSoqlQueryTool'));
-	mcpServer.registerTool('runApexTest', runApexTestToolDefinition, callToolHandler('runApexTestTool'));
-	mcpServer.registerTool('apexDebugLogs', apexDebugLogsToolDefinition, callToolHandler('apexDebugLogsTool'));
-	mcpServer.registerTool('getApexClassCodeCoverage', getApexClassCodeCoverageToolDefinition, callToolHandler('getApexClassCodeCoverageTool'));
-	mcpServer.registerTool('createMetadata', createMetadataToolDefinition, callToolHandler('createMetadataTool'));
-	// mcpServer.registerTool('chatWithAgentforce', chatWithAgentforceToolDefinition, callToolHandler('chatWithAgentforceTool'));
-	// mcpServer.registerTool('toolingApiRequest', toolingApiRequestToolDefinition, callToolHandler('toolingApiRequestTool'));
-	// mcpServer.registerTool('triggerExecutionOrder', triggerExecutionOrderToolDefinition, callToolHandler('triggerExecutionOrderTool'));
+	mcpServer.registerTool('salesforceMcpUtils', salesforceMcpUtilsToolDefinition, callToolHandler('salesforceMcpUtils'));
+	mcpServer.registerTool('dmlOperation', dmlOperationToolDefinition, callToolHandler('dmlOperation'));
+	mcpServer.registerTool('deployMetadata', deployMetadataToolDefinition, callToolHandler('deployMetadata'));
+	mcpServer.registerTool('describeObject', describeObjectToolDefinition, callToolHandler('describeObject'));
+	mcpServer.registerTool('executeAnonymousApex', executeAnonymousApexToolDefinition, callToolHandler('executeAnonymousApex'));
+	mcpServer.registerTool('getRecentlyViewedRecords', getRecentlyViewedRecordsToolDefinition, callToolHandler('getRecentlyViewedRecords'));
+	mcpServer.registerTool('getRecord', getRecordToolDefinition, callToolHandler('getRecord'));
+	mcpServer.registerTool('getSetupAuditTrail', getSetupAuditTrailToolDefinition, callToolHandler('getSetupAuditTrail'));
+	mcpServer.registerTool('executeSoqlQuery', executeSoqlQueryToolDefinition, callToolHandler('executeSoqlQuery'));
+	mcpServer.registerTool('runApexTest', runApexTestToolDefinition, callToolHandler('runApexTest'));
+	mcpServer.registerTool('apexDebugLogs', apexDebugLogsToolDefinition, callToolHandler('apexDebugLogs'));
+	mcpServer.registerTool('getApexClassCodeCoverage', getApexClassCodeCoverageToolDefinition, callToolHandler('getApexClassCodeCoverage'));
+	mcpServer.registerTool('createMetadata', createMetadataToolDefinition, callToolHandler('createMetadata'));
+	// mcpServer.registerTool('chatWithAgentforce', chatWithAgentforceDefinition, callToolHandler('chatWithAgentforce'));
+	// mcpServer.registerTool('toolingApiRequest', toolingApiRequestDefinition, callToolHandler('toolingApiRequest'));
+	// mcpServer.registerTool('triggerExecutionOrder', triggerExecutionOrderDefinition, callToolHandler('triggerExecutionOrder'));
 
 	//Set up request handlers
 	mcpServer.server.setRequestHandler(SetLevelRequestSchema, async ({params}) => {
@@ -242,7 +241,7 @@ export async function setupServer() {
 			}
 
 			//if (client.supportsCapability('sampling')) {
-			//	mcpServer.registerTool('generateSoqlQuery', generateSoqlQueryToolDefinition, generateSoqlQueryTool);
+			//	mcpServer.registerTool('generateSoqlQuery', generateSoqlQueryDefinition, generateSoqlQuery);
 			//}
 
 			//Execute org setup and validation after directory change is complete

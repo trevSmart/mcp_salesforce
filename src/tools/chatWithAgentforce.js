@@ -9,7 +9,7 @@ let currentSessionId = null;
 export const chatWithAgentforceToolDefinition = {
 	name: 'chatWithAgentforce',
 	title: 'Chat with Agentforce',
-	description: textFileContent('chatWithAgentforceTool'),
+	description: textFileContent('chatWithAgentforce'),
 	inputSchema: {
 		message: z
 			.string()
@@ -119,7 +119,7 @@ async function sendMessage(message) {
 	}
 }
 
-export async function chatWithAgentforce({message}) {
+export async function chatWithAgentforceToolHandler({message}) {
 	if (!message) {
 		return {
 			isError: true,

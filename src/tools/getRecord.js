@@ -7,7 +7,7 @@ import state from '../state.js';
 export const getRecordToolDefinition = {
 	name: 'getRecord',
 	title: 'Get Record',
-	description: textFileContent('getRecordTool'),
+	description: textFileContent('getRecord'),
 	inputSchema: {
 		sObjectName: z
 			.string()
@@ -24,7 +24,7 @@ export const getRecordToolDefinition = {
 	}
 };
 
-export async function getRecordTool({sObjectName, recordId}) {
+export async function getRecordToolHandler({sObjectName, recordId}) {
 	try {
 		if (!sObjectName || !recordId) {
 			throw new Error('SObject name and record ID are required');

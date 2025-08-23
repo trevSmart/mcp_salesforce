@@ -6,7 +6,7 @@ import {newResource, resources} from '../mcp-server.js';
 export const describeObjectToolDefinition = {
 	name: 'describeObject',
 	title: 'Describe SObject schema',
-	description: textFileContent('describeObjectTool'),
+	description: textFileContent('describeObject'),
 	inputSchema: {
 		sObjectName: z
 			.string()
@@ -28,7 +28,7 @@ export const describeObjectToolDefinition = {
 	}
 };
 
-export async function describeObjectTool({sObjectName, includeFields = true, includePicklistValues = false}) {
+export async function describeObjectToolHandler({sObjectName, includeFields = true, includePicklistValues = false}) {
 	try {
 		const resourceName = 'mcp://mcp/sobject-ui-schema-' + sObjectName.toLowerCase() + '.json';
 
