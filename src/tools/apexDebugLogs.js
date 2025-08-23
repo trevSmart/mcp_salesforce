@@ -9,7 +9,7 @@ import {z} from 'zod';
 export const apexDebugLogsToolDefinition = {
 	name: 'apexDebugLogs',
 	title: 'Manage Apex debug logs',
-	description: textFileContent('apexDebugLogsTool'),
+	description: textFileContent('apexDebugLogs'),
 	inputSchema: {
 		action: z.enum(['status', 'on', 'off', 'list', 'get', 'analyze'])
 			.describe('The action to perform. Possible values: "status", "on", "off", "list", "get", "analyze".'),
@@ -342,7 +342,7 @@ async function exportMermaidToPng(mermaidText, fileBaseName) {
 	}
 }
  */
-export async function apexDebugLogsTool({action, logId}) {
+export async function apexDebugLogsToolHandler({action, logId}) {
 	try {
 		if (!['status', 'on', 'off', 'list', 'get', 'analyze'].includes(action)) {
 			throw new Error(`Invalid action: ${action}`);

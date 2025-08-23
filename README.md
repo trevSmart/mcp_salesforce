@@ -1,6 +1,6 @@
-## <img src="docs/assets/images/ibm-logo.webp" alt="IBM logo" width="52" style="position: relative; margin-right: 4px; top: 4px;"/> Salesforce MCP
+## <img src="docs/assets/images/ibm-logo.webp" alt="IBM logo" width="52" style="position: relative; margin-right: 4px; top: 4px;"/> IBM Salesforce MCP Serve
 
-A Model Context Protocol (MCP) server that provides Salesforce org context to your IDE AI agent
+An MCP server by IBM that provides Salesforce org context to your IDE AI agent
 
 ### Key features
 - **Salesforce Integration**: Seamless connection to Salesforce orgs for AI-powered development

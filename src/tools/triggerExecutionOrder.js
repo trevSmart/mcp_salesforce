@@ -2,10 +2,10 @@
 import {textFileContent, log} from '../utils.js';
 import {z} from 'zod';
 
-export const triggerExecutionOrderToolDefinition = {
+export const triggerExecutionOrderDefinition = {
 	name: 'triggerExecutionOrder',
 	title: 'Trigger Execution Order',
-	description: textFileContent('triggerExecutionOrderTool'),
+	description: textFileContent('triggerExecutionOrder'),
 	inputSchema: {
 		sObjectName: z
 			.string()

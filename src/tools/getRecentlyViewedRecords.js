@@ -4,7 +4,7 @@ import {textFileContent, log} from '../utils.js';
 export const getRecentlyViewedRecordsToolDefinition = {
 	name: 'getRecentlyViewedRecords',
 	title: 'Get Recently Viewed Records',
-	description: textFileContent('getRecentlyViewedRecordsTool'),
+	description: textFileContent('getRecentlyViewedRecords'),
 	inputSchema: {},
 	annotations: {
 		readOnlyHint: true,
@@ -14,7 +14,7 @@ export const getRecentlyViewedRecordsToolDefinition = {
 	}
 };
 
-export async function getRecentlyViewedRecordsTool() {
+export async function getRecentlyViewedRecordsToolHandler() {
 	try {
 		// Use executeSoqlQuery to get all recently viewed records
 		const query = 'SELECT Id, Name, Type, LastViewedDate, LastReferencedDate FROM RecentlyViewed ORDER BY LastViewedDate DESC';

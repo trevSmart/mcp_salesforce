@@ -37,7 +37,7 @@ function addUrlToRecord(record) {
 export const executeSoqlQueryToolDefinition = {
 	name: 'executeSoqlQuery',
 	title: 'Execute SOQL Query',
-	description: textFileContent('executeSoqlQueryTool'),
+	description: textFileContent('executeSoqlQuery'),
 	inputSchema: {
 		query: z
 			.string()
@@ -56,7 +56,7 @@ export const executeSoqlQueryToolDefinition = {
 	}
 };
 
-export async function executeSoqlQueryTool({query, useToolingApi = false}) {
+export async function executeSoqlQueryToolHandler({query, useToolingApi = false}) {
 	try {
 		let queryResult = await executeSoqlQuery(query, useToolingApi);
 

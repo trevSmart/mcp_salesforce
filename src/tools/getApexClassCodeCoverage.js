@@ -5,7 +5,7 @@ import {z} from 'zod';
 export const getApexClassCodeCoverageToolDefinition = {
 	name: 'getApexClassCodeCoverage',
 	title: 'Get Apex Classes Code Coverage',
-	description: textFileContent('getApexClassCodeCoverageTool'),
+	description: textFileContent('getApexClassCodeCoverage'),
 	inputSchema: {
 		classNames: z
 			.array(z.string())
@@ -19,7 +19,7 @@ export const getApexClassCodeCoverageToolDefinition = {
 	}
 };
 
-export async function getApexClassCodeCoverageTool({classNames}) {
+export async function getApexClassCodeCoverageToolHandler({classNames}) {
 	try {
 		if (!classNames || !classNames.length) {
 			throw new Error('classNames is required and must be a non-empty array of Apex class names');

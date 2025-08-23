@@ -1,4 +1,4 @@
-import {log, textFileContent, getTimestamp} from '../utils.js';
+import {log, textFileContent} from '../utils.js';
 import {newResource, resources} from '../mcp-server.js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -10,7 +10,7 @@ import {retrieveSetupAuditTrailFile} from '../auditTrailDownloader.js';
 export const getSetupAuditTrailToolDefinition = {
 	name: 'getSetupAuditTrail',
 	title: 'Get the changes in the Salesforce org metadata performed in the last days from the Salesforce Setup Audit Trail data',
-	description: textFileContent('getSetupAuditTrailTool'),
+	description: textFileContent('getSetupAuditTrail'),
 	inputSchema: {
 		lastDays: z.number()
 			.int()
@@ -38,7 +38,7 @@ export const getSetupAuditTrailToolDefinition = {
 	}
 };
 
-export async function getSetupAuditTrailTool({lastDays = 90, createdByName = null, metadataName = null, downloadCsv = false}) {
+export async function getSetupAuditTrailToolHandler({lastDays = 90, createdByName = null, metadataName = null, downloadCsv = false}) {
 	try {
 		// Si l'usuari vol descarregar el CSV directament, no utilitzem la caché
 		if (!downloadCsv) {
@@ -139,8 +139,9 @@ export async function getSetupAuditTrailTool({lastDays = 90, createdByName = nul
 
 		// Crear el recurs per a la cache
 		if (client.supportsCapability('embeddedResources')) {
-			resources[resourceName] = newResource(
-				resourceName,
+			const cacheResourceName = `mcp://mcp/setup-audit-trail-${lastDays}-${createdByName || 'all'}-${metadataName || 'all'}.json`;
+			resources[cacheResourceName] = newResource(
+				cacheResourceName,
 				`setup-audit-trail-${lastDays}-${createdByName || 'all'}-${metadataName || 'all'}`,
 				'Setup audit trail history',
 				'application/json',

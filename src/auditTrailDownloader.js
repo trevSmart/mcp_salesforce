@@ -4,22 +4,7 @@ import path from 'path';
 import state from './state.js';
 import {log} from './utils.js';
 
-/** Construeix el domini correcte de SETUP a partir de la URL on hem aterrat després del login */
-function computeSetupOrigin(landedUrl) {
-	const u = new URL(landedUrl);
-	const host = u.hostname;
-
-	if (host.endsWith('.my.salesforce.com')) {
-		return `${u.protocol}//${host.replace('.my.salesforce.com', '.my.salesforce-setup.com')}`;
-	}
-	if (host.endsWith('.lightning.force.com')) {
-		const sub = host.slice(0, -'.lightning.force.com'.length);
-		return `${u.protocol}//${sub}.my.salesforce-setup.com`;
-	}
-	return u.origin;
-}
-
-/** Espera fins que aparegui l’enllaç de descàrrega (document + iframes), amb polling curt */
+/** Espera fins que aparegui l'enllaç de descàrrega (document + iframes), amb polling curt */
 async function waitForDownloadLink(page, totalTimeoutMs = 20000, intervalMs = 200) {
 	const start = Date.now();
 
@@ -120,7 +105,10 @@ async function retrieveFile() {
 		log(`Anant a Setup Audit Trail: ${setupUrl}`, 'debug');
 		*/
 
-		await page.goto(setupUrl, {waitUntil: 'domcontentloaded'});
+		// Since we're using the frontdoor approach, we don't need to navigate to setupUrl
+		// The page is already at the correct location after the frontdoor redirect
+		//await page.goto(setupUrl, {waitUntil: 'domcontentloaded'});
+
 		try {
 			await page.waitForURL(new RegExp(`${setupSetupAuditTrailUrl.replace(/\//g, '\\/')}`), {timeout: 60000});
 		} catch (error) {
@@ -163,74 +151,6 @@ async function retrieveFile() {
 	} finally {
 		await browser.close();
 	}
-}
-
-/**
- * Processa el CSV d'Audit Trail i retorna les dades en format JSON
- */
-async function processAuditTrailCsv(csvFilePath, options = {}) {
-	const {lastDays, createdByName, metadataName} = options;
-	const csvContent = fs.readFileSync(csvFilePath, 'utf8');
-	const lines = csvContent.split('\n');
-	const headers = (lines[0] || '').split(',').map(h => h.trim().replace(/"/g, ''));
-
-	const dateIndex = headers.findIndex(h => /date/i.test(h));
-	const userIndex = headers.findIndex(h => /user/i.test(h));
-	const sectionIndex = headers.findIndex(h => /section/i.test(h));
-	const actionIndex = headers.findIndex(h => /action/i.test(h));
-	const displayIndex = headers.findIndex(h => /display/i.test(h));
-
-	const records = [];
-
-	for (let i = 1; i < lines.length; i++) {
-		if (!lines[i]?.trim()) { continue; }
-		const values = [];
-		let inQuotes = false;
-		let currentValue = '';
-		for (let j = 0; j < lines[i].length; j++) {
-			const char = lines[i][j];
-			if (char === '"') {
-				inQuotes = !inQuotes;
-			} else if (char === ',' && !inQuotes) {
-				values.push(currentValue.replace(/"/g, '').trim());
-				currentValue = '';
-			} else {
-				currentValue += char;
-			}
-		}
-		values.push(currentValue.replace(/"/g, '').trim());
-
-		const record = {
-			date: dateIndex >= 0 ? values[dateIndex] : '',
-			user: userIndex >= 0 ? values[userIndex] : '',
-			section: sectionIndex >= 0 ? values[sectionIndex] : '',
-			action: actionIndex >= 0 ? values[actionIndex] : '',
-			display: displayIndex >= 0 ? values[displayIndex] : ''
-		};
-
-		let include = true;
-		if (lastDays) {
-			const recordDate = new Date(record.date);
-			const cutoff = new Date();
-			cutoff.setDate(cutoff.getDate() - lastDays);
-			if (+recordDate < +cutoff) { include = false; }
-		}
-		if (createdByName && !record.user.toLowerCase().includes(createdByName.toLowerCase())) { include = false; }
-		if (metadataName && !record.display.toLowerCase().includes(metadataName.toLowerCase())) { include = false; }
-
-		if (include) { records.push(record); }
-	}
-
-	const result = records.reduce((acc, r) => {
-		const user = r.user || '(sense usuari)';
-		if (!acc[user]) { acc[user] = []; }
-		const d = new Date(r.date);
-		const fDate = isNaN(+d) ? r.date : d.toLocaleDateString('es-ES');
-		const fTime = isNaN(+d) ? '' : d.toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'});
-		acc[user].push(`${fDate}${fTime ? ' ' + fTime : ''} - ${r.section} - ${r.display}`);
-		return acc;
-	}, {});
-	return {records: result};
 }
 
 export async function retrieveSetupAuditTrailFile() {

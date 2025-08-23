@@ -1,6 +1,6 @@
 # GitHub Pages Documentation
 
-This folder contains the source files for the GitHub Pages site of the Salesforce MCP project.
+This folder contains the source files for the GitHub Pages site of the IBM Salesforce MCP Server project.
 
 ## Structure
 

@@ -1,9 +1,9 @@
 # GitHub Pages Configuration
 # This file configures the GitHub Pages site
 
-# Site settings
-title: Salesforce MCP
-description: Model Context Protocol Server for Salesforce Integration
+  # Site settings
+  title: IBM Salesforce MCP Server
+description: An MCP server by IBM that provides Salesforce org context to your IDE AI agent
 url: "https://trevsmart.github.io"
 baseurl: "/mcp_salesforce"
 

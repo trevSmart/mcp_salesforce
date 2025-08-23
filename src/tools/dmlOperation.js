@@ -8,7 +8,7 @@ import {z} from 'zod';
 export const dmlOperationToolDefinition = {
 	name: 'dmlOperation',
 	title: 'DML Operations (Create, Update or Delete)',
-	description: textFileContent('dmlOperationTool'),
+	description: textFileContent('dmlOperation'),
 	inputSchema: {
 		operations: z.object({
 			create: z.array(z.object({
@@ -50,7 +50,7 @@ export const dmlOperationToolDefinition = {
 	}
 };
 
-export async function dmlOperationTool({operations, options = {}}) {
+export async function dmlOperationToolHandler({operations, options = {}}) {
 	try {
 		// Check for destructive operations and require confirmation if needed
 		if (options.bypassUserConfirmation !== true
