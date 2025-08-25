@@ -1,12 +1,10 @@
 import {log} from './utils.js';
-import {exec as execCb} from 'child_process';
-import {promisify} from 'node:util';
 import fs from 'fs/promises';
 import path from 'path';
 import state from './state.js';
 import {newResource} from './mcp-server.js';
-import os from 'os';
-
+import {exec as execCb} from 'child_process';
+import {promisify} from 'node:util';
 const exec = promisify(execCb);
 
 //Helper function to generate timestamp in YYMMDDHHMMSS format

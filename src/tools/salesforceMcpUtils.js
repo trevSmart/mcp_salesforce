@@ -42,7 +42,7 @@ function generateManualTitle(description, toolName) {
 	return title;
 }
 
-export async function salesforceMcpUtilsToolHandler({action, options}) {
+export async function salesforceMcpUtilsToolHandler({action, issueDescription, issueToolName}) {
 	try {
 		if (action === 'clearCache') {
 			clearResources();
@@ -98,82 +98,54 @@ export async function salesforceMcpUtilsToolHandler({action, options}) {
 
 			} else {
 				const {recordPrefixesApexScript} = await import('../static/retrieve-sobject-prefixes.js');
-				const apexResult = await executeAnonymousApex(recordPrefixesApexScript);
-				const recordPrefixes = apexResult.logs.match(/(?<=\]\|DEBUG\|).*/g) || [];
-				const resourceContent = recordPrefixes.join('\n');
+				const result = await executeAnonymousApex(recordPrefixesApexScript);
+				if (result.success) {
+					const csvData = result.result;
+					const recordPrefixes = csvData.split('\n').filter(line => line.trim() && !line.startsWith('Prefix,'));
 
-				message = '✅ Successfully retrieved list of object record prefixes';
-				structuredContent = {recordPrefixes};
-				resourceUri = newResource(
-					'file://mcp/recordPrefixes.csv',
-					'List of Salesforce SObject record prefixes',
-					'List of Salesforce SObject record prefixes',
-					'text/csv',
-					resourceContent,
-					{audience: ['user', 'assistant']}
-				).uri;
+					// Create new resource
+					const newRecordPrefixesResource = newResource('file://mcp/recordPrefixes.csv', 'text/csv', csvData);
+					resources['file://mcp/recordPrefixes.csv'] = newRecordPrefixesResource;
+
+					message = '✅ Object record prefixes resource loaded successfully';
+					structuredContent = {recordPrefixes};
+					resourceUri = recordPrefixesResource.uri;
+				} else {
+					throw new Error(`Failed to load record prefixes: ${result.error}`);
+				}
 			}
 
-			const response = {
-				content: [
-					{
-						type: 'text',
-						text: message
-					}
-				],
-				structuredContent
+			return {
+				content: [{
+					type: 'text',
+					text: message
+				}],
+				structuredContent: structuredContent
 			};
-			if (client.supportsCapability('resource_links') && resourceUri) {
-				response.content.push({type: 'resource_link', uri: resourceUri});
-			}
-
-			return response;
 
 		} else if (action === 'getOrgAndUserDetails') {
-			try {
-				const result = await getOrgAndUserDetails();
-				const content = [{
+			const result = await getOrgAndUserDetails();
+			return {
+				content: [{
 					type: 'text',
 					text: JSON.stringify(result, null, 2)
-				}];
-
-				if (client.supportsCapability('embeddedResources')) {
-					const resourceOrgAndUserDetails = newResource(
-						'mcp://org/orgAndUserDetail.json',
-						'Salesforce org and user details',
-						'Details of the current target Salesforce org and logged-in user. This resource can now be reused instead of making new calls to the getOrgAndUserDetails tool.',
-						'application/json',
-						JSON.stringify(result, null, 3),
-						{audience: ['user', 'assistant']}
-					);
-					content.push({type: 'resource', resource: resourceOrgAndUserDetails});
-				}
-				return {content, structuredContent: result};
-
-			} catch (error) {
-				log(error, 'error', 'Error getting org and user details');
-				return {
-					isError: true,
-					content: [{
-						type: 'text',
-						text: `❌ Error getting org and user details: ${error.message}`
-					}]
-				};
-			}
+				}],
+				structuredContent: result
+			};
 
 		} else if (action === 'reportIssue') {
 			// Validate required fields for reportIssue
-			if (!options?.issueDescription || options.issueDescription.trim().length < 10) {
+			if (!issueDescription || issueDescription.trim().length < 10) {
 				throw new Error('For the reportIssue action, issueDescription is required and must be at least 10 characters long');
 			}
 
 			// Fix issue type as "bug" and derive title from description
 			const issueType = 'bug';
-			const cleanDescription = options.issueDescription.trim();
+			const cleanDescription = issueDescription.trim();
 
 			// Try to generate title using sampling capability if available
 			let title;
-			let detectedToolName = options.issueToolName;
+			let detectedToolName = issueToolName;
 
 			// Fix severity to medium
 			const issueSeverity = 'medium';
@@ -193,7 +165,7 @@ export async function salesforceMcpUtilsToolHandler({action, options}) {
 					// If no tool name specified, try to detect it from description
 					if (!detectedToolName || detectedToolName === 'Unknown') {
 						const toolDetectionPrompt = `## Issue Description ##
-${options.issueDescription}
+${issueDescription}
 
 ## Task ##
 Analyze this issue description and determine which one of the MCP server's tools is most likely affected. Look for:
@@ -221,7 +193,7 @@ Return only the tool name or "Unknown" without any explanation.`;
 					}
 
 					// Create sampling prompt for title generation
-					const samplingPrompt = `## Issue Description ##\n${options.issueDescription}\n\n## Tool Information ##\nTool: ${detectedToolName}\nSeverity: ${issueSeverity || 'medium'}\n\n## Task ##\nGenerate a concise, descriptive title for this issue report. The title should be:\n- Clear and specific\n- Under 60 characters\n- Professional and technical\n- Focus on the main problem\n\nReturn only the title without any explanation or formatting.`;
+					const samplingPrompt = `## Issue Description ##\n${issueDescription}\n\n## Tool Information ##\nTool: ${detectedToolName}\nSeverity: ${issueSeverity || 'medium'}\n\n## Task ##\nGenerate a concise, descriptive title for this issue report. The title should be:\n- Clear and specific\n- Under 60 characters\n- Professional and technical\n- Focus on the main problem\n\nReturn only the title without any explanation or formatting.`;
 
 					// Generate title using sampling capability
 					const samplingResponse = await mcpServer.server.createMessage({
@@ -261,7 +233,7 @@ Return only the tool name or "Unknown" without any explanation.`;
 								enum: ['Yes', 'No'],
 								enumNames: ['Report issue now', 'Cancel issue report'],
 								description: 'Report this issue?',
-								default: 'No'
+								default: 'Yes'
 							}
 						},
 						required: ['confirm']
@@ -283,7 +255,7 @@ Return only the tool name or "Unknown" without any explanation.`;
 			const issueData = {
 				type: issueType,
 				title: title,
-				description: options.issueDescription,
+				description: issueDescription,
 				toolName: detectedToolName,
 				severity: 'medium',
 				date: formatDate(new Date()),
@@ -347,11 +319,11 @@ Return only the tool name or "Unknown" without any explanation.`;
 	} catch (error) {
 		log(error, 'error', 'Error in salesforceMcpUtilsTool');
 		return {
-			isError: true,
 			content: [{
 				type: 'text',
 				text: `❌ Error: ${error.message}`
-			}]
+			}],
+			structuredContent: {error: error.message}
 		};
 	}
 }

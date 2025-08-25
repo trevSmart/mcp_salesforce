@@ -3,7 +3,7 @@
 import {MCPServerManager, SalesforceOrgManager, TestHelpers} from './helpers.js';
 import {MCPClient} from './mcp-client.js';
 import {MCPToolsTestSuite} from './suites/mcp-tools.js';
-import {TEST_CONFIG} from './config.js';
+import {TEST_CONFIG} from './test-config.js';
 
 // Test runner class
 class TestRunner {

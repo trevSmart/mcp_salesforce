@@ -242,18 +242,15 @@ export function ensureTmpDir(workspacePath = null) {
 /**
  * Writes content to a temporary file in the workspace tmp directory
  * @param {string} content - Content to write
- * @param {string} filename - Name of the file (without extension)
- * @param {string} extension - File extension (default: 'txt')
+ * @param {string} filename - Name of the file (with extension)
  * @param {string} encoding - File encoding (default: 'utf8')
  * @param {string} workspacePath - Path to the workspace (optional)
  * @returns {string} Full path to the created file
  */
-export function writeToTmpFile(content, filename, extension = 'txt', encoding = 'utf8', workspacePath = null) {
+export function writeToTmpFile(content, filename, encoding = 'utf8', workspacePath = null) {
 	try {
 		const tmpDir = ensureTmpDir(workspacePath);
-		const timestamp = getTimestamp();
-		const fullFilename = `${filename}_${timestamp}.${extension}`;
-		const fullPath = path.join(tmpDir, fullFilename);
+		const fullPath = path.join(tmpDir, filename);
 
 		fs.writeFileSync(fullPath, content, encoding);
 		log(`File written to tmp directory: ${fullPath}`, 'debug');

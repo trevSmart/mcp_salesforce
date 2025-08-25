@@ -1,124 +1,85 @@
 import {chromium} from 'playwright';
 import fs from 'fs';
 import path from 'path';
-import state from './state.js';
-import {log} from './utils.js';
 import os from 'os';
+import {log} from './utils.js';
+import state from './state.js';
+
+async function waitForDownloadLink(page, totalTimeoutMs = 20000, intervalMs = 200) {
+	const start = Date.now();
+
+	const hasLink = async () => {
+		let link = page.locator('a:has-text("Download setup audit trail")').first();
+		if (await link.count()) { return link; }
+
+		for (const fr of page.frames()) {
+			const l = fr.locator('a:has-text("Download setup audit trail")').first();
+			if (await l.count()) { return l; }
+		}
+
+		const sels = ['a[href*="csv"]', 'a[href*="download"]', 'a[href*="audit"]'];
+		for (const sel of sels) {
+			let alt = page.locator(sel).first();
+			if (await alt.count()) { return alt; }
+			for (const fr of page.frames()) {
+				const fAlt = fr.locator(sel).first();
+				if (await fAlt.count()) { return fAlt; }
+			}
+		}
+		return null;
+	};
+
+	while (Date.now() - start < totalTimeoutMs) {
+		const found = await hasLink();
+		if (found) { return found; }
+		await page.waitForTimeout(intervalMs);
+	}
+	return null;
+}
 
 async function retrieveFile() {
 	const setupSetupAuditTrailUrl = '/lightning/setup/SecurityEvents/home';
-
-	// Verificar que tenim les credencials necessàries
-	if (!state.org?.user?.username) {
-		throw new Error('No s\'ha trobat l\'usuari a l\'estat. Assegura\'t que l\'usuari està connectat a Salesforce.');
-	}
-
-	// Obtenir la URL de la instància i l'accessToken des de l'estat
-	const instanceUrl = state.org?.instanceUrl;
-	const accessToken = state.org?.accessToken;
-	if (!instanceUrl || !accessToken) {
-		throw new Error('No s\'ha trobat la URL de la instància o l\'accessToken a l\'estat. Assegura\'t que l\'usuari està connectat a Salesforce.');
-	}
-
-	// Iniciar el navegador amb opcions més robustes
-	const browser = await chromium.launch({
-		headless: false,
-		args: [
-			'--no-sandbox',
-			'--disable-setuid-sandbox',
-			'--disable-dev-shm-usage',
-			'--disable-accelerated-2d-canvas',
-			'--no-first-run',
-			'--no-zygote',
-			'--disable-gpu'
-		]
-	});
-
-	const context = await browser.newContext({
-		acceptDownloads: true,
-		viewport: {width: 1920, height: 1080},
-		userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-	});
-
+	const browser = await chromium.launch({headless: true});
+	const context = await browser.newContext({acceptDownloads: true});
 	const page = await context.newPage();
 
 	try {
-		// MODE TOKEN: salt directe via frontdoor.jsp
-		log('Iniciant sessió via OAuth token...', 'debug');
+		const {instanceUrl, accessToken} = state.org;
 		const sid = encodeURIComponent(accessToken);
 		const retURL = encodeURIComponent(setupSetupAuditTrailUrl);
 		const frontdoorUrl = `${instanceUrl}/secur/frontdoor.jsp?sid=${sid}&retURL=${retURL}`;
-		page.goto(frontdoorUrl);
-		await page.waitForURL(url => url.pathname.includes(setupSetupAuditTrailUrl), {timeout: 30000});
-		log('Pàgina d\'Audit Trail carregada.', 'debug');
+		await page.goto(frontdoorUrl, {waitUntil: 'domcontentloaded'});
+		await page.waitForURL(url => url.pathname.includes(setupSetupAuditTrailUrl), {timeout: 60000});
 
-		// Esperar que la pàgina es carregui completament
-		await page.waitForLoadState('domcontentloaded', {timeout: 60000});
-		// Donar temps extra per a que els components Lightning es carreguin
-		await page.waitForTimeout(3000);
+		log('Login successfull.', 'debug');
 
-		log('Buscant l\'enllaç de descàrrega...', 'debug');
-
-		let downloadLink = null;
-		let frame = page;
-		const frames = page.frames();
-
-		// Buscar en cada iframe
-		for (let i = 0; i < frames.length; i++) {
-			try {
-				const frameElement = await frames[i].locator('div.pShowMore > a').first();
-				if (frameElement) {
-					downloadLink = frameElement;
-					frame = frames[i];
-					log(`Enllaç trobat en frame ${i}`, 'debug');
-					break;
-				}
-			} catch {
-				log(`Frame ${i}: element no trobat`, 'debug');
+		const downloadLink = await waitForDownloadLink(page, 20000, 200);
+		if (!downloadLink) {
+			const allLinks = await page.locator('a').all();
+			log(`No s'ha trobat l'enllaç. #enllaços trobats (document principal): ${allLinks.length}`, 'debug');
+			for (let i = 0; i < Math.min(10, allLinks.length); i++) {
+				const t = (await allLinks[i].textContent())?.trim() || '';
+				const h = await allLinks[i].getAttribute('href') || 'sense href';
+				log(`Enllaç ${i + 1}: text="${t}", href="${h}"`, 'debug');
 			}
+			throw new Error('No s\'ha trobat l\'enllaç de descàrrega a Setup Audit Trail.');
 		}
 
-		log('Enllaç de descàrrega d\'Audit Trail trobat', 'debug');
-		log('');
-		log(`frame type: ${typeof frame}`, 'debug');
-		log(`frame constructor: ${frame?.constructor?.name}`, 'debug');
-		log('');
-		log(`downloadLink type: ${typeof downloadLink}`, 'debug');
-		log(`downloadLink constructor: ${downloadLink?.constructor?.name}`, 'debug');
-		log('');
-		const element = await downloadLink.elementHandle();
-		log(`element type: ${typeof element}`, 'debug');
-		log(`element constructor: ${element?.constructor?.name}`, 'debug');
+		log('Downloading CSV file...', 'debug');
+		const downloadPromise = page.waitForEvent('download', {timeout: 60000});
 
-		// Obtenir la URL de l'enllaç de descàrrega
-		// Primer obtenir l'element real del Locator
-		if (!element) {
-			throw new Error('No s\'ha pogut obtenir l\'element de l\'enllaç de descàrrega');
-		}
-
-		const href = await element.getAttribute('href');
-		if (!href) {
-			throw new Error('No s\'ha pogut obtenir la URL de l\'enllaç de descàrrega');
-		}
-
-		log(`URL de descàrrega: ${href}`, 'debug');
-
-		// Configurar l'espera de la descàrrega abans de fer clic
-		const downloadPromise = page.waitForEvent('download', {timeout: 30000});
-
-		// Fer clic utilitzant el frame correcte
-		await page.goto(href);
+		// Utilitzar clic directe en lloc de page.goto per evitar conflictes amb descàrregues
+		await page.evaluate((link) => link.click(), downloadLink);
 
 		const download = await downloadPromise;
-		log('Descàrrega iniciada', 'debug');
 
 		const fileName = `setupAuditTrail_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
 		const filePath = path.join(os.tmpdir(), fileName);
-
 		await download.saveAs(filePath);
-		const fileContent = fs.readFileSync(filePath, 'utf8');
-		log(`Fitxer descarregat a: ${filePath}`, 'debug');
 
+		const fileContent = fs.readFileSync(filePath, 'utf8');
+
+		log('Download completed.', 'debug');
 		return fileContent;
 
 	} catch (error) {
@@ -132,14 +93,10 @@ async function retrieveFile() {
 
 export async function retrieveSetupAuditTrailFile() {
 	try {
-		log('Iniciant la descàrrega del CSV de Setup Audit Trail...', 'debug');
-
-		// Descarregar el CSV
-		const fileContent = await retrieveFile();
-		return fileContent;
+		return await retrieveFile();
 
 	} catch (error) {
-		log(`Error durant la descàrrega: ${error.message}`, 'warn');
+		log(error, 'error', 'Error retrieving Setup Audit Trail file');
 		throw error;
 	}
 }

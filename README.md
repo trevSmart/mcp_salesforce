@@ -43,25 +43,25 @@ This project includes a comprehensive automated code review system powered by Gi
 
 ### Getting started
 
-First, install the Playwright MCP server with your client. A typical configuration looks like this:
+First, install the IBM Salesforce MCP server with your client. A typical configuration looks like this:
 
 ```js
 {
   "mcpServers": {
-    "playwright": {
+    "salesforce": {
       "command": "npx",
       "args": [
-        "@playwright/mcp@latest"
+        "test_research4@latest"
       ]
     }
   }
 }
 ```
 
-[<img src="https://img.shields.io/badge/VS_Code-VS_Code?style=flat-square&label=Install%20Server&color=0098FF" alt="Install in VS Code">](https://insiders.vscode.dev/redirect?url=vscode%3Amcp%2Finstall%3F%257B%2522name%2522%253A%2522playwright%2522%252C%2522command%2522%253A%2522npx%2522%252C%2522args%2522%253A%255B%2522%2540playwright%252Fmcp%2540latest%2522%255D%257D) [<img alt="Install in VS Code Insiders" src="https://img.shields.io/badge/VS_Code_Insiders-VS_Code_Insiders?style=flat-square&label=Install%20Server&color=24bfa5">](https://insiders.vscode.dev/redirect?url=vscode-insiders%3Amcp%2Finstall%3F%257B%2522name%2522%253A%2522playwright%2522%252C%2522command%2522%253A%2522npx%2522%252C%2522args%2522%253A%255B%2522%2540playwright%252Fmcp%2540latest%2522%255D%257D)
+[<img src="https://img.shields.io/badge/VS_Code-VS_Code?style=flat-square&label=Install%20Server&color=0098FF" alt="Install in VS Code">](https://insiders.vscode.dev/redirect?url=vscode%3Amcp%2Finstall%3F%257B%2522name%2522%253A%2522salesforce%2522%252C%2522command%2522%253A%2522npx%2522%252C%2522args%2522%253A%255B%2522test_research4%2540latest%2522%255D%257D) [<img alt="Install in VS Code Insiders" src="https://img.shields.io/badge/VS_Code_Insiders-VS_Code_Insiders?style=flat-square&label=Install%20Server&color=24bfa5">](https://insiders.vscode.dev/redirect?url=vscode-insiders%3Amcp%2Finstall%3F%257B%2522name%2522%253A%2522salesforce%2522%252C%2522command%2522%253A%2522npx%2522%252C%2522args%2522%253A%255B%2522test_research4%2540latest%2522%255D%257D)
 
 <details><summary><b>Install in VS Code</b></summary>
-After installation, the Playwright MCP server will be available for use with your GitHub Copilot agent in VS Code.
+After installation, the IBM Salesforce MCP server will be available for use with your GitHub Copilot agent in VS Code.
 </details>
 
 <details>
@@ -69,19 +69,19 @@ After installation, the Playwright MCP server will be available for use with you
 
 #### Click the button to install:
 
-[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/install-mcp?name=playwright&config=eyJjb21tYW5kIjoibnB4IEBwbGF5d3JpZ2h0L21jcEBsYXRlc3QifQ%3D%3D)
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/install-mcp?name=salesforce&config=eyJjb21tYW5kIjoibnB4IHRlc3RfcmVzZWFyY2g0QGxhdGVzdCJ9)
 
 #### Or install manually:
 
-Go to `Cursor Settings` -> `MCP` -> `Add new MCP Server`. Name to your liking, use `command` type with the command `npx @playwright/mcp`. You can also verify config or add command like arguments via clicking `Edit`.
+Go to `Cursor Settings` -> `MCP` -> `Add new MCP Server`. Name to your liking, use `command` type with the command `npx test_research4`. You can also verify config or add command like arguments via clicking `Edit`.
 
 ```js
 {
   "mcpServers": {
-    "playwright": {
+    "salesforce": {
       "command": "npx",
       "args": [
-        "@playwright/mcp@latest"
+        "test_research4@latest"
       ]
     }
   }
@@ -97,10 +97,10 @@ Follow Windsurf MCP [documentation](https://docs.windsurf.com/windsurf/cascade/m
 ```js
 {
   "mcpServers": {
-    "playwright": {
+    "salesforce": {
       "command": "npx",
       "args": [
-        "@playwright/mcp@latest"
+        "test_research4@latest"
       ]
     }
   }
@@ -116,10 +116,10 @@ Follow the MCP install [guide](https://modelcontextprotocol.io/quickstart/user),
 ```js
 {
   "mcpServers": {
-    "playwright": {
+    "salesforce": {
       "command": "npx",
       "args": [
-        "@playwright/mcp@latest"
+        "test_research4@latest"
       ]
     }
   }
@@ -130,28 +130,31 @@ Follow the MCP install [guide](https://modelcontextprotocol.io/quickstart/user),
 <details>
 <summary><b>Install in Claude Code</b></summary>
 
-Use the Claude Code CLI to add the Playwright MCP server:
+Use the Claude Code CLI to add the IBM Salesforce MCP server:
 
 ```bash
-claude mcp add playwright npx @playwright/mcp@latest
+claude mcp add salesforce npx test_research4@latest
 ```
 </details>
 
+<details>
+<summary><b>Install in Gemini CLI</b></summary>
 
 Follow the MCP install [guide](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md#configure-the-mcp-server-in-settingsjson), use following configuration:
 
 ```js
 {
   "mcpServers": {
-    "playwright": {
+    "salesforce": {
       "command": "npx",
       "args": [
-        "@playwright/mcp@latest"
+        "test_research4@latest"
       ]
     }
   }
 }
 ```
+</details>
 
 ## License
 See the LICENSE file for details.
