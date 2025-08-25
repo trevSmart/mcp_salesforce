@@ -158,121 +158,6 @@ export async function getOrgAndUserDetails(skipCache = false) {
 	}
 }
 
-// OLD VERSION - UI API only
-/*
-export async function dmlOperation(operations, options = {}) {
-	try {
-		// Validate org state
-		if (!state?.org?.instanceUrl || !state?.org?.accessToken) {
-			throw new Error('Org details not initialized. Please wait for server initialization.');
-		}
-
-		// Validate that at least one operation type is provided
-		const hasOperations = operations.create?.length || operations.update?.length || operations.delete?.length;
-		if (!hasOperations) {
-			throw new Error('At least one operation must be specified (create, update, delete)');
-		}
-
-		// Prepare batch operations for UI API
-		const requestOperations = [];
-
-		if (operations.create?.length) {
-			requestOperations.push({
-				type: 'Create',
-				records: operations.create.map(record => ({
-					apiName: record.sObjectName,
-					fields: record.fields
-				}))
-			});
-		}
-
-		// Process update operations
-		if (operations.update?.length) {
-			requestOperations.push({
-				type: 'Update',
-				records: operations.update.map(record => ({
-					fields: {
-						Id: record.recordId,
-						...record.fields
-					}
-				}))
-			});
-		}
-
-		// Process delete operations
-		if (operations.delete?.length) {
-			requestOperations.push({
-				type: 'Delete',
-				records: operations.delete.map(record => ({
-					fields: { Id: record.recordId }
-				}))
-			});
-		}
-
-		// Prepare the batch request payload
-		const payload = {
-			allOrNone: options.allOrNone || false,
-			operations: requestOperations
-		};
-
-		log(`Executing batch DML operation via UI API: ${JSON.stringify(payload, null, 2)}`, 'debug');
-
-		// Use UI API for REST operations
-		const result = await callSalesforceApi('POST', 'UI', '/records/batch', payload);
-		log(`API Response: ${JSON.stringify(result, null, 2)}`, 'debug');
-
-		// Validate response structure for REST operations
-		if (!result || typeof result !== 'object') {
-			throw new Error('Invalid response structure from Salesforce API');
-		}
-
-		// Check for Salesforce API errors
-		if (result.errors && result.errors.length > 0) {
-			const errorMessages = result.errors.map(err => err.message || err).join('; ');
-			throw new Error(`Salesforce API error: ${errorMessages}`);
-		}
-
-		// Process UI API response to match Tooling API format
-		let hasErrors = false;
-		let errorMessages = [];
-		let successCount = 0;
-		let failedCount = 0;
-
-		// UI API returns results in a different format, we need to adapt it
-		if (result.results && Array.isArray(result.results)) {
-			result.results.forEach((operationResult, index) => {
-				if (operationResult.success) {
-					successCount++;
-				} else {
-					hasErrors = true;
-					failedCount++;
-					const errorMsg = operationResult.errors ? operationResult.errors.join('; ') : 'Unknown error';
-					errorMessages.push(`Operation ${index + 1}: ${errorMsg}`);
-				}
-			});
-		}
-
-		// Return structured response matching Tooling API format
-		const response = {
-			success: !hasErrors,
-			hasErrors: hasErrors,
-			totalRecords: requestOperations.length,
-			successfulRecords: successCount,
-			failedRecords: failedCount,
-			errors: errorMessages.length > 0 ? errorMessages : null,
-			rawResponse: result
-		};
-
-		log(`Final UI API response: ${JSON.stringify(response, null, 2)}`, 'debug');
-		return response;
-
-	} catch (error) {
-		log(error, 'error', 'Error executing batch DML operation');
-		throw error;
-	}
-}
-*/
-
 // NEW UNIFIED VERSION - Supports both UI API and Tooling API
 export async function dmlOperation(operations, options = {}) {
 	try {
@@ -291,10 +176,8 @@ export async function dmlOperation(operations, options = {}) {
 		const useToolingApi = options.useToolingApi === true;
 
 		if (useToolingApi) {
-			// Prepare the Composite request payload for Tooling API
 			const compositeRequests = [];
 
-			// Process create operations
 			if (operations.create?.length) {
 				operations.create.forEach((record, index) => {
 					compositeRequests.push({
@@ -306,7 +189,6 @@ export async function dmlOperation(operations, options = {}) {
 				});
 			}
 
-			// Process update operations
 			if (operations.update?.length) {
 				operations.update.forEach((record, index) => {
 					compositeRequests.push({
@@ -318,7 +200,6 @@ export async function dmlOperation(operations, options = {}) {
 				});
 			}
 
-			// Process delete operations
 			if (operations.delete?.length) {
 				operations.delete.forEach((record, index) => {
 					compositeRequests.push({
@@ -335,48 +216,59 @@ export async function dmlOperation(operations, options = {}) {
 			};
 			const result = await callSalesforceApi('POST', 'TOOLING', '/composite', payload);
 
-			// Validate response structure for Tooling API operations
 			if (!result || typeof result !== 'object') {
 				log(result, 'error', 'Invalid response structure from Salesforce Tooling API');
 				throw new Error('Invalid response structure from Salesforce Tooling API');
 			}
 
-			// Process Tooling API Composite response
-			let hasErrors = false;
-			let successCount = 0;
-			let failedCount = 0;
+			const successes = [];
+			const errors = [];
 
-			if (result.compositeResponse && Array.isArray(result.compositeResponse)) {
+			if (Array.isArray(result.compositeResponse)) {
 				result.compositeResponse.forEach((subResponse, index) => {
 					if (subResponse.httpStatusCode >= 200 && subResponse.httpStatusCode < 300) {
-						successCount++;
+						successes.push({
+							index,
+							id: subResponse.body?.id
+						});
 					} else {
-						hasErrors = true;
-						failedCount++;
-						const errorMsg = subResponse.body ? JSON.stringify(subResponse.body) : `HTTP ${subResponse.httpStatusCode}`;
+						let message = 'Unknown error';
+						let type;
+						let fields;
+
+						if (Array.isArray(subResponse.body) && subResponse.body.length > 0) {
+							const err = subResponse.body[0];
+							message = err.message || message;
+							type = err.errorCode;
+							fields = err.fields;
+						} else if (subResponse.body && typeof subResponse.body === 'object') {
+							message = subResponse.body.message || JSON.stringify(subResponse.body);
+							type = subResponse.body.errorCode;
+							fields = subResponse.body.fields;
+						}
+
+						errors.push({index, message, type, fields});
 					}
 				});
 			}
 
-			// Check for top-level errors
-			if (result.errors && result.errors.length > 0) {
-				hasErrors = true;
+			if (Array.isArray(result.errors)) {
+				result.errors.forEach((err, idx) => {
+					errors.push({index: idx, message: err.message || String(err)});
+				});
 			}
 
-			log(result, 'debug', 'Tooling API response');
+			const total = successes.length + errors.length;
+			const outcome = errors.length === 0 ? 'success' : successes.length === 0 ? 'error' : 'partial';
 
-			// Return structured response
 			return {
-				success: !hasErrors,
-				hasErrors: hasErrors,
-				totalRecords: compositeRequests.length,
-				successfulRecords: successCount,
-				failedRecords: failedCount,
-				rawResponse: result
+				outcome,
+				statistics: {total, succeeded: successes.length, failed: errors.length},
+				successes: successes.length ? successes : undefined,
+				errors: errors.length ? errors : undefined
 			};
 
 		} else {
-			// Prepare batch operations for UI API
 			const requestOperations = [];
 
 			if (operations.create?.length) {
@@ -389,7 +281,6 @@ export async function dmlOperation(operations, options = {}) {
 				});
 			}
 
-			// Process update operations
 			if (operations.update?.length) {
 				requestOperations.push({
 					type: 'Update',
@@ -402,7 +293,6 @@ export async function dmlOperation(operations, options = {}) {
 				});
 			}
 
-			// Process delete operations
 			if (operations.delete?.length) {
 				requestOperations.push({
 					type: 'Delete',
@@ -412,64 +302,58 @@ export async function dmlOperation(operations, options = {}) {
 				});
 			}
 
-			// Prepare the batch request payload
 			const payload = {
 				allOrNone: options.allOrNone || false,
 				operations: requestOperations
 			};
 
-			// Use UI API for REST operations
 			const result = await callSalesforceApi('POST', 'UI', '/records/batch', payload);
 
-			// Validate response structure for REST operations
 			if (!result || typeof result !== 'object') {
 				throw new Error('Invalid response structure from Salesforce API');
 			}
 
-			// Check for Salesforce API errors
-			if (result.errors && result.errors.length > 0) {
-				throw new Error(`Salesforce API error: ${result.errors.map(err => err.message || err).join('; ')}`);
-			}
+			const successes = [];
+			const errors = [];
 
-			// Process UI API response to match Tooling API format
-			let hasErrors = false;
-			let successCount = 0;
-			let failedCount = 0;
-
-			// UI API returns results in a different format, we need to adapt it
-			if (result.results && Array.isArray(result.results)) {
-				result.results.forEach(operationResult => {
-					// Use statusCode to determine success (transversal approach)
+			if (Array.isArray(result.results)) {
+				result.results.forEach((operationResult, index) => {
 					const statusCode = operationResult.statusCode;
 					const isSuccess = statusCode >= 200 && statusCode < 300;
 
 					if (isSuccess) {
-						successCount++;
-						// Adapt UI API result to match Tooling API format
+						successes.push({
+							index,
+							id: operationResult.result?.id
+						});
 					} else {
-						hasErrors = true;
-						failedCount++;
-						// Extract error details from UI API response
-						let errorMsg = 'Unknown error';
+						let message = 'Unknown error';
+						let fields;
 						if (operationResult.result?.errors) {
-							errorMsg = operationResult.result.errors.join('; ');
+							message = operationResult.result.errors.join('; ');
+							fields = operationResult.result.fields;
 						} else if (operationResult.errors) {
-							errorMsg = operationResult.errors.join('; ');
+							message = operationResult.errors.join('; ');
 						}
+						errors.push({index, message, fields});
 					}
 				});
 			}
 
-			log(result, 'debug', 'UI API response');
+			if (Array.isArray(result.errors)) {
+				result.errors.forEach((err, idx) => {
+					errors.push({index: idx, message: err.message || String(err)});
+				});
+			}
 
-			// Return structured response matching Tooling API format
+			const total = successes.length + errors.length;
+			const outcome = errors.length === 0 ? 'success' : successes.length === 0 ? 'error' : 'partial';
+
 			return {
-				success: !hasErrors,
-				hasErrors: hasErrors,
-				totalRecords: requestOperations.length,
-				successfulRecords: successCount,
-				failedRecords: failedCount,
-				rawResponse: result
+				outcome,
+				statistics: {total, succeeded: successes.length, failed: errors.length},
+				successes: successes.length ? successes : undefined,
+				errors: errors.length ? errors : undefined
 			};
 		}
 

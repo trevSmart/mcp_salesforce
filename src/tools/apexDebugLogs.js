@@ -449,7 +449,7 @@ export async function apexDebugLogsToolHandler({action, logId}) {
 						}
 					}]
 				}, {useToolingApi: true});
-				debugLevelId = debugLevelResult.results[0].body.id;
+				debugLevelId = debugLevelResult.successes?.[0]?.id;
 			}
 
 			const now = new Date();
@@ -470,7 +470,7 @@ export async function apexDebugLogsToolHandler({action, logId}) {
 
 			log(traceFlagResult, 'debug', 'Create TraceFlag result');
 
-			const newTraceFlagId = traceFlagResult.rawResponse.compositeResponse?.[0].body.id;
+			const newTraceFlagId = traceFlagResult.successes?.[0]?.id;
 
 			return {
 				content: [{
