@@ -5,6 +5,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import state from './state.js';
 import {newResource} from './mcp-server.js';
+import os from 'os';
+
 const exec = promisify(execCb);
 
 //Helper function to generate timestamp in YYMMDDHHMMSS format
@@ -57,8 +59,6 @@ export async function runCliCommand(command) {
 				throw error;
 			}
 		}
-
-		log(stdout, 'debug', 'Salesforce CLI output');
 		return stdout;
 
 	} catch (error) {
@@ -75,14 +75,6 @@ export async function executeSoqlQuery(query, useToolingApi = false) {
 			throw new Error('La consulta SOQL (query) és obligatòria i ha de ser una string');
 		}
 
-		// Ensure org details are available
-		if (!state?.org?.instanceUrl || !state?.org?.accessToken) {
-			throw new Error('Org details not initialized. Please wait for server initialization.');
-		}
-
-		log(`Executing SOQL query with ${useToolingApi ? 'Tooling' : 'REST'} API: ${query}`, 'debug');
-
-		// Use the new callSalesforceApi function
 		const apiType = useToolingApi ? 'TOOLING' : 'REST';
 		const response = await callSalesforceApi('GET', apiType, '/query', null, {queryParams: {q: query}});
 
@@ -93,8 +85,7 @@ export async function executeSoqlQuery(query, useToolingApi = false) {
 
 		// Check for Salesforce API errors
 		if (response.errors?.length) {
-			const errorMessages = response.errors.map(err => err.message || err).join('; ');
-			throw new Error(`Salesforce API error: ${errorMessages}`);
+			throw new Error(`Salesforce API error: ${response.errors.map(err => err.message || err).join('; ')}`);
 		}
 
 		// Return the response (contains records, totalSize, done, etc.)
@@ -246,41 +237,17 @@ export async function dmlOperation(operations, options = {}) {
 		let errorMessages = [];
 		let successCount = 0;
 		let failedCount = 0;
-		let processedResults = [];
 
 		// UI API returns results in a different format, we need to adapt it
 		if (result.results && Array.isArray(result.results)) {
 			result.results.forEach((operationResult, index) => {
 				if (operationResult.success) {
 					successCount++;
-					// Adapt UI API result to match Tooling API format
-					processedResults.push({
-						body: {
-							id: operationResult.id,
-							success: true,
-							errors: [],
-							warnings: [],
-							infos: []
-						},
-						httpHeaders: {},
-						httpStatusCode: 200,
-						referenceId: `operation_${index}`
-					});
 				} else {
 					hasErrors = true;
 					failedCount++;
 					const errorMsg = operationResult.errors ? operationResult.errors.join('; ') : 'Unknown error';
 					errorMessages.push(`Operation ${index + 1}: ${errorMsg}`);
-					// Adapt failed result
-					processedResults.push({
-						body: {
-							success: false,
-							errors: operationResult.errors || ['Unknown error']
-						},
-						httpHeaders: {},
-						httpStatusCode: 400,
-						referenceId: `operation_${index}`
-					});
 				}
 			});
 		}
@@ -292,7 +259,6 @@ export async function dmlOperation(operations, options = {}) {
 			totalRecords: requestOperations.length,
 			successfulRecords: successCount,
 			failedRecords: failedCount,
-			results: processedResults,
 			errors: errorMessages.length > 0 ? errorMessages : null,
 			rawResponse: result
 		};
@@ -325,10 +291,6 @@ export async function dmlOperation(operations, options = {}) {
 		const useToolingApi = options.useToolingApi === true;
 
 		if (useToolingApi) {
-			log('=== Executing DML operation via Tooling API ===', 'debug');
-			log(`Input operations: ${JSON.stringify(operations, null, 2)}`, 'debug');
-			log(`Input options: ${JSON.stringify(options, null, 2)}`, 'debug');
-
 			// Prepare the Composite request payload for Tooling API
 			const compositeRequests = [];
 
@@ -367,21 +329,11 @@ export async function dmlOperation(operations, options = {}) {
 				});
 			}
 
-			// Prepare the Composite request payload
 			const payload = {
 				allOrNone: options.allOrNone || false,
 				compositeRequest: compositeRequests
 			};
-
-			log(`Final Tooling API payload: ${JSON.stringify(payload, null, 2)}`, 'debug');
-			log('Executing batch DML operation via Tooling API Composite endpoint', 'debug');
-
-			// Use Tooling API Composite endpoint for batch operations
 			const result = await callSalesforceApi('POST', 'TOOLING', '/composite', payload);
-			log('=== Tooling API Raw Response ===', 'debug');
-			log(`Response type: ${typeof result}`, 'debug');
-			log(`Response keys: ${result ? Object.keys(result).join(', ') : 'N/A'}`, 'debug');
-			log(`Full response: ${JSON.stringify(result, null, 2)}`, 'debug');
 
 			// Validate response structure for Tooling API operations
 			if (!result || typeof result !== 'object') {
@@ -391,52 +343,39 @@ export async function dmlOperation(operations, options = {}) {
 
 			// Process Tooling API Composite response
 			let hasErrors = false;
-			let errorMessages = [];
 			let successCount = 0;
 			let failedCount = 0;
 
 			if (result.compositeResponse && Array.isArray(result.compositeResponse)) {
-				log(`Processing ${result.compositeResponse.length} composite responses...`, 'debug');
 				result.compositeResponse.forEach((subResponse, index) => {
 					if (subResponse.httpStatusCode >= 200 && subResponse.httpStatusCode < 300) {
 						successCount++;
-						log(`SubResponse ${index} SUCCESS (${subResponse.httpStatusCode})`, 'debug');
 					} else {
 						hasErrors = true;
 						failedCount++;
 						const errorMsg = subResponse.body ? JSON.stringify(subResponse.body) : `HTTP ${subResponse.httpStatusCode}`;
-						errorMessages.push(`SubRequest ${index + 1}: ${errorMsg}`);
-						log(`SubResponse ${index} FAILED (${subResponse.httpStatusCode}): ${errorMsg}`, 'debug');
 					}
 				});
 			}
 
 			// Check for top-level errors
 			if (result.errors && result.errors.length > 0) {
-				log(`Found ${result.errors.length} top-level errors`, 'debug');
 				hasErrors = true;
-				const topLevelErrors = result.errors.map(err => err.message || err).join('; ');
-				errorMessages.push(`Top-level errors: ${topLevelErrors}`);
 			}
 
+			log(result, 'debug', 'Tooling API response');
+
 			// Return structured response
-			const response = {
+			return {
 				success: !hasErrors,
 				hasErrors: hasErrors,
 				totalRecords: compositeRequests.length,
 				successfulRecords: successCount,
 				failedRecords: failedCount,
-				results: result.compositeResponse || [],
-				errors: errorMessages.length > 0 ? errorMessages : null,
 				rawResponse: result
 			};
 
-			log(`Final Tooling API response: ${JSON.stringify(response, null, 2)}`, 'debug');
-			return response;
-
 		} else {
-			log('=== Executing DML operation via UI API ===', 'debug');
-
 			// Prepare batch operations for UI API
 			const requestOperations = [];
 
@@ -479,11 +418,8 @@ export async function dmlOperation(operations, options = {}) {
 				operations: requestOperations
 			};
 
-			log(`Executing batch DML operation via UI API: ${JSON.stringify(payload, null, 2)}`, 'debug');
-
 			// Use UI API for REST operations
 			const result = await callSalesforceApi('POST', 'UI', '/records/batch', payload);
-			log(`UI API Response: ${JSON.stringify(result, null, 2)}`, 'debug');
 
 			// Validate response structure for REST operations
 			if (!result || typeof result !== 'object') {
@@ -492,20 +428,17 @@ export async function dmlOperation(operations, options = {}) {
 
 			// Check for Salesforce API errors
 			if (result.errors && result.errors.length > 0) {
-				const errorMessages = result.errors.map(err => err.message || err).join('; ');
-				throw new Error(`Salesforce API error: ${errorMessages}`);
+				throw new Error(`Salesforce API error: ${result.errors.map(err => err.message || err).join('; ')}`);
 			}
 
 			// Process UI API response to match Tooling API format
 			let hasErrors = false;
-			let errorMessages = [];
 			let successCount = 0;
 			let failedCount = 0;
-			let processedResults = [];
 
 			// UI API returns results in a different format, we need to adapt it
 			if (result.results && Array.isArray(result.results)) {
-				result.results.forEach((operationResult, index) => {
+				result.results.forEach(operationResult => {
 					// Use statusCode to determine success (transversal approach)
 					const statusCode = operationResult.statusCode;
 					const isSuccess = statusCode >= 200 && statusCode < 300;
@@ -513,18 +446,6 @@ export async function dmlOperation(operations, options = {}) {
 					if (isSuccess) {
 						successCount++;
 						// Adapt UI API result to match Tooling API format
-						processedResults.push({
-							body: {
-								id: operationResult.result?.id || operationResult.id || null,
-								success: true,
-								errors: [],
-								warnings: [],
-								infos: []
-							},
-							httpHeaders: {},
-							httpStatusCode: statusCode,
-							referenceId: `operation_${index}`
-						});
 					} else {
 						hasErrors = true;
 						failedCount++;
@@ -535,35 +456,21 @@ export async function dmlOperation(operations, options = {}) {
 						} else if (operationResult.errors) {
 							errorMsg = operationResult.errors.join('; ');
 						}
-						errorMessages.push(`Operation ${index + 1}: ${errorMsg}`);
-						// Adapt failed result
-						processedResults.push({
-							body: {
-								success: false,
-								errors: [errorMsg]
-							},
-							httpHeaders: {},
-							httpStatusCode: statusCode,
-							referenceId: `operation_${index}`
-						});
 					}
 				});
 			}
 
+			log(result, 'debug', 'UI API response');
+
 			// Return structured response matching Tooling API format
-			const response = {
+			return {
 				success: !hasErrors,
 				hasErrors: hasErrors,
 				totalRecords: requestOperations.length,
 				successfulRecords: successCount,
 				failedRecords: failedCount,
-				results: processedResults,
-				errors: errorMessages.length > 0 ? errorMessages : null,
 				rawResponse: result
 			};
-
-			log(`Final UI API response: ${JSON.stringify(response, null, 2)}`, 'debug');
-			return response;
 		}
 
 	} catch (error) {
@@ -571,159 +478,6 @@ export async function dmlOperation(operations, options = {}) {
 		throw error;
 	}
 }
-
-// OLD VERSION - Tooling API only (replaced by unified dmlOperation)
-/*
-export async function dmlOperationTooling(operations, options = {}) {
-	try {
-		log('=== dmlOperationTooling START ===', 'debug');
-		log(`Input operations: ${JSON.stringify(operations, null, 2)}`, 'debug');
-		log(`Input options: ${JSON.stringify(options, null, 2)}`, 'debug');
-
-		// Validate org state
-		if (!state?.org?.instanceUrl || !state?.org?.accessToken) {
-			throw new Error('Org details not initialized. Please wait for server initialization.');
-		}
-
-		// Validate that at least one operation type is provided
-		const hasOperations = operations.create?.length || operations.update?.length || operations.delete?.length;
-		if (!hasOperations) {
-			throw new Error('At least one operation must be specified (create, update, delete)');
-		}
-
-		log(`Has operations: ${hasOperations}`, 'debug');
-		log(`Create operations: ${operations.create?.length || 0}`, 'debug');
-		log(`Update operations: ${operations.update?.length || 0}`, 'debug');
-		log(`Delete operations: ${operations.delete?.length || 0}`, 'debug');
-
-		// Prepare the Composite request payload for Tooling API
-		const compositeRequests = [];
-
-		// Process create operations
-		if (operations.create?.length) {
-			operations.create.forEach((record, index) => {
-				compositeRequests.push({
-					method: 'POST',
-					url: `/services/data/v${state.org.apiVersion}/tooling/sobjects/${record.sObjectName}`,
-					referenceId: `create_${index}`,
-					body: record.fields
-				});
-			});
-		}
-
-		// Process update operations
-		if (operations.update?.length) {
-			operations.update.forEach((record, index) => {
-				compositeRequests.push({
-					method: 'PATCH',
-					url: `/services/data/v${state.org.apiVersion}/tooling/sobjects/${record.sObjectName}/${record.recordId}`,
-					referenceId: `update_${index}`,
-					body: record.fields
-				});
-			});
-		}
-
-		// Process delete operations
-		if (operations.delete?.length) {
-			operations.delete.forEach((record, index) => {
-				compositeRequests.push({
-					method: 'DELETE',
-					url: `/services/data/v${state.org.apiVersion}/tooling/sobjects/${record.sObjectName}/${record.recordId}`,
-					referenceId: `delete_${index}`
-				});
-			});
-		}
-
-		// Prepare the Composite request payload
-		const payload = {
-			allOrNone: options.allOrNone || false,
-			compositeRequest: compositeRequests
-		};
-
-		log(`Final payload: ${JSON.stringify(payload, null, 2)}`, 'debug');
-		log(`Executing batch DML operation via Tooling API Composite endpoint: ${JSON.stringify(payload, null, 2)}`, 'debug');
-
-		// Use Tooling API SObject Collections for batch operations
-		const result = await callSalesforceApi('POST', 'TOOLING', '/composite', payload);
-		log(`=== Tooling API Raw Response ===`, 'debug');
-		log(`Response type: ${typeof result}`, 'debug');
-		log(`Response is null: ${result === null}`, 'debug');
-		log(`Response is undefined: ${result === undefined}`, 'debug');
-		log(`Response keys: ${result ? Object.keys(result).join(', ') : 'N/A'}`, 'debug');
-		log(`Full response: ${JSON.stringify(result, null, 2)}`, 'debug');
-
-		// Validate response structure for Tooling API operations
-		if (!result || typeof result !== 'object') {
-			log(`Invalid response structure: ${result}`, 'error');
-			throw new Error('Invalid response structure from Salesforce Tooling API');
-		}
-
-		// Tooling API Composite endpoint returns results in compositeResponse structure
-		// Check for individual subrequest errors and success status
-		let hasErrors = false;
-		let errorMessages = [];
-		let successCount = 0;
-		let failedCount = 0;
-
-		log(`Checking result.compositeResponse: ${result.compositeResponse ? 'exists' : 'does not exist'}`, 'debug');
-		log(`result.compositeResponse type: ${result.compositeResponse ? typeof result.compositeResponse : 'N/A'}`, 'debug');
-		log(`result.compositeResponse is array: ${result.compositeResponse ? Array.isArray(result.compositeResponse) : 'N/A'}`, 'debug');
-		log(`result.compositeResponse length: ${result.compositeResponse ? result.compositeResponse.length : 'N/A'}`, 'debug');
-
-		if (result.compositeResponse && Array.isArray(result.compositeResponse)) {
-			log(`Processing ${result.compositeResponse.length} composite responses...`, 'debug');
-			result.compositeResponse.forEach((subResponse, index) => {
-				log(`SubResponse ${index}: ${JSON.stringify(subResponse, null, 2)}`, 'debug');
-				if (subResponse.httpStatusCode >= 200 && subResponse.httpStatusCode < 300) {
-					successCount++;
-					log(`SubResponse ${index} SUCCESS (${subResponse.httpStatusCode})`, 'debug');
-				} else {
-					hasErrors = true;
-					failedCount++;
-					const errorMsg = subResponse.body ? JSON.stringify(subResponse.body) : `HTTP ${subResponse.httpStatusCode}`;
-					errorMessages.push(`SubRequest ${index + 1}: ${errorMsg}`);
-					log(`SubResponse ${index} FAILED (${subResponse.httpStatusCode}): ${errorMsg}`, 'debug');
-				}
-			});
-		} else {
-			log('No compositeResponse array found in response', 'debug');
-		}
-
-		// Check for top-level errors
-		log(`Checking result.errors: ${result.errors ? 'exists' : 'does not exist'}`, 'debug');
-		if (result.errors && result.errors.length > 0) {
-			log(`Found ${result.errors.length} top-level errors`, 'debug');
-			hasErrors = true;
-			const topLevelErrors = result.errors.map(err => err.message || err).join('; ');
-			errorMessages.push(`Top-level errors: ${topLevelErrors}`);
-		}
-
-		// Return structured response with operation results
-		const response = {
-			success: !hasErrors,
-			hasErrors: hasErrors,
-			totalRecords: compositeRequests.length,
-			successfulRecords: successCount,
-			failedRecords: failedCount,
-			results: result.compositeResponse || [],
-			errors: errorMessages.length > 0 ? errorMessages : null,
-			rawResponse: result
-		};
-
-		log(`Final response: ${JSON.stringify(response, null, 2)}`, 'debug');
-		log('=== dmlOperationTooling END ===', 'debug');
-
-		return response;
-
-	} catch (error) {
-		log(`=== dmlOperationTooling ERROR ===`, 'error');
-		log(`Error: ${error.message}`, 'error');
-		log(`Stack: ${error.stack}`, 'error');
-		log(error, 'error', 'Error executing batch DML operation with Tooling API');
-		throw error;
-	}
-}
-*/
 
 export async function getRecord(sObjectName, recordId) {
 	try {
@@ -1089,7 +843,7 @@ export async function deployMetadata(sourceDir) {
 	}
 }
 
-export async function generateMetadata({type, name, outputDir, sobjectName, events = []}) {
+export async function generateMetadata({type, name, outputDir, triggerSObject, triggerEvent = []}) {
 	try {
 		if (!type || typeof type !== 'string') {
 			throw new Error('type is required and must be a string');
@@ -1114,17 +868,22 @@ export async function generateMetadata({type, name, outputDir, sobjectName, even
 			// No template parameter from tool; we'll inject content later for test class
 
 		} else if (type === 'apexTrigger') {
-			if (!sobjectName || typeof sobjectName !== 'string') {
-				throw new Error('sobjectName is required and must be a string when type is apexTrigger');
+			if (!triggerSObject || typeof triggerSObject !== 'string') {
+				throw new Error('triggerSObject is required and must be a string when type is apexTrigger');
 			}
-			command = `sf apex generate trigger --name "${name}" --sobject "${sobjectName}"`;
-			if (Array.isArray(events) && events.length) { command += ` --events ${events.join(',')}`; }
-			if (resolvedOutputDir) { command += ` --output-dir "${resolvedOutputDir}"`; }
-			// templates not supported via tool anymore
+			command = `sf apex generate trigger --name "${name}" --sobject "${triggerSObject}"`;
+			if (Array.isArray(triggerEvent) && triggerEvent.length) {
+				command += ` --event "${triggerEvent.join(',')}"`;
+			}
+			if (resolvedOutputDir) {
+				command += ` --output-dir "${resolvedOutputDir}"`;
+			}
 
 		} else if (type === 'lwc') {
 			command = `sf lightning generate component --type lwc --name "${name}"`;
-			if (resolvedOutputDir) { command += ` --output-dir "${resolvedOutputDir}"`; }
+			if (resolvedOutputDir) {
+				command += ` --output-dir "${resolvedOutputDir}"`;
+			}
 
 		} else {
 			throw new Error(`Unsupported type: ${type}`);
@@ -1164,24 +923,32 @@ public class ${name} {
 }`;
 				try {
 					await fs.writeFile(classFilePath, testClassContent, 'utf8');
-				} catch { /* Error writing file */ }
+				} catch {
+					log(`Error writing file ${classFilePath}`, 'error');
+				}
 			}
 
 		} else if (type === 'apexTrigger') {
 			const triggerFilePath = path.join(resolvedDir, `${name}.trigger`);
 			const metaFilePath = path.join(resolvedDir, `${name}.trigger-meta.xml`);
-			try { await fs.access(triggerFilePath); files.push(triggerFilePath); } catch { /* File not accessible */ }
-			try { await fs.access(metaFilePath); files.push(metaFilePath); } catch { /* File not accessible */ }
+			try { await fs.access(triggerFilePath); files.push(triggerFilePath); } catch {
+				log(`File not accessible: ${triggerFilePath}`, 'error');
+			}
+			try { await fs.access(metaFilePath); files.push(metaFilePath); } catch {
+				log(`File not accessible: ${metaFilePath}`, 'error');
+			}
 
 		} else if (type === 'lwc') {
 			folder = path.join(resolvedDir, name);
 			try {
 				const entries = await fs.readdir(folder);
 				files = entries.map(f => path.join(folder, f));
-			} catch { /* Error reading directory */ }
+			} catch {
+				log(`Error reading directory ${folder}`, 'error');
+			}
 		}
 
-		return {success: true, type, name, sobjectName, outputDir: resolvedDir, folder, files, stdout};
+		return {success: true, type, name, triggerSObject, outputDir: resolvedDir, folder, files, stdout};
 
 	} catch (error) {
 		log(error, 'error', `Error generating metadata ${name} of type ${type}`);
@@ -1283,7 +1050,14 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 
 		const response = await fetch(endpoint, requestOptions);
 
-		log(`Response status: ${response.status} ${response.statusText}`, 'debug');
+		let logMessage = `${operation} request to ${apiType} API service ${service} ended ${response.statusText} (${response.status})`;
+		if (Object.keys(options.queryParams || {}).length) {
+			logMessage += `\n${JSON.stringify(options.queryParams, null, 3)}`;
+		}
+		if (Object.keys(requestOptions).length) {
+			logMessage += `\n${JSON.stringify(requestOptions, null, 3)}`;
+		}
+		log(logMessage, 'debug');
 
 		if (!response.ok) {
 			let errorDetails = '';

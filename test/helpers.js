@@ -14,7 +14,7 @@ export class MCPServerManager {
 	}
 
 	async start() {
-		console.log(`${TEST_CONFIG.colors.blue}Starting MCP server...${TEST_CONFIG.colors.reset}`);
+		console.log(`\n${TEST_CONFIG.colors.blue}Starting MCP server...${TEST_CONFIG.colors.reset}`);
 
 		this.serverProcess = spawn('node', [resolve(__dirname, TEST_CONFIG.mcpServer.serverPath)], {
 			stdio: ['pipe', 'pipe', 'pipe'],
@@ -22,7 +22,7 @@ export class MCPServerManager {
 		});
 
 		this.serverProcess.stderr.on('data', (data) => {
-			console.error(`${TEST_CONFIG.colors.red}Server stderr:${TEST_CONFIG.colors.reset}`, data.toString());
+			console.error(`${TEST_CONFIG.colors.red}[STDERR]${TEST_CONFIG.colors.reset}\n`, data.toString());
 		});
 
 		this.serverProcess.on('error', (error) => {
@@ -58,7 +58,7 @@ export class SalesforceOrgManager {
 			const config = JSON.parse(result);
 			return config.result?.[0]?.value || null;
 		} catch (error) {
-			console.error(`${TEST_CONFIG.colors.red}Error getting current org:${TEST_CONFIG.colors.reset}`, error.message);
+			console.error(`  ${TEST_CONFIG.colors.red}Error getting current org:${TEST_CONFIG.colors.reset}`, error.message);
 			return null;
 		}
 	}
@@ -66,10 +66,10 @@ export class SalesforceOrgManager {
 	static setTargetOrg(alias) {
 		try {
 			execSync(`sf config set target-org "${alias}" --global`, {encoding: 'utf8'});
-			console.log(`${TEST_CONFIG.colors.green}✓ Switched to org: ${alias}${TEST_CONFIG.colors.reset}`);
+			console.log(`  ${TEST_CONFIG.colors.cyan}✓ Switched to org: ${alias}${TEST_CONFIG.colors.reset}`);
 			return true;
 		} catch (error) {
-			console.error(`${TEST_CONFIG.colors.red}Error switching to org ${alias}:${TEST_CONFIG.colors.reset}`, error.message);
+			console.error(`  ${TEST_CONFIG.colors.red}Error switching to org ${alias}:${TEST_CONFIG.colors.reset}`, error.message);
 			return false;
 		}
 	}
@@ -78,15 +78,14 @@ export class SalesforceOrgManager {
 		const currentOrg = this.getCurrentOrg();
 		const testOrg = TEST_CONFIG.salesforce.testOrgAlias;
 
-		console.log(`${TEST_CONFIG.colors.blue}Current org: ${currentOrg || 'none'}${TEST_CONFIG.colors.reset}`);
-		console.log(`${TEST_CONFIG.colors.blue}Test org: ${testOrg}${TEST_CONFIG.colors.reset}`);
+		console.log(`  ${TEST_CONFIG.colors.cyan}Current org: ${currentOrg || 'none'}. Test org: ${testOrg}${TEST_CONFIG.colors.reset}.`);
 
 		if (currentOrg === testOrg) {
-			console.log(`${TEST_CONFIG.colors.green}✓ Already in test org${TEST_CONFIG.colors.reset}`);
+			console.log(`  ${TEST_CONFIG.colors.green}Already in test org${TEST_CONFIG.colors.reset}`);
 			return null; // No need to restore
 		}
 
-		console.log(`${TEST_CONFIG.colors.yellow}Switching to test org...${TEST_CONFIG.colors.reset}`);
+		console.log(`  ${TEST_CONFIG.colors.yellow}Switching to test org...${TEST_CONFIG.colors.reset}`);
 		if (this.setTargetOrg(testOrg)) {
 			return currentOrg; // Return original org to restore later
 		} else {

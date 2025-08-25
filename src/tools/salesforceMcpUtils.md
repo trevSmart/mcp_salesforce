@@ -23,7 +23,7 @@ Allows you to execute utility actions like:
     - Clears the internal cache of the MCP server.
     - **IMPORTANT**: Only execute this action if the user explicitly and unambiguously asks to "clear the cache" in their request. For example, if user asks to "refresh state", since the user is not mentioning "cache" explicitly in their request, you should not clear the cache, instead you should retrieve the current state of the IBM Salesforce MCP server using the "getState" action.
   - **"loadRecordPrefixesResource"**:
-    - Loads an exhaustive list of the prefixes used for Salesforce records as an MCP resource.
+    - Loads an exhaustive list of the record prefixes used for Salesforce objects as an MCP resource. Only show the prefixes relevant to the user. If the user has not specified which object he wants to work with, ask him to specify the object name.
   - **"getCurrentDatetime"**:
     - Returns the current date and time.
   - **"reportIssue"**:

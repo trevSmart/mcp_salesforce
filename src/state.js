@@ -7,7 +7,8 @@ const state = {
 	currentLogLevel: process.env.LOG_LEVEL || 'info',
 	userValidated: true,
 	workspacePath: process.env.WORKSPACE_FOLDER_PATHS || '',
-	tempPath: envPaths(config.SERVER_CONSTANTS.serverInfo.alias).data || path.join(process.cwd(), 'tmp')
+	tempPath: envPaths(config.SERVER_CONSTANTS.serverInfo.alias).data || path.join(process.cwd(), 'tmp'),
+	startedDate: new Date()
 };
 
 export default state;

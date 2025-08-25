@@ -138,13 +138,11 @@ export class MCPClient {
 
 	// List available tools
 	async listTools() {
-		console.log(`${TEST_CONFIG.colors.blue}Listing available tools...${TEST_CONFIG.colors.reset}`);
-
 		const result = await this.sendMessage('tools/list');
 
-		console.log(`${TEST_CONFIG.colors.green}✓ Found ${result.tools.length} tools:${TEST_CONFIG.colors.reset}`);
+		console.log(`  Found ${result.tools.length} tools:`);
 		for (const tool of result.tools) {
-			console.log(`  - ${tool.name}`);
+			console.log(`    - ${tool.name}`);
 			this.tools.set(tool.name, tool);
 		}
 
@@ -174,12 +172,10 @@ export class MCPClient {
 	}
 
 	// Set logging level
-	async setLoggingLevel(level = TEST_CONFIG.salesforce.defaultLogLevel) {
-		console.log(`${TEST_CONFIG.colors.blue}Setting logging level to: ${level}${TEST_CONFIG.colors.reset}`);
+	async setLoggingLevel(level = TEST_CONFIG.mcpServer.defaultLogLevel) {
+		console.log(`${TEST_CONFIG.colors.blue}Setting logging level to "${level}"${TEST_CONFIG.colors.reset}`);
 
-		const result = await this.sendMessage('logging/setLevel', {
-			level
-		});
+		const result = await this.sendMessage('logging/setLevel', {level});
 
 		console.log(`${TEST_CONFIG.colors.green}✓ Logging level set to: ${level}${TEST_CONFIG.colors.reset}`);
 		return result;

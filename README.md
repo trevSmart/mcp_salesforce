@@ -1,4 +1,4 @@
-## <img src="docs/assets/images/ibm-logo.webp" alt="IBM logo" width="52" style="position: relative; margin-right: 4px; top: 4px;"/> IBM Salesforce MCP Serve
+## <img src="docs/assets/images/ibm-logo.webp" alt="IBM logo" width="52" style="position: relative; margin-right: 4px; top: 4px;"/> IBM Salesforce MCP Server
 
 An MCP server by IBM that provides Salesforce org context to your IDE AI agent
 

@@ -467,7 +467,10 @@ export async function apexDebugLogsToolHandler({action, logId}) {
 					}
 				}]
 			}, {useToolingApi: true});
-			const newTraceFlag = traceFlagResult.results[0].body;
+
+			log(traceFlagResult, 'debug', 'Create TraceFlag result');
+
+			const newTraceFlagId = traceFlagResult.rawResponse.compositeResponse?.[0].body.id;
 
 			return {
 				content: [{
@@ -475,7 +478,7 @@ export async function apexDebugLogsToolHandler({action, logId}) {
 					text: `Apex debug logs status for ${user.name} in ${state?.org?.alias}: active`
 				}],
 				structuredContent: {
-					traceFlagId: newTraceFlag.id,
+					traceFlagId: newTraceFlagId,
 					status: startDate <= now && now <= expirationDate ? '🟢 Active' : '🟥 Inactive',
 					startDate: formatDate(startDate),
 					expirationDate: formatDate(expirationDate),
