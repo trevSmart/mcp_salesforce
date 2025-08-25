@@ -1,5 +1,5 @@
 import state from '../state.js';
-import {log, textFileContent, getTimestamp, writeToTmpFileAsync} from '../utils.js';
+import {log, textFileContent, getTimestamp} from '../utils.js';
 import {executeAnonymousApex} from '../salesforceServices.js';
 import {mcpServer, newResource} from '../mcp-server.js';
 import client from '../client.js';

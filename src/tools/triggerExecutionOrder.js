@@ -1,5 +1,5 @@
 //import {executeSoqlQuery} from '../salesforceServices.js';
-import {textFileContent, log} from '../utils.js';
+import {textFileContent} from '../utils.js';
 import {z} from 'zod';
 
 export const triggerExecutionOrderDefinition = {
@@ -19,9 +19,9 @@ export const triggerExecutionOrderDefinition = {
 	}
 };
 
+/*
 export async function triggerExecutionOrder(args) {
 	try {
-		/*
 		const sObjectName = args.sObjectName;
 		const operation = args.operation.toLowerCase();
 
@@ -230,7 +230,6 @@ export async function triggerExecutionOrder(args) {
 			}],
 			structuredContent: executionOrder
 		};
-		*/
 
 	} catch (error) {
 		log(error, 'error');
@@ -240,6 +239,7 @@ export async function triggerExecutionOrder(args) {
 				type: 'text',
 				text: `Error in calling Salesforce Tooling API (${method} ${endpoint}): ${error.message}`
 			}]
-		}; */
+		};
 	}
 }
+*/

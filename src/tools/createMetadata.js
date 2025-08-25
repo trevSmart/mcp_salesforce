@@ -14,12 +14,20 @@ export const createMetadataToolDefinition = {
 		outputDir: z.string()
 			.optional()
 			.describe('Optional. Output directory relative to the workspace. Defaults depend on the type.'),
-		sobjectName: z.string()
+		triggerSObject: z.string()
 			.optional()
 			.describe('Required for apexTrigger. The sObject API name the trigger is defined on. For LWC, this will be the component folder name.'),
-		events: z.array(z.string())
+		triggerEvent: z.array(z.enum([
+			'before insert',
+			'before update',
+			'before delete',
+			'after insert',
+			'after update',
+			'after delete',
+			'after undelete'
+		]))
 			.optional()
-			.describe('Optional for apexTrigger. Trigger events. Example: ["beforeInsert", "afterUpdate"].')
+			.describe('Required for apexTrigger. Trigger events. Example: ["before insert", "after update"].')
 	},
 	annotations: {
 		readOnlyHint: false,
@@ -30,14 +38,14 @@ export const createMetadataToolDefinition = {
 	}
 };
 
-export async function createMetadataToolHandler({type, name, outputDir, sobjectName, events = []}) {
+export async function createMetadataToolHandler({type, name, outputDir, triggerSObject, triggerEvent = []}) {
 	try {
-		const result = await generateMetadata({type, name, outputDir, sobjectName, events});
+		const result = await generateMetadata({type, name, outputDir, triggerSObject, triggerEvent});
 
 		return {
 			content: [{
 				type: 'text',
-				text: JSON.stringify(result, null, 3)
+				text: `Successfully created ${result.files.length} metadata files.`
 			}],
 			structuredContent: result
 		};

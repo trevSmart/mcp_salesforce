@@ -32,13 +32,13 @@ Generate a new Apex Class, a new Apex Test Class, a new Apex Trigger or a new LW
 }
 ```
 
-### Example 2: Create an Apex Trigger
+### Example 2: Create an Apex Trigger for all possible events
 ```json
 {
   "type": "apexTrigger",
   "name": "AccountAfterInsert",
-  "sobjectName": "Account",
-  "events": ["afterInsert"]
+  "triggerSObject": "Account",
+  "triggerEvent": ["1before insert", "before update", "before delete", "after insert", "after update", "after delete", "after undelete"]
 }
 ```
 

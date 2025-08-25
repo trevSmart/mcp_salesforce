@@ -3,14 +3,15 @@ export const TEST_CONFIG = {
 	// MCP Server configuration
 	mcpServer: {
 		startupDelay: 1000,
-		timeout: 30000,
-		serverPath: '../index.js'
+		timeout: 90000,
+		serverPath: '../index.js',
+		defaultLogLevel: 'debug'
 	},
 
 	// Salesforce configuration
 	salesforce: {
 		testOrgAlias: 'DEVSERVICE',
-		defaultLogLevel: 'info'
+		runApexTestClassName: 'CSBD_Utils_Test'
 	},
 
 	// Test execution configuration
@@ -38,7 +39,7 @@ export const TEST_CONFIG = {
 		bright: '\x1b[1m',
 		red: '\x1b[31m',
 		green: '\x1b[32m',
-		yellow: '\x1b[33m',
+		yellow: '\x1b[38;2;189;181;77m',
 		orange: '\x1b[38;5;208m',
 		blue: '\x1b[34m',
 		magenta: '\x1b[35m',

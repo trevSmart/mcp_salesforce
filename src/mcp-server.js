@@ -92,7 +92,7 @@ const mcpServer = new McpServer(serverInfo, {capabilities, instructions, debounc
 
 export function newResource(uri, name, description, mimeType = 'text/plain', content, annotations = {}) {
 	try {
-		log(`New resource: ${uri}`, 'debug');
+		log(`MCP resource "${uri}" changed`, 'debug');
 		annotations = {...annotations, lastModified: new Date().toISOString()};
 		const resource = {
 			uri,
@@ -112,9 +112,11 @@ export function newResource(uri, name, description, mimeType = 'text/plain', con
 }
 
 export function clearResources() {
-	log('Clearing resources...', 'debug');
-	resources = {};
-	mcpServer.server.sendResourceListChanged();
+	if (Object.keys(resources).length) {
+		log('Clearing resources...', 'debug');
+		resources = {};
+		mcpServer.server.sendResourceListChanged();
+	}
 }
 
 //Ready promise mechanism for external waiting
@@ -212,9 +214,9 @@ export async function setupServer() {
 			client.initialize({clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion});
 
 			log(`IBM Salesforce MCP server (v${config.SERVER_CONSTANTS.serverInfo.version})`, 'info');
-			log(`Current log level: ${state.currentLogLevel}`, 'info');
 			const clientCapabilitiesString = 'Capabilities: ' + JSON.stringify(client.capabilities, null, 3);
 			log(`Connecting with client "${client.clientInfo.name}" (v${client.clientInfo.version}). ${clientCapabilitiesString}`, 'info');
+			log(`Current log level: ${state.currentLogLevel}`, 'info');
 
 			if (process.env.WORKSPACE_FOLDER_PATHS) {
 				setWorkspacePath(process.env.WORKSPACE_FOLDER_PATHS);

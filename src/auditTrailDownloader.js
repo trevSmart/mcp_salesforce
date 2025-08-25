@@ -3,39 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import state from './state.js';
 import {log} from './utils.js';
-
-/** Espera fins que aparegui l'enllaç de descàrrega (document + iframes), amb polling curt */
-async function waitForDownloadLink(page, totalTimeoutMs = 20000, intervalMs = 200) {
-	const start = Date.now();
-
-	const hasLink = async () => {
-		let link = page.locator('a:has-text("Download setup audit trail")').first();
-		if (await link.count()) { return link; }
-
-		for (const fr of page.frames()) {
-			const l = fr.locator('a:has-text("Download setup audit trail")').first();
-			if (await l.count()) { return l; }
-		}
-
-		const sels = ['a[href*="csv"]', 'a[href*="download"]', 'a[href*="audit"]'];
-		for (const sel of sels) {
-			let alt = page.locator(sel).first();
-			if (await alt.count()) { return alt; }
-			for (const fr of page.frames()) {
-				const fAlt = fr.locator(sel).first();
-				if (await fAlt.count()) { return fAlt; }
-			}
-		}
-		return null;
-	};
-
-	while (Date.now() - start < totalTimeoutMs) {
-		const found = await hasLink();
-		if (found) { return found; }
-		await page.waitForTimeout(intervalMs);
-	}
-	return null;
-}
+import os from 'os';
 
 async function retrieveFile() {
 	const setupSetupAuditTrailUrl = '/lightning/setup/SecurityEvents/home';
@@ -52,96 +20,105 @@ async function retrieveFile() {
 		throw new Error('No s\'ha trobat la URL de la instància o l\'accessToken a l\'estat. Assegura\'t que l\'usuari està connectat a Salesforce.');
 	}
 
-	// Iniciar el navegador
-	const browser = await chromium.launch({headless: false});
-	const context = await browser.newContext({acceptDownloads: true});
+	// Iniciar el navegador amb opcions més robustes
+	const browser = await chromium.launch({
+		headless: false,
+		args: [
+			'--no-sandbox',
+			'--disable-setuid-sandbox',
+			'--disable-dev-shm-usage',
+			'--disable-accelerated-2d-canvas',
+			'--no-first-run',
+			'--no-zygote',
+			'--disable-gpu'
+		]
+	});
+
+	const context = await browser.newContext({
+		acceptDownloads: true,
+		viewport: {width: 1920, height: 1080},
+		userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+	});
+
 	const page = await context.newPage();
 
 	try {
 		// MODE TOKEN: salt directe via frontdoor.jsp
-		log('Iniciant sessió via frontdoor.jsp (OAuth token)...', 'debug');
+		log('Iniciant sessió via OAuth token...', 'debug');
 		const sid = encodeURIComponent(accessToken);
 		const retURL = encodeURIComponent(setupSetupAuditTrailUrl);
 		const frontdoorUrl = `${instanceUrl}/secur/frontdoor.jsp?sid=${sid}&retURL=${retURL}`;
+		page.goto(frontdoorUrl);
+		await page.waitForURL(url => url.pathname.includes(setupSetupAuditTrailUrl), {timeout: 30000});
+		log('Pàgina d\'Audit Trail carregada.', 'debug');
 
-		log(`Accedint via frontdoor: ${frontdoorUrl}`, 'debug');
-		await page.goto(frontdoorUrl, {waitUntil: 'domcontentloaded'});
-		await page.waitForURL(url => url.pathname.includes(setupSetupAuditTrailUrl), {timeout: 60000});
+		// Esperar que la pàgina es carregui completament
+		await page.waitForLoadState('domcontentloaded', {timeout: 60000});
+		// Donar temps extra per a que els components Lightning es carreguin
+		await page.waitForTimeout(3000);
 
-		log(`Sessió establerta. URL actual: ${page.url()}`, 'debug');
+		log('Buscant l\'enllaç de descàrrega...', 'debug');
 
-		/* VERSIÓ AMB INPUTS (COMENTADA)
-		const loginUrl = 'https://test.salesforce.com';
-		const password = 'trompeta5';
+		let downloadLink = null;
+		let frame = page;
+		const frames = page.frames();
 
-		// Verificar que tenim les credencials necessàries
-		if (!state.org?.user?.username || !password) {
-			throw new Error('No s\'han trobat les credencials d\'usuari (username/password) a l\'estat. Assegura\'t que l\'usuari està connectat a Salesforce.');
-		}
-
-		let landedUrl;
-
-		log('Iniciant sessió a Salesforce via formulari...', 'debug');
-		// MODE FORMULARI: el de tota la vida
-		await page.goto(`${loginUrl}/`, {waitUntil: 'domcontentloaded'});
-
-		await page.waitForSelector('#username', {timeout: 60000});
-		await page.fill('#username', state.org?.user?.username);
-		await page.fill('#password', password);
-
-		await Promise.all([
-			page.waitForURL(/\/lightning\//, {timeout: 60000}),
-			page.click('#Login')
-		]);
-
-		landedUrl = page.url();
-		log(`Login completat. URL aterrat: ${landedUrl}`, 'debug');
-
-		// Domini correcte del SETUP
-		const setupOrigin = computeSetupOrigin(landedUrl);
-		const setupUrl = `${setupOrigin}${setupSetupAuditTrailUrl}`;
-
-		log(`Domini Setup calculat: ${setupOrigin}`, 'debug');
-		log(`Anant a Setup Audit Trail: ${setupUrl}`, 'debug');
-		*/
-
-		// Since we're using the frontdoor approach, we don't need to navigate to setupUrl
-		// The page is already at the correct location after the frontdoor redirect
-		//await page.goto(setupUrl, {waitUntil: 'domcontentloaded'});
-
-		try {
-			await page.waitForURL(new RegExp(`${setupSetupAuditTrailUrl.replace(/\//g, '\\/')}`), {timeout: 60000});
-		} catch (error) {
-			throw new Error(`No s'ha trobat l'enllaç de descàrrega a Setup Audit Trail. Error: ${error.message}`);
-		}
-
-		// Espera DIRECTA al link de descàrrega
-		log('Esperant l\'enllaç de descàrrega d\'Audit Trail...', 'debug');
-		const downloadLink = await waitForDownloadLink(page, 20000, 200);
-
-		if (!downloadLink) {
-			const allLinks = await page.locator('a').all();
-			log(`No s'ha trobat l'enllaç. #enllaços trobats (document principal): ${allLinks.length}`, 'debug');
-			for (let i = 0; i < Math.min(10, allLinks.length); i++) {
-				const t = (await allLinks[i].textContent())?.trim() || '';
-				const h = await allLinks[i].getAttribute('href') || 'sense href';
-				log(`Enllaç ${i + 1}: text="${t}", href="${h}"`, 'debug');
+		// Buscar en cada iframe
+		for (let i = 0; i < frames.length; i++) {
+			try {
+				const frameElement = await frames[i].locator('div.pShowMore > a').first();
+				if (frameElement) {
+					downloadLink = frameElement;
+					frame = frames[i];
+					log(`Enllaç trobat en frame ${i}`, 'debug');
+					break;
+				}
+			} catch {
+				log(`Frame ${i}: element no trobat`, 'debug');
 			}
-			throw new Error('No s\'ha trobat l\'enllaç de descàrrega a Setup Audit Trail.');
 		}
 
-		log('Descarregant el fitxer CSV...', 'debug');
-		const downloadPromise = page.waitForEvent('download', {timeout: 60000});
-		await downloadLink.click();
+		log('Enllaç de descàrrega d\'Audit Trail trobat', 'debug');
+		log('');
+		log(`frame type: ${typeof frame}`, 'debug');
+		log(`frame constructor: ${frame?.constructor?.name}`, 'debug');
+		log('');
+		log(`downloadLink type: ${typeof downloadLink}`, 'debug');
+		log(`downloadLink constructor: ${downloadLink?.constructor?.name}`, 'debug');
+		log('');
+		const element = await downloadLink.elementHandle();
+		log(`element type: ${typeof element}`, 'debug');
+		log(`element constructor: ${element?.constructor?.name}`, 'debug');
+
+		// Obtenir la URL de l'enllaç de descàrrega
+		// Primer obtenir l'element real del Locator
+		if (!element) {
+			throw new Error('No s\'ha pogut obtenir l\'element de l\'enllaç de descàrrega');
+		}
+
+		const href = await element.getAttribute('href');
+		if (!href) {
+			throw new Error('No s\'ha pogut obtenir la URL de l\'enllaç de descàrrega');
+		}
+
+		log(`URL de descàrrega: ${href}`, 'debug');
+
+		// Configurar l'espera de la descàrrega abans de fer clic
+		const downloadPromise = page.waitForEvent('download', {timeout: 30000});
+
+		// Fer clic utilitzant el frame correcte
+		await page.goto(href);
+
 		const download = await downloadPromise;
+		log('Descàrrega iniciada', 'debug');
 
 		const fileName = `setupAuditTrail_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
-		const filePath = path.join(state.tempPath, fileName);
+		const filePath = path.join(os.tmpdir(), fileName);
+
 		await download.saveAs(filePath);
-
 		const fileContent = fs.readFileSync(filePath, 'utf8');
-
 		log(`Fitxer descarregat a: ${filePath}`, 'debug');
+
 		return fileContent;
 
 	} catch (error) {
@@ -161,23 +138,8 @@ export async function retrieveSetupAuditTrailFile() {
 		const fileContent = await retrieveFile();
 		return fileContent;
 
-		/*
-        // Processar el CSV
-        console.log('Processant el CSV...');
-        const options = {
-            lastDays: 7,
-            // Descomentar per filtrar per usuari o metadada específica
-            // createdByName: 'Marc Pla',
-            // metadataName: 'CC_Gestion_Derivar_SinClienteAsociado'
-        };
-
-        // const result = await processAuditTrailCsv(csvFilePath, options);
-		*/
-
-		// console.log(JSON.stringify(result, null, 2));
-
 	} catch (error) {
-		console.error('Error:', error);
-		process.exit(1);
+		log(`Error durant la descàrrega: ${error.message}`, 'warn');
+		throw error;
 	}
 }

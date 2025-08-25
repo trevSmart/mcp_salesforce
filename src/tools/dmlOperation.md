@@ -12,6 +12,8 @@ Allows you to perform multiple Create, Update, and Delete operations in a single
   - Update another opportunity
   - Delete 2 accounts
 
+- No server information is needed to run this tool so you don't need to previously retrieve the server information.
+
 - **⚠️ MANDATORY**: Output the tool response in a table with the following 5 columns:
   - **Operation**: The type of operation (Create, Update or Delete)
   - **Object type**: The SObject type

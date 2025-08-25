@@ -49,14 +49,13 @@ export async function salesforceMcpUtilsToolHandler({action, options}) {
 			return {
 				content: [{
 					type: 'text',
-					text: '✅ Cached resources cleared successfully'
+					text: '✅ Successfully cleared cached resources'
 				}],
 				structuredContent: {action, status: 'success'}
 			};
 
 		} else if (action === 'getCurrentDatetime') {
 			const now = new Date();
-
 			const result = {
 				now,
 				nowLocaleString: now.toLocaleString(),
@@ -87,46 +86,48 @@ export async function salesforceMcpUtilsToolHandler({action, options}) {
 			};
 
 		} else if (action === 'loadRecordPrefixesResource') {
+			let message;
+			let structuredContent;
+			let resourceUri;
 
-			if (resources['file://mcp/recordPrefixes.csv']) {
-				return {
-					content: [{
-						type: 'text',
-						text: '✅ Record prefixes resource already loaded'
-					}],
-					structuredContent: {recordPrefixes: resources['file://mcp/recordPrefixes.csv'].text}
-				};
-			}
-			const {recordPrefixesApexScript} = await import('../static/retrieve-sobject-prefixes.js');
-			const apexScript = recordPrefixesApexScript;
-			const apexResult = await executeAnonymousApex(apexScript);
-			const apexLog = apexResult.logs;
+			const recordPrefixesResource = resources['file://mcp/recordPrefixes.csv'];
+			if (recordPrefixesResource) {
+				message = '✅ Object record prefixes resource already loaded';
+				structuredContent = {recordPrefixes: recordPrefixesResource.text.split('\n')};
+				resourceUri = recordPrefixesResource.uri;
 
-			// Filter debug logs using regex
-			const debugLogs = apexLog.match(/(?<=\]\|DEBUG\|).*/g) || [];
-			const recordPrefixes = debugLogs.join('\n');
+			} else {
+				const {recordPrefixesApexScript} = await import('../static/retrieve-sobject-prefixes.js');
+				const apexResult = await executeAnonymousApex(recordPrefixesApexScript);
+				const recordPrefixes = apexResult.logs.match(/(?<=\]\|DEBUG\|).*/g) || [];
+				const resourceContent = recordPrefixes.join('\n');
 
-			const content = [{
-				type: 'text',
-				text: '✅ List od record prefixes retrieved successfully'
-			}];
-
-			if (client.supportsCapability('resource_links')) {
-				const resourceLink = {type: 'resource_link', uri: newResource(
+				message = '✅ Successfully retrieved list of object record prefixes';
+				structuredContent = {recordPrefixes};
+				resourceUri = newResource(
 					'file://mcp/recordPrefixes.csv',
 					'List of Salesforce SObject record prefixes',
 					'List of Salesforce SObject record prefixes',
 					'text/csv',
-					recordPrefixes,
+					resourceContent,
 					{audience: ['user', 'assistant']}
-				).uri};
-				content.push(resourceLink);
+				).uri;
 			}
 
-			return {
-				content,
-				structuredContent: {recordPrefixes}
+			const response = {
+				content: [
+					{
+						type: 'text',
+						text: message
+					}
+				],
+				structuredContent
 			};
+			if (client.supportsCapability('resource_links') && resourceUri) {
+				response.content.push({type: 'resource_link', uri: resourceUri});
+			}
+
+			return response;
 
 		} else if (action === 'getOrgAndUserDetails') {
 			try {

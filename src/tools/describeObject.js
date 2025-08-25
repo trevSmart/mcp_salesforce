@@ -75,7 +75,7 @@ export async function describeObjectToolHandler({sObjectName, includeFields = tr
 		return {
 			content: [{
 				type: 'text',
-				text: 'Successfully retrieved the SObject schema for ' + sObjectName + ' with the following data: ' + JSON.stringify(filteredData, null, 3)
+				text: 'Successfully retrieved the SObject schema for ' + sObjectName
 			}],
 			structuredContent: filteredData
 		};

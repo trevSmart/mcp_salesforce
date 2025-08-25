@@ -36,16 +36,6 @@ export function log(data, logLevel = 'info', context = null) {
 			const errorMessage = context ? `${context}: ${data.message}` : data.message;
 			logData = `${errorMessage}\nStack: ${data.stack}`;
 		} else {
-			// Add context prefix to any type of log if available
-			if (context) {
-				if (typeof data === 'string') {
-					logData = `${context}: ${data}`;
-				} else {
-					// For non-string data, we'll add context after conversion to string
-					logData = `${context}: ${logData}`;
-				}
-			}
-
 			if (typeof data === 'object') {
 				// For other objects, try to get meaningful string representation
 				try {
@@ -55,6 +45,11 @@ export function log(data, logLevel = 'info', context = null) {
 				}
 			} else if (typeof data === 'string') {
 				logData = data;
+			}
+
+			// Add context prefix to any type of log if available
+			if (context) {
+				logData = `${context}: ${logData}`;
 			}
 		}
 

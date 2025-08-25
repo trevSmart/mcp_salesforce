@@ -178,7 +178,7 @@ export async function runApexTestToolHandler({classNames = [], methodNames = [],
 			isError: true,
 			content: [{
 				type: 'text',
-				text: JSON.stringify(error, null, 3)
+				text: error.message
 			}]
 		};
 	}
