@@ -54,8 +54,8 @@ export async function dmlOperationToolHandler({operations, options = {}}) {
 	try {
 		// Check for destructive operations and require confirmation if needed
 		if (options.bypassUserConfirmation !== true
-		&& (operations.delete?.length || operations.update?.length)
-		&& client.supportsCapability('elicitInput')) {
+                && (operations.delete?.length || operations.update?.length)
+                && client.supportsCapability('elicitInput')) {
 			const deleteCount = operations.delete?.length || 0;
 			const updateCount = operations.update?.length || 0;
 
@@ -83,18 +83,22 @@ export async function dmlOperationToolHandler({operations, options = {}}) {
 						type: 'text',
 						text: 'User has cancelled the operations'
 					}],
-					structuredContent: {cancelled: true, reason: 'user_cancelled'}
+					structuredContent: {
+						outcome: 'cancelled',
+						statistics: {total: 0, succeeded: 0, failed: 0},
+						cancellationReason: 'user_cancelled'
+					}
 				};
 			}
 		}
 
 		const response = await dmlOperation(operations, options);
+		const stats = response.statistics;
 
-		// Check if the response indicates errors and mark accordingly
-		if (response.hasErrors) {
-			// Generate error summary message
-			const errorSummaryText = `DML request completed with ${response.failedRecords} error(s). ${response.successfulRecords} operation(s) succeeded, ${response.failedRecords} failed.`;
+		const errorSummaryText = `DML request completed with ${stats.failed} error(s). ${stats.succeeded} operation(s) succeeded, ${stats.failed} failed.`;
+		const successSummaryText = `DML request completed successfully. All ${stats.succeeded} operation(s) succeeded.`;
 
+		if (response.outcome !== 'success') {
 			return {
 				isError: true,
 				content: [{
@@ -104,9 +108,6 @@ export async function dmlOperationToolHandler({operations, options = {}}) {
 				structuredContent: response
 			};
 		}
-
-		// Generate success summary message
-		const successSummaryText = `DML request completed successfully. All ${response.successfulRecords} operation(s) succeeded.`;
 
 		return {
 			content: [{
@@ -125,7 +126,11 @@ export async function dmlOperationToolHandler({operations, options = {}}) {
 				type: 'text',
 				text: `❌ Error in DML operation request: ${error.message}`
 			}],
-			structuredContent: error
+			structuredContent: {
+				outcome: 'error',
+				statistics: {total: 0, succeeded: 0, failed: 0},
+				errors: [{index: -1, message: error.message}]
+			}
 		};
 	}
 }
