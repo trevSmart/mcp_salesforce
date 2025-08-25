@@ -46,6 +46,40 @@ Allows you to perform multiple Create, Update, and Delete operations in a single
   - `allOrNone`: If true, all operations must succeed or none will be committed (default: false)
   - `bypassUserConfirmation`: Whether to require user confirmation for destructive operations (default: true)
 
+## Response Structure
+
+```json
+{
+  "outcome": "success | partial | error | cancelled",
+  "statistics": {
+    "total": 0,
+    "succeeded": 0,
+    "failed": 0
+  },
+  "successes": [
+    {
+      "index": 0,
+      "id": "recordId"
+    }
+  ],
+  "errors": [
+    {
+      "index": 1,
+      "message": "Error message",
+      "type": "ValidationError",
+      "fields": ["Name"]
+    }
+  ],
+  "cancellationReason": "user_cancelled"
+}
+```
+
+- `outcome` describes the overall result of the batch.
+- `statistics` provides a summary of operations processed.
+- `successes` lists successful items with their order index and any returned IDs.
+- `errors` lists failed items with their index, message, and optional metadata.
+- `cancellationReason` is only present when the operation is cancelled.
+
 ---
 
 ## Examples
