@@ -92,7 +92,7 @@ const mcpServer = new McpServer(serverInfo, {capabilities, instructions, debounc
 
 export function newResource(uri, name, description, mimeType = 'text/plain', content, annotations = {}) {
 	try {
-		log(`MCP resource "${uri}" changed`, 'debug');
+		log(`MCP resource "${uri}" changed.`, 'debug');
 		annotations = {...annotations, lastModified: new Date().toISOString()};
 		const resource = {
 			uri,

@@ -36,7 +36,7 @@ export async function deployMetadataToolHandler({sourceDir}) {
 							enum: ['Yes', 'No'],
 							enumNames: ['Deploy metadata now', 'Cancel metadata deployment'],
 							description: `Deploy ${metadataName} to ${state.org.alias}?`,
-							default: 'No'
+							default: 'Yes'
 						}
 					},
 					required: ['confirm']

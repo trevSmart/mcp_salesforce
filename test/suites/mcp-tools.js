@@ -1,6 +1,5 @@
-import {TEST_CONFIG} from '../config.js';
+import {TEST_CONFIG} from '../test-config.js';
 import fs from 'fs';
-import path from 'path';
 
 // TestContext class for sharing data between tests
 class TestContext {
@@ -64,9 +63,9 @@ export class MCPToolsTestSuite {
 						const indentedContent = JSON.stringify(parsedContent, null, 2);
 						const indentedLines = indentedContent.split('\n').map(line => `    ${line}`).join('\n');
 						console.log(`${TEST_CONFIG.colors.yellow}${truncateOutput(indentedLines)}${TEST_CONFIG.colors.reset}`);
-					} catch (e) {
+					} catch (error) {
 						// If not JSON, display as regular text
-						console.log(`${TEST_CONFIG.colors.yellow}    ${truncateOutput(content.text)}${TEST_CONFIG.colors.reset}`);
+						console.log(`${TEST_CONFIG.colors.yellow}    ${truncateOutput(content.text)}${TEST_CONFIG.colors.reset} || ${error}`);
 					}
 				} else if (content.type === 'image') {
 					console.log(`${TEST_CONFIG.colors.yellow}    [Image: ${content.imageUrl || 'No URL'}]${TEST_CONFIG.colors.reset}`);
@@ -153,6 +152,44 @@ export class MCPToolsTestSuite {
 				}
 			},
 			{
+				name: 'salesforceMcpUtils reportIssue validation',
+				run: async () => {
+					try {
+						const result = await this.mcpClient.callTool('salesforceMcpUtils', {
+							action: 'reportIssue',
+							issueDescription: 'Short',
+							issueToolName: 'testTool'
+						});
+
+						// Check if the result contains an error message
+						if (result.content && result.content[0] && result.content[0].text &&
+							result.content[0].text.includes('issueDescription is required and must be at least 10 characters long')) {
+							return {
+								content: [{
+									type: 'text',
+									text: '✅ Validation working correctly - rejected short description'
+								}],
+								structuredContent: {validation: 'passed'}
+							};
+						}
+
+						throw new Error('Expected validation error for short description');
+					} catch (error) {
+						// If the error is thrown by the tool itself, that's also valid
+						if (error.message.includes('issueDescription is required and must be at least 10 characters long')) {
+							return {
+								content: [{
+									type: 'text',
+									text: '✅ Validation working correctly - rejected short description'
+								}],
+								structuredContent: {validation: 'passed'}
+							};
+						}
+						throw error;
+					}
+				}
+			},
+			{
 				name: 'apexDebugLogs status',
 				run: async () => {
 					return await this.mcpClient.callTool('apexDebugLogs', {action: 'status'});
@@ -232,7 +269,7 @@ export class MCPToolsTestSuite {
 						name: 'TestMCPToolClass'
 					});
 				},
-				script: async (result) => {
+				script: async () => {
 					// Clean up force-app directory
 					const forceAppPath = 'force-app';
 					if (fs.existsSync(forceAppPath)) {

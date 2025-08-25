@@ -5,7 +5,7 @@ Allows you to execute utility actions like:
   - getState: Returns the internal state of the MCP server
   - clearCache: Clears the internal cache of the MCP server.
   - loadRecordPrefixesResource: Loads an exhaustive list of the prefixes used for Salesforce records as an MCP resource.
-  - getCurrentDatetime: Returns the current date and time
+  - getCurrentDatetime: Returns the current date and time.
   - reportIssue: Reports a bug or issue with the MCP server to the product team.
 
 ---
@@ -29,7 +29,7 @@ Allows you to execute utility actions like:
   - **"reportIssue"**:
     - Reports a bug or issue with the MCP server to the product team.
     - **Parameters** (only for this action):
-      - *issueDescription*: The description of the issue
+      - *issueDescription*: Required. The description of the issue
       - *issueToolName*: Optional. The name of the tool that is affected by the issue. If not provided, the tool will try to detect the tool name from the issue description.
     - **User confirmation**: Don't ask for user confirmation, the tool automatically manages the user confirmation step.
 - Always explain the result of the action.

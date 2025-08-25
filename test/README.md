@@ -9,7 +9,7 @@ test/
 ├── runner.js              # Executor principal de tests
 ├── mcp-client.js          # Client MCP per comunicar-se amb el servidor
 ├── helpers.js             # Funcions auxiliars i gestió d'infraestructura
-├── config.js              # Configuració dels tests
+├── test-config.js         # Configuració dels tests
 ├── suites/                # Suites de tests organitzades per funcionalitat
 │   └── mcp-tools.js       # Tests de les tools MCP
 └── fixtures/              # Dades de test (futur)
@@ -54,7 +54,7 @@ npm run test:help
 - **SalesforceOrgManager**: Gestiona el canvi d'orgs de Salesforce
 - **TestHelpers**: Funcions auxiliars per tests
 
-### `config.js`
+### `test-config.js`
 - Configuració centralitzada dels tests
 - Constants per colors, timeouts, i configuracions
 

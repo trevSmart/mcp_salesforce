@@ -70,7 +70,7 @@ export async function dmlOperationToolHandler({operations, options = {}}) {
 							enum: ['Yes', 'No'],
 							enumNames: ['✅ Execute DML operations now', '❌ Cancel DML operations'],
 							description: `Execute DML operations in ${state.org.alias}?`,
-							default: 'No'
+							default: 'Yes'
 						}
 					},
 					required: ['confirm']

@@ -56,7 +56,7 @@ export async function executeAnonymousApexToolHandler({apexCode, mayModify}) {
 							enum: ['Yes', 'No'],
 							enumNames: ['Execute Anonymous Apex script now', 'Cancel Anonymous Apex script execution'],
 							description: `Execute Anonymous Apex script in ${state.org.alias}?`,
-							default: 'No'
+							default: 'Yes'
 						}
 					},
 					required: ['confirm']

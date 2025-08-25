@@ -1,4 +1,4 @@
-import {TEST_CONFIG} from './config.js';
+import {TEST_CONFIG} from './test-config.js';
 
 export class MCPClient {
 	constructor(serverProcess) {
