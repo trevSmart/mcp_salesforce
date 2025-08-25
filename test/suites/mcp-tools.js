@@ -321,11 +321,7 @@ export class MCPToolsTestSuite {
 				},
 				script: async (result, context) => {
 					// Extract the created record ID from the DML operation response
-					// For UI API create operations, the ID is in rawResponse.results[0].result.id
-					console.log(`${TEST_CONFIG.colors.cyan}Debugging DML response structure...${TEST_CONFIG.colors.reset}`);
-					console.log(`${TEST_CONFIG.colors.yellow}Full result: ${JSON.stringify(result, null, 2)}${TEST_CONFIG.colors.reset}`);
-
-					const createdRecordId = result?.structuredContent?.rawResponse?.results?.[0]?.result?.id;
+					const createdRecordId = result?.structuredContent?.successes?.[0]?.id;
 					console.log(`${TEST_CONFIG.colors.cyan}Saving created record Id in context...${TEST_CONFIG.colors.reset}`);
 					if (createdRecordId) {
 						context.set('createdAccountId', createdRecordId);
