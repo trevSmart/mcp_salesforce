@@ -38,12 +38,12 @@ async function waitForDownloadLink(page, totalTimeoutMs = 20000, intervalMs = 20
 }
 
 async function retrieveFile() {
-	const setupSetupAuditTrailUrl = '/lightning/setup/SecurityEvents/home';
-	const browser = await chromium.launch({headless: true});
-	const context = await browser.newContext({acceptDownloads: true});
-	const page = await context.newPage();
-
 	try {
+		const setupSetupAuditTrailUrl = '/lightning/setup/SecurityEvents/home';
+		const browser = await chromium.launch({headless: true});
+		const context = await browser.newContext({acceptDownloads: true});
+		const page = await context.newPage();
+
 		const {instanceUrl, accessToken} = state.org;
 		const sid = encodeURIComponent(accessToken);
 		const retURL = encodeURIComponent(setupSetupAuditTrailUrl);
@@ -87,7 +87,7 @@ async function retrieveFile() {
 		throw error;
 
 	} finally {
-		await browser.close();
+		// await browser.close();
 	}
 }
 

@@ -8,17 +8,17 @@ export const describeObjectToolDefinition = {
 	title: 'Describe SObject schema',
 	description: textFileContent('describeObject'),
 	inputSchema: {
-		sObjectName: z
-			.string()
+		sObjectName: z.string()
 			.describe('The name of the SObject to describe'),
-		includeFields: z
-			.boolean()
-			.describe('If true, includes fields in the response. If false, excludes fields for faster processing and smaller response.')
-			.default(true),
-		includePicklistValues: z
-			.boolean()
+		includeFields: z.boolean()
+			.describe('If true, includes fields in the response. If false, excludes fields for faster processing and smaller response.').default(true),
+		includePicklistValues: z.boolean()
 			.describe('If true, includes picklist values for picklist and multipicklist fields. If false, only field metadata is returned.')
+			.default(false),
+		useToolingApi: z.boolean()
+			.optional()
 			.default(false)
+			.describe('Whether to use the Tooling API for retrieving the SObject schema (default: false)')
 	},
 	annotations: {
 		readOnlyHint: true,
@@ -28,7 +28,7 @@ export const describeObjectToolDefinition = {
 	}
 };
 
-export async function describeObjectToolHandler({sObjectName, includeFields = true, includePicklistValues = false}) {
+export async function describeObjectToolHandler({sObjectName, includeFields = true, includePicklistValues = false, useToolingApi = false}) {
 	try {
 		const resourceName = 'mcp://mcp/sobject-ui-schema-' + sObjectName.toLowerCase() + '.json';
 

@@ -21,8 +21,9 @@ export default {
 			logging: {},
 			resources: {listChanged: true},
 			tools: {},
+			prompts: {},
 			completions: {}
 		},
-		instructions: getAgentInstructions('mcpServer')
+		instructions: getAgentInstructions('agentInstruccions')
 	}
 };

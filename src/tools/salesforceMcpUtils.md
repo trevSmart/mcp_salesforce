@@ -32,7 +32,8 @@ Allows you to execute utility actions like:
       - *issueDescription*: Required. The description of the issue
       - *issueToolName*: Optional. The name of the tool that is affected by the issue. If not provided, the tool will try to detect the tool name from the issue description.
     - **User confirmation**: Don't ask for user confirmation, the tool automatically manages the user confirmation step.
-- Always explain the result of the action.
+
+- **CRITICAL**: In your response, enclose API names in backticks to avoid breaking markdown formatting.
 
 ---
 ## Output Format
