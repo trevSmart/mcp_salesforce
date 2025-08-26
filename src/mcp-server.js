@@ -19,6 +19,7 @@ import state from './state.js';
 import targetOrgWatcher from './OrgWatcher.js';
 
 // import { codeModificationPromptDefinition, codeModificationPrompt } from './prompts/codeModificationPrompt.js';
+import {testToolsPromptDefinition, testToolsPrompt} from './prompts/test-tools.js';
 import {salesforceMcpUtilsToolDefinition} from './tools/salesforceMcpUtils.js';
 import {dmlOperationToolDefinition} from './tools/dmlOperation.js';
 import {deployMetadataToolDefinition} from './tools/deployMetadata.js';
@@ -161,6 +162,7 @@ export async function setupServer() {
 	mcpServer.server.setRequestHandler(ReadResourceRequestSchema, async ({params: {uri}}) => ({contents: [{uri, ...resources[uri]}]}));
 
 	// mcpServer.registerPrompt('code-modification', codeModificationPromptDefinition, codeModificationPrompt);
+	mcpServer.registerPrompt('test-tools', testToolsPromptDefinition, testToolsPrompt);
 
 	const callToolHandler = tool => {
 		return async params => {

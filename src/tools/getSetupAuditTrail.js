@@ -96,7 +96,7 @@ export async function getSetupAuditTrailToolHandler({lastDays = 90, createdByNam
 			isError: true,
 			content: [{
 				type: 'text',
-				text: `Error: ${error.message}`
+				text: `Error retrieving Setup Audit Trail data:\n\nError message:\n${error.message}\n\nError stack:\n${error.stack}`
 			}]
 		};
 	}

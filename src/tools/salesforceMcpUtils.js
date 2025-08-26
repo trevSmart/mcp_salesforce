@@ -5,7 +5,9 @@ import {z} from 'zod';
 import {resources, newResource, clearResources} from '../mcp-server.js';
 import config from '../config.js';
 import {getOrgAndUserDetails, executeAnonymousApex} from '../salesforceServices.js';
-// Dynamic import for Apex script - only loaded when needed
+import {readFile} from 'fs/promises';
+import {join, dirname} from 'path';
+import {fileURLToPath} from 'url';
 
 export const salesforceMcpUtilsToolDefinition = {
 	name: 'salesforceMcpUtils',
@@ -86,41 +88,68 @@ export async function salesforceMcpUtilsToolHandler({action, issueDescription, i
 			};
 
 		} else if (action === 'loadRecordPrefixesResource') {
-			let message;
-			let structuredContent;
-			let resourceUri;
-
-			const recordPrefixesResource = resources['file://mcp/recordPrefixes.csv'];
+			const content = [];
+			let structuredContent = {};
+			let resourceUri = 'mcp://prefixes/recordPrefixes.csv';
+			let data = [];
+			const recordPrefixesResource = resources[resourceUri];
 			if (recordPrefixesResource) {
-				message = '✅ Object record prefixes resource already loaded';
-				structuredContent = {recordPrefixes: recordPrefixesResource.text.split('\n')};
-				resourceUri = recordPrefixesResource.uri;
+				data = JSON.parse(recordPrefixesResource.text);
+				content.push({type: 'text', text: '✅ Object record prefixes resource already loaded'});
 
 			} else {
-				const {recordPrefixesApexScript} = await import('../static/retrieve-sobject-prefixes.js');
-				const result = await executeAnonymousApex(recordPrefixesApexScript);
+				// Read the Apex script file directly
+				const apexScriptPath = join(dirname(fileURLToPath(import.meta.url)), '../static/retrieve-sobject-prefixes.apex');
+				const apexScript = await readFile(apexScriptPath, 'utf8');
+				const result = await executeAnonymousApex(apexScript);
 				if (result.success) {
-					const csvData = result.result;
-					const recordPrefixes = csvData.split('\n').filter(line => line.trim() && !line.startsWith('Prefix,'));
+					const resultLogs = result.logs;
+					data = resultLogs.split('\n')
+						.filter(line => line.trim() && line.includes('USER_DEBUG'))
+						.map(line => {
+							const lastPipeIndex = line.lastIndexOf('|');
+							return lastPipeIndex !== -1 ? line.substring(lastPipeIndex + 1) : line;
+						})
+						.filter(line => line.trim()); // Remove any empty lines after processing
 
 					// Create new resource
-					const newRecordPrefixesResource = newResource('file://mcp/recordPrefixes.csv', 'text/csv', csvData);
-					resources['file://mcp/recordPrefixes.csv'] = newRecordPrefixesResource;
+					newResource(
+						resourceUri,
+						'SObject record prefixes list',
+						'This resource contains a list of SObject record prefixes.',
+						'application/json',
+						JSON.stringify(data, null, '\t'),
+						{audience: ['user', 'assistant']}
+					);
 
-					message = '✅ Object record prefixes resource loaded successfully';
-					structuredContent = {recordPrefixes};
-					resourceUri = recordPrefixesResource.uri;
+					content.push({type: 'text', text: '✅ Object record prefixes resource loaded successfully'});
+
 				} else {
 					throw new Error(`Failed to load record prefixes: ${result.error}`);
 				}
 			}
 
+			// Transform the array data into the desired object format
+			const transformedData = {};
+			data.forEach(item => {
+				const [objectName, prefix] = item.split(',');
+				if (objectName && prefix) {
+					transformedData[prefix] = objectName;
+				}
+			});
+
+			if (client.supportsCapability('resource_links')) {
+				content.push({type: 'resource_link', uri: resourceUri});
+			}
+
+			//This should only be necessary if client does not support resource_links
+			//However testing shows that some clients cant read the resource_links properly even if they support it
+			//For now we will always return the data as structured content
+			structuredContent = transformedData;
+
 			return {
-				content: [{
-					type: 'text',
-					text: message
-				}],
-				structuredContent: structuredContent
+				content,
+				structuredContent
 			};
 
 		} else if (action === 'getOrgAndUserDetails') {
@@ -319,11 +348,11 @@ Return only the tool name or "Unknown" without any explanation.`;
 	} catch (error) {
 		log(error, 'error', 'Error in salesforceMcpUtilsTool');
 		return {
+			isError: true,
 			content: [{
 				type: 'text',
 				text: `❌ Error: ${error.message}`
-			}],
-			structuredContent: {error: error.message}
+			}]
 		};
 	}
 }
