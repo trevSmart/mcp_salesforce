@@ -208,7 +208,7 @@ export class MCPToolsTestSuite {
 				},
 				script: async (result, context) => {
 					console.log(`${TEST_CONFIG.colors.cyan}Saving logId in context...${TEST_CONFIG.colors.reset}`);
-					context.set('logId', result.structuredContent[0].Id);
+					context.set('logId', result.structuredContent.logs[0].Id);
 				}
 			},
 			{
