@@ -11,30 +11,28 @@ Allows you to obtain the list of changes made to any metadata item in the curren
 ## Usage
 You don't need to select an org -the tool will query the current target org- and you don't need to retrieve the org details beforehand.
 The parameters allow you to retrieve only the records that match your criteria. You can use none and all the records will be returned.
-- `lastDays`: If set, only the changes from the last number of days will be returned (must be between 1 and 90, if not set, the changes from the last 90 days will be returned)
-- `createdByName`: If set, only the changes performed by this user will be returned (if not set, the changes from all users will be returned)
+- `lastDays`: If set, only the changes from the last number of days will be returned (must be between 1 and 60, if not set, the changes from the last 30 days will be returned)
+- `username`: If set, only the changes performed by this username will be returned (if not set, the changes from all users will be returned)
 - `metadataName`: If set, only the changes performed in this metadata will be returned (if not set, the changes from all metadata will be returned)
 
 **Note**: The tool filters records by Section, only returning changes from the following allowed sections:
-- Apex Class, Lightning Components, Manage Users, Lightning Pages, Groups
-- Custom Objects, Permission Set Group, Sharing Rules, Customize Cases
-- Customize Entitlement Process, Named Credentials, Certificate and Key Management
-- Customize Activities, Custom Apps, Apex Trigger, Rename Tabs and Labels
+- Apex Class, Lightning Components, Lightning Pages, Groups
+- Custom Objects, Sharing Rules, Customize Cases
+- Customize Entitlement Process, Named Credentials, Customize Activities
+- Custom Apps, Apex Trigger, Rename Tabs and Labels
 - Custom Tabs, Custom Metadata Types, Validation Rules, Static Resource
 - Data Management, Field Dependencies, Customize Opportunities, Omni-Channel
 - Application, Global Value Sets, Triggers Settings, External Credentials
-- Customize Users, Custom Permissions, Customize Accounts, Customize Contacts
-- Standard Buttons and Links, Flows, Remote Access, Workflow Rule
-- Manage apps, Apex Email Notification, Sharing Defaults, Article Types
-- Data Classification, Connected Apps, Customize Chat Transcripts, Global Actions
-- Customize Content, Timeline Configurations, Session Settings, Change Data Capture
-- Track Field History, Page, Sandboxes, User Interface, Component
-- Customize Leads, Customize Contracts, Email Administration
+- Custom Permissions, Customize Accounts, Customize Contacts
+- Standard Buttons and Links, Flows, Workflow Rule
+- Manage apps, Sharing Defaults, Connected Apps
+- Customize Chat Transcripts, Global Actions, Customize Content
+- Timeline Configurations, Page, User Interface, Component
+- Customize Leads, Customize Contracts
 
 For example, if the user wants to retrieve HIS changes for THE LAST WEEK, the parameters should be:
 ```json
 {
-
    "lastDays": 7
 }
 ```
@@ -83,7 +81,7 @@ Examples
 ```json
 {
   "lastDays": 14,
-  "createdByName": "Joan García"
+  "username": "joan.garcia@company.com"
 }
 ```
 
@@ -99,7 +97,7 @@ Examples
 ```json
 {
   "lastDays": 7,
-  "createdByName": "Joan García",
+  "username": "joan.garcia@company.com",
   "metadataName": "FOO_AlertMessages_Controller"
 }
 ```

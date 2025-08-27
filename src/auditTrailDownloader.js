@@ -42,7 +42,18 @@ async function retrieveFile() {
 	try {
 		const setupSetupAuditTrailUrl = '/lightning/setup/SecurityEvents/home';
 		browser = await chromium.launch({headless: true});
-		const context = await browser.newContext({acceptDownloads: true});
+
+		// Create tmp directory in working directory if it doesn't exist
+		const workingDir = process.cwd();
+		const tmpDir = path.join(workingDir, 'tmp');
+		if (!fs.existsSync(tmpDir)) {
+			fs.mkdirSync(tmpDir, {recursive: true});
+		}
+
+		const context = await browser.newContext({
+			acceptDownloads: true,
+			downloadsPath: tmpDir
+		});
 		const page = await context.newPage();
 
 		const {instanceUrl, accessToken} = state.org;
@@ -52,18 +63,18 @@ async function retrieveFile() {
 		await page.goto(frontdoorUrl, {waitUntil: 'domcontentloaded'});
 		await page.waitForURL(url => url.pathname.includes(setupSetupAuditTrailUrl), {timeout: 60000});
 
-		log('Login successfull.', 'debug');
+		log('Login successful.', 'debug');
 
 		const downloadLink = await waitForDownloadLink(page, 20000, 200);
 		if (!downloadLink) {
 			const allLinks = await page.locator('a').all();
-			log(`No s'ha trobat l'enllaç. #enllaços trobats (document principal): ${allLinks.length}`, 'debug');
+			log(`Download link not found. #links found (main document): ${allLinks.length}`, 'debug');
 			for (let i = 0; i < Math.min(10, allLinks.length); i++) {
 				const t = (await allLinks[i].textContent())?.trim() || '';
-				const h = await allLinks[i].getAttribute('href') || 'sense href';
-				log(`Enllaç ${i + 1}: text="${t}", href="${h}"`, 'debug');
+				const h = await allLinks[i].getAttribute('href') || 'no href';
+				log(`Link ${i + 1}: text="${t}", href="${h}"`, 'debug');
 			}
-			throw new Error('No s\'ha trobat l\'enllaç de descàrrega a Setup Audit Trail.');
+			throw new Error('Download link not found in Setup Audit Trail.');
 		}
 
 		log('Downloading CSV file...', 'debug');
@@ -74,17 +85,15 @@ async function retrieveFile() {
 
 		const download = await downloadPromise;
 
-		const fileName = `setupAuditTrail_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
-		const filePath = path.join(os.tmpdir(), fileName);
+		const fileName = 'SetupAuditTrail.csv';
+		const filePath = path.join(tmpDir, fileName);
 		await download.saveAs(filePath);
 
-		const fileContent = fs.readFileSync(filePath, 'utf8');
-
 		log('Download completed.', 'debug');
-		return fileContent;
+		return filePath;
 
 	} catch (error) {
-		console.error('Error durant la descàrrega:', error);
+		console.error('Error during download:', error);
 		throw error;
 
 	} finally {

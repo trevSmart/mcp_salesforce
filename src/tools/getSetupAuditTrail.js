@@ -1,12 +1,10 @@
-import {log, textFileContent, writeToTmpFile} from '../utils.js';
+import {log, textFileContent} from '../utils.js';
 import {newResource} from '../mcp-server.js';
 import {z} from 'zod';
 import {retrieveSetupAuditTrailFile} from '../auditTrailDownloader.js';
 import client from '../client.js';
-import {exec} from 'child_process';
-import {promisify} from 'util';
-
-const execAsync = promisify(exec);
+import fs from 'fs';
+import path from 'path';
 
 export const getSetupAuditTrailToolDefinition = {
 	name: 'getSetupAuditTrail',
@@ -15,15 +13,15 @@ export const getSetupAuditTrailToolDefinition = {
 	inputSchema: {
 		lastDays: z.number()
 			.int()
-			.max(30)
+			.min(1)
+			.max(60)
 			.optional()
+			.default(30)
 			.describe('Number of days to query (between 1 and 90)'),
-		createdByName: z.string()
-			.nullable()
+		username: z.string()
 			.optional()
-			.describe('Only the changes performed by this user will be returned (if not set, the changes from all users will be returned)'),
+			.describe('Only the changes performed by this username will be returned, if not set the changes from all users will be returned (example: "some.username@my.salesforce.org.com")'),
 		metadataName: z.string()
-			.nullable()
 			.optional()
 			.describe('Name of the file or folder to get the changes of (e.g. "FOO_AlertMessages_Controller", "FOO_AlertMessage__c", "FOO_AlertNessageList_LWC", etc.)')
 	},
@@ -35,298 +33,8 @@ export const getSetupAuditTrailToolDefinition = {
 	}
 };
 
-export async function getSetupAuditTrailToolHandler({lastDays = 90, createdByName = null, metadataName = null}) {
-	try {
-		const fileName = 'SetupAuditTrail.csv';
-		const resourceUri = `file://SetupAuditTrail/${fileName}`;
-
-		log('Iniciant descàrrega del Setup Audit Trail...', 'debug');
-		let fileContent = null;
-
-		try {
-			fileContent = await retrieveSetupAuditTrailFile();
-			writeToTmpFile(fileContent, fileName);
-
-		} catch (downloadError) {
-			log(`Error en la descàrrega: ${downloadError.message}`, 'warn');
-			throw downloadError;
-		}
-
-		if (!fileContent || fileContent.trim() === '') {
-			throw new Error('No s\'ha pogut obtenir dades del Setup Audit Trail. El fitxer està buit.');
-		}
-
-		// Aplicar filtres amb grep abans de parsejar a JSON
-		const filteredCsvContent = await filterCsvWithGrep(fileContent, lastDays, createdByName, metadataName);
-		log(`Contingut CSV filtrat amb grep: ${filteredCsvContent.length} bytes`, 'debug');
-
-		// Parsejar només els registres filtrats a JSON
-		const filteredData = parseCsvToJson(filteredCsvContent);
-		log(`Registres després del filtrat amb grep: ${filteredData.length}`, 'debug');
-
-		newResource(
-			resourceUri,
-			'Setup audit trail CSV',
-			'Setup audit trail CSV',
-			'text/csv',
-			fileContent,
-			{audience: ['user', 'assistant']}
-		);
-
-		const content = [{
-			type: 'text',
-			text: `Setup audit trail CSV downloaded successfully. Found ${filteredData.length} records matching the criteria.`
-		}];
-
-		if (client.supportsCapability('resource_links')) {
-			content.push({type: 'resource_link', uri: resourceUri});
-		}
-
-		return {
-			content,
-			structuredContent: {
-				filters: {
-					lastDays,
-					createdByName,
-					metadataName
-				},
-				count: filteredData.length,
-				records: filteredData
-			}
-		};
-
-	} catch (error) {
-		log(error, 'error', 'Error getting setup audit trail data');
-		return {
-			isError: true,
-			content: [{
-				type: 'text',
-				text: `Error retrieving Setup Audit Trail data:\n\nError message:\n${error.message}\n\nError stack:\n${error.stack}`
-			}]
-		};
-	}
-}
-
 /**
- * Filtra el contingut CSV utilitzant grep per millorar la performance
- */
-async function filterCsvWithGrep(csvContent, lastDays, createdByName, metadataName) {
-	try {
-		// Escriure el contingut CSV a un fitxer temporal per grep
-		const tempFileName = `temp_audit_trail_${Date.now()}.csv`;
-		const tempFilePath = writeToTmpFile(csvContent, tempFileName);
-
-		// Construir la comanda grep per seccions permeses
-		const allowedSectionsPattern = ALLOWED_SECTIONS.map(section =>
-			section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escapar caràcters especials de regex
-		).join('|');
-
-		// Calcular la data de tall
-		const cutoffDate = new Date();
-		cutoffDate.setDate(cutoffDate.getDate() - lastDays);
-		const cutoffDateStr = cutoffDate.toISOString().split('T')[0]; // Format YYYY-MM-DD
-
-		// Construir la comanda completa utilitzant pipes correctament
-		let grepCommand = `cat "${tempFilePath}" | awk -F',' 'NR==1 || (NR>1 && $1 >= "${cutoffDateStr}")'`;
-
-		// Afegir filtre per seccions permeses
-		grepCommand = `${grepCommand} | grep -E "(${allowedSectionsPattern})"`;
-
-		// Afegir filtre per usuari si s'especifica
-		if (createdByName) {
-			const escapedUserName = createdByName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-			grepCommand = `${grepCommand} | grep -E "(${escapedUserName})"`;
-		}
-
-		// Afegir filtre per metadata si s'especifica
-		if (metadataName) {
-			const escapedMetadataName = metadataName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-			grepCommand = `${grepCommand} | grep -E "(${escapedMetadataName})"`;
-		}
-
-		log(`Executant comanda de filtrat: ${grepCommand}`, 'debug');
-
-		// Executar la comanda
-		const {stdout, stderr} = await execAsync(grepCommand, {shell: true});
-
-		if (stderr) {
-			log(`Warnings del filtrat: ${stderr}`, 'warn');
-		}
-
-		// Netejar el fitxer temporal
-		try {
-			await execAsync(`rm "${tempFilePath}"`);
-		} catch (cleanupError) {
-			log(`Error netejant fitxer temporal: ${cleanupError.message}`, 'warn');
-		}
-
-		return stdout;
-
-	} catch (error) {
-		log(`Error utilitzant grep per filtrar: ${error.message}`, 'error');
-		// Fallback al mètode anterior si grep falla
-		log('Utilitzant mètode de filtrat anterior com a fallback', 'warn');
-		return filterAuditTrailDataFallback(csvContent, lastDays, createdByName, metadataName);
-	}
-}
-
-/**
- * Mètode de fallback per al filtrat si grep falla
- */
-function filterAuditTrailDataFallback(csvContent, lastDays, createdByName, metadataName) {
-	const allData = parseCsvToJson(csvContent);
-	const filteredData = filterAuditTrailData(allData, lastDays, createdByName, metadataName);
-
-	// Convertir de tornada a CSV per mantenir la compatibilitat
-	const headers = Object.keys(filteredData[0] || {});
-	const csvLines = [headers.join(',')];
-
-	filteredData.forEach(record => {
-		const values = headers.map(header => {
-			const value = record[header] || '';
-			// Escapar cometes i afegir cometes si conté comes
-			return value.includes(',') ? `"${value.replace(/"/g, '""')}"` : value;
-		});
-		csvLines.push(values.join(','));
-	});
-
-	return csvLines.join('\n');
-}
-
-/**
- * Parseja el contingut CSV i el converteix a JSON
- */
-function parseCsvToJson(csvContent) {
-	const lines = csvContent.split('\n').filter(line => line.trim());
-
-	if (lines.length === 0) {
-		return [];
-	}
-
-	const headers = parseCsvLine(lines[0]).map(h => h.trim().replace(/"/g, ''));
-	const jsonData = [];
-
-	for (let i = 1; i < lines.length; i++) {
-		if (!lines[i]?.trim()) {
-			continue;
-		}
-
-		// Filtrar files que no comencen per dobles cometes
-		if (!lines[i].trim().startsWith('"')) {
-			continue;
-		}
-
-		try {
-			const values = parseCsvLine(lines[i]);
-			const obj = {};
-
-			for (let j = 0; j < headers.length; j++) {
-				obj[headers[j]] = values[j] || '';
-			}
-
-			jsonData.push(obj);
-		} catch (error) {
-			log(`Error processant línia ${i}: ${error.message}`, 'error');
-		}
-	}
-
-	return jsonData;
-}
-
-/**
- * Parseja una línia CSV tenint en compte les cometes
- */
-function parseCsvLine(line) {
-	if (!line || typeof line !== 'string') {
-		return [];
-	}
-
-	// Substituir dobles cometes consecutives per cometa simple
-	line = line.replace(/""/g, "'");
-
-	const values = [];
-	let inQuotes = false;
-	let currentValue = '';
-
-	for (let i = 0; i < line.length; i++) {
-		const char = line[i];
-
-		if (char === '"') {
-			// És una cometa d'obertura/tancament de camp
-			inQuotes = !inQuotes;
-		} else if (char === ',' && !inQuotes) {
-			// És un separador de camp (només si no estem dins de cometes)
-			values.push(currentValue.trim());
-			currentValue = '';
-		} else {
-			// És un caràcter normal del valor
-			currentValue += char;
-		}
-	}
-
-	// Afegir l'últim valor
-	values.push(currentValue.trim());
-	return values;
-}
-
-/**
- * Parseja una data del format Salesforce (ex: "3/3/2025, 8:47:34 CET")
- */
-function parseSalesforceDate(dateString) {
-	if (!dateString || typeof dateString !== 'string') {
-		return null;
-	}
-
-	try {
-		// Primer intent: format estàndard ISO
-		const isoDate = new Date(dateString);
-		if (!isNaN(isoDate.getTime())) {
-			return isoDate;
-		}
-
-		// Segon intent: format Salesforce "3/3/2025, 8:47:34 CET"
-		const cleanDateString = dateString.replace(/,?\s*[A-Z]{3}$/, '').replace(',', '');
-
-		const parts = cleanDateString.split(' ');
-		if (parts.length >= 2) {
-			const datePart = parts[0];
-			const timePart = parts[1];
-
-			const dateParts = datePart.split('/');
-			if (dateParts.length === 3) {
-				const month = parseInt(dateParts[0]) - 1;
-				const day = parseInt(dateParts[1]);
-				const year = parseInt(dateParts[2]);
-
-				const timeParts = timePart.split(':');
-				if (timeParts.length >= 2) {
-					const hours = parseInt(timeParts[0]);
-					const minutes = parseInt(timeParts[1]);
-					const seconds = timeParts.length > 2 ? parseInt(timeParts[2]) : 0;
-
-					const parsedDate = new Date(year, month, day, hours, minutes, seconds);
-					if (!isNaN(parsedDate.getTime())) {
-						return parsedDate;
-					}
-				}
-			}
-		}
-
-		// Tercer intent: format més genèric
-		const genericDate = new Date(cleanDateString);
-		if (!isNaN(genericDate.getTime())) {
-			return genericDate;
-		}
-
-		return null;
-	} catch (error) {
-		log(`Error parsejant data "${dateString}": ${error.message}`, 'debug');
-		return null;
-	}
-}
-
-/**
- * Seccions permeses per l'audit trail
+ * Seccions permeses per l'audit trail (només modificacions rellevants)
  */
 const ALLOWED_SECTIONS = [
 	'Apex Class',
@@ -375,68 +83,549 @@ const ALLOWED_SECTIONS = [
 ];
 
 /**
- * Filtra les dades de l'audit trail segons els paràmetres (mètode legacy)
+ * Normalitza el fitxer CSV convertint registres multi-línia en registres d'una sola línia
  */
-function filterAuditTrailData(data, lastDays, createdByName, metadataName) {
-	const cutoffDate = new Date();
-	cutoffDate.setDate(cutoffDate.getDate() - lastDays);
+function normalizeCSVFile(inputPath) {
+	try {
+		const data = fs.readFileSync(inputPath, 'utf8');
+		const lines = data.split('\n');
+		const normalizedLines = [];
+		let currentRecord = null;
 
-	log(`Data de tall per filtrat: ${cutoffDate.toISOString()} (últims ${lastDays} dies)`, 'debug');
+		// Regex per detectar l'inici d'un nou registre (data entre cometes)
+		const newRecordRegex = /^"\d{1,2}\/\d{1,2}\/\d{4},/;
 
-	let filteredCount = 0;
-	let sectionFilteredCount = 0;
-	let dateFilteredCount = 0;
-	let userFilteredCount = 0;
-	let metadataFilteredCount = 0;
+		for (let i = 0; i < lines.length; i++) {
+			const line = lines[i];
 
-	const filteredData = data.filter(record => {
-		// FILTRE OBLIGATORI: Només seccions permeses
-		const section = record.Section || record.SectionType;
-		if (!section || !ALLOWED_SECTIONS.includes(section)) {
-			sectionFilteredCount++;
-			return false;
+			if (i === 0) {
+				// Primera línia: sempre és la capçalera
+				normalizedLines.push(line.trim());
+				continue;
+			}
+
+			if (newRecordRegex.test(line)) {
+				// És un nou registre
+				if (currentRecord) { normalizedLines.push(currentRecord); }
+				currentRecord = line.trim();
+			} else {
+				// Continuació del registre anterior, eliminar salt de línia
+				if (currentRecord) {
+					currentRecord += ' ' + line.trim().replace(/\n/g, ' ');
+				}
+			}
 		}
 
-		// Filtrar per data
-		const dateField = record.Date || record.CreatedDate || record.Timestamp;
-		if (!dateField) {
-			log(`Registre sense camp de data: ${JSON.stringify(record)}`, 'debug');
-			return false;
+		if (currentRecord) { normalizedLines.push(currentRecord); }
+
+		// Crear fitxer normalitzat en el mateix directori
+		const dir = path.dirname(inputPath);
+		const normalizedPath = path.join(dir, 'SetupAuditTrail-Normalized.csv');
+		fs.writeFileSync(normalizedPath, normalizedLines.join('\n'));
+
+		log(`CSV normalized: ${lines.length} → ${normalizedLines.length} lines`, 'debug');
+		return normalizedPath;
+
+	} catch (error) {
+		log(`Error normalizing CSV: ${error.message}`, 'error');
+		throw error;
+	}
+}
+
+/**
+ * Filtra el fitxer CSV per mantenir només les seccions rellevants
+ */
+function filterCSVBySections(inputPath) {
+	try {
+		const data = fs.readFileSync(inputPath, 'utf8');
+		const lines = data.split('\n');
+		const filteredLines = [];
+		let totalRecords = 0;
+		let filteredRecords = 0;
+
+		for (let i = 0; i < lines.length; i++) {
+			const line = lines[i];
+
+			if (i === 0) {
+				// Primera línia: sempre és la capçalera
+				filteredLines.push(line.trim());
+				continue;
+			}
+
+			if (!line.trim()) { continue; } // Saltar línies buides
+
+			// Parsejar la línia CSV per obtenir el camp Section
+			const section = extractSectionFromCSVLine(line);
+
+			if (section && ALLOWED_SECTIONS.includes(section)) {
+				filteredLines.push(line.trim());
+				filteredRecords++;
+			}
+
+			totalRecords++;
 		}
 
-		const recordDate = parseSalesforceDate(dateField);
-		if (!recordDate) {
-			log(`No es pot parsejar la data: ${dateField}`, 'debug');
-			return false;
+		// Crear fitxer filtrat en el mateix directori
+		const dir = path.dirname(inputPath);
+		const filteredPath = path.join(dir, 'SetupAuditTrail-Filtered.csv');
+		fs.writeFileSync(filteredPath, filteredLines.join('\n'));
+
+		log(`CSV filtered by sections: ${totalRecords} → ${filteredRecords} records`, 'debug');
+		return {filteredPath, totalRecords, filteredRecords};
+
+	} catch (error) {
+		log(`Error filtering CSV by sections: ${error.message}`, 'error');
+		throw error;
+	}
+}
+
+/**
+ * Filtra el fitxer CSV per data (últims X dies)
+ * Com que el fitxer està ordenat per data descendentment, podem aturar-nos quan trobem el primer registre fora del rang
+ */
+function filterCSVByDate(inputPath, lastDays) {
+	try {
+		const data = fs.readFileSync(inputPath, 'utf8');
+		const lines = data.split('\n');
+		const filteredLines = [];
+		let totalRecords = 0;
+		let filteredRecords = 0;
+
+		// Calcular la data de tall incloent tot el dia (00:00:00)
+		const cutoffDate = new Date();
+		cutoffDate.setDate(cutoffDate.getDate() - lastDays);
+		cutoffDate.setHours(0, 0, 0, 0); // Assegurar hora 00:00:00
+		log(`Date filtering: cutoff date ${cutoffDate.toLocaleDateString('ca-ES')} (last ${lastDays} days)`, 'debug');
+
+		for (let i = 0; i < lines.length; i++) {
+			const line = lines[i];
+
+			if (i === 0) {
+				// Primera línia: sempre és la capçalera
+				filteredLines.push(line.trim());
+				continue;
+			}
+
+			if (!line.trim()) { continue; } // Saltar línies buides
+
+			// Parsejar la línia CSV per obtenir la data
+			const recordDate = extractDateFromCSVLine(line);
+
+			if (recordDate) {
+				if (recordDate >= cutoffDate) {
+					// Registre dins del rang de dates
+					filteredLines.push(line.trim());
+					filteredRecords++;
+				} else {
+					// Primer registre fora del rang, aturar el processament
+					log(`Stopping at record outside date range: ${recordDate.toISOString()} < ${cutoffDate.toISOString()}`, 'debug');
+					break;
+				}
+			} else {
+				// Si no es pot parsejar la data, mantenir el registre per seguretat
+				filteredLines.push(line.trim());
+				filteredRecords++;
+				log(`Record with unparseable date kept: ${line.substring(0, 100)}...`, 'debug');
+			}
+
+			totalRecords++;
 		}
 
-		if (recordDate < cutoffDate) {
-			dateFilteredCount++;
-			return false;
+		// Crear fitxer filtrat per data en el mateix directori
+		const dir = path.dirname(inputPath);
+		const dateFilteredPath = path.join(dir, 'SetupAuditTrail-DateFiltered.csv');
+		fs.writeFileSync(dateFilteredPath, filteredLines.join('\n'));
+
+		log(`CSV filtered by date: ${totalRecords} → ${filteredRecords} records`, 'debug');
+		return {dateFilteredPath, totalRecords, filteredRecords};
+
+	} catch (error) {
+		log(`Error filtering CSV by date: ${error.message}`, 'error');
+		throw error;
+	}
+}
+
+/**
+ * Filtra el fitxer CSV per usuari (només si username té valor)
+ */
+function filterCSVByUser(inputPath, username) {
+	// Si no s'especifica usuari, retornar el fitxer sense canvis
+	if (!username) {
+		log('No user filter specified, skipping user filtering', 'debug');
+		return {
+			userFilteredPath: inputPath,
+			totalRecords: 0,
+			filteredRecords: 0,
+			skipped: true
+		};
+	}
+
+	try {
+		const data = fs.readFileSync(inputPath, 'utf8');
+		const lines = data.split('\n');
+		const filteredLines = [];
+		let totalRecords = 0;
+		let filteredRecords = 0;
+
+		log(`User filtering: keeping only records from user "${username}"`, 'debug');
+
+		for (let i = 0; i < lines.length; i++) {
+			const line = lines[i];
+
+			if (i === 0) {
+				// Primera línia: sempre és la capçalera
+				filteredLines.push(line.trim());
+				continue;
+			}
+
+			if (!line.trim()) { continue; } // Saltar línies buides
+
+			// Parsejar la línia CSV per obtenir l'usuari
+			const recordUser = extractUserFromCSVLine(line);
+
+			if (recordUser === username) {
+				// Registre de l'usuari especificat
+				filteredLines.push(line.trim());
+				filteredRecords++;
+			}
+
+			totalRecords++;
 		}
 
-		// Filtrar per usuari (si s'especifica)
-		if (createdByName && record.CreatedBy !== createdByName) {
-			userFilteredCount++;
-			return false;
+		// Crear fitxer filtrat per usuari en el mateix directori
+		const dir = path.dirname(inputPath);
+		const userFilteredPath = path.join(dir, 'SetupAuditTrail-UserFiltered.csv');
+		fs.writeFileSync(userFilteredPath, filteredLines.join('\n'));
+
+		log(`CSV filtered by user: ${totalRecords} → ${filteredRecords} records`, 'debug');
+		return {userFilteredPath, totalRecords, filteredRecords, skipped: false};
+
+	} catch (error) {
+		log(`Error filtering CSV by user: ${error.message}`, 'error');
+		throw error;
+	}
+}
+
+/**
+ * Filtra el fitxer CSV per metadataName (només si metadataName té valor)
+ */
+function filterCSVByMetadataName(inputPath, metadataName) {
+	// Si no s'especifica metadataName, retornar el fitxer sense canvis
+	if (!metadataName) {
+		log('No metadata name filter specified, skipping metadata name filtering', 'debug');
+		return {
+			metadataNameFilteredPath: inputPath,
+			totalRecords: 0,
+			filteredRecords: 0,
+			skipped: true
+		};
+	}
+
+	try {
+		const data = fs.readFileSync(inputPath, 'utf8');
+		const lines = data.split('\n');
+		const filteredLines = [];
+		let totalRecords = 0;
+		let filteredRecords = 0;
+
+		log(`Metadata name filtering: keeping only records where Action contains "${metadataName}"`, 'debug');
+
+		for (let i = 0; i < lines.length; i++) {
+			const line = lines[i];
+
+			if (i === 0) {
+				// Primera línia: sempre és la capçalera
+				filteredLines.push(line.trim());
+				continue;
+			}
+
+			if (!line.trim()) { continue; } // Saltar línies buides
+
+			// Parsejar la línia CSV per obtenir l'Action
+			const recordAction = extractActionFromCSVLine(line);
+
+			if (recordAction && recordAction.includes(metadataName)) {
+				// Registre amb Action que conté metadataName
+				filteredLines.push(line.trim());
+				filteredRecords++;
+			}
+
+			totalRecords++;
 		}
 
-		// Filtrar per metadata (si s'especifica)
-		if (metadataName && record.Metadata !== metadataName) {
-			metadataFilteredCount++;
-			return false;
+		// Crear fitxer filtrat per metadataName en el mateix directori
+		const dir = path.dirname(inputPath);
+		const metadataNameFilteredPath = path.join(dir, 'SetupAuditTrail-MetadataNameFiltered.csv');
+		fs.writeFileSync(metadataNameFilteredPath, filteredLines.join('\n'));
+
+		log(`CSV filtered by metadata name: ${totalRecords} → ${filteredRecords} records`, 'debug');
+		return {metadataNameFilteredPath, totalRecords, filteredRecords, skipped: false};
+
+	} catch (error) {
+		log(`Error filtering CSV by metadata name: ${error.message}`, 'error');
+		throw error;
+	}
+}
+
+/**
+ * Extrau el camp Section d'una línia CSV
+ */
+function extractSectionFromCSVLine(line) {
+	try {
+		// Parsejar la línia CSV correctament
+		const fields = parseCSVLine(line);
+		if (fields && fields.length >= 5) {
+			// El 5è camp és Section (index 4)
+			return fields[4];
+		}
+		return null;
+	} catch (error) {
+		log(`Error extracting section from line: ${error.message}`, 'debug');
+		return null;
+	}
+}
+
+/**
+ * Parseja una línia CSV tenint en compte les cometes
+ */
+function parseCSVLine(line) {
+	if (!line || typeof line !== 'string') {
+		return [];
+	}
+
+	const fields = [];
+	let inQuotes = false;
+	let currentField = '';
+	let i = 0;
+
+	while (i < line.length) {
+		const char = line[i];
+
+		if (char === '"') {
+			if (inQuotes && line[i + 1] === '"') {
+				// Cometes escapades
+				currentField += '"';
+				i += 2;
+			} else {
+				// Cometa d'obertura/tancament
+				inQuotes = !inQuotes;
+				i++;
+			}
+		} else if (char === ',' && !inQuotes) {
+			// Separador de camp
+			fields.push(currentField.trim());
+			currentField = '';
+			i++;
+		} else {
+			// Caràcter normal
+			currentField += char;
+			i++;
+		}
+	}
+
+	// Afegir l'últim camp
+	fields.push(currentField.trim());
+	return fields;
+}
+
+/**
+ * Extrau la data d'una línia CSV
+ */
+function extractDateFromCSVLine(line) {
+	try {
+		// Buscar el primer camp (data) entre cometes
+		const dateMatch = line.match(/^"([^"]+)"/);
+		if (dateMatch) {
+			const dateString = dateMatch[1];
+			return parseSalesforceDate(dateString);
+		}
+		return null;
+	} catch (error) {
+		log(`Error extracting date from line: ${error.message}`, 'debug');
+		return null;
+	}
+}
+
+/**
+ * Extrau l'usuari d'una línia CSV
+ */
+function extractUserFromCSVLine(line) {
+	try {
+		// Parsejar la línia CSV correctament
+		const fields = parseCSVLine(line);
+		if (fields && fields.length >= 2) {
+			// El 2n camp és User (index 1)
+			return fields[1];
+		}
+		return null;
+	} catch (error) {
+		log(`Error extracting user from line: ${error.message}`, 'debug');
+		return null;
+	}
+}
+
+/**
+ * Extrau el camp Action d'una línia CSV
+ */
+function extractActionFromCSVLine(line) {
+	try {
+		// Parsejar la línia CSV correctament
+		const fields = parseCSVLine(line);
+		if (fields && fields.length >= 4) {
+			// El 4t camp és Action (index 3)
+			return fields[3];
+		}
+		return null;
+	} catch (error) {
+		log(`Error extracting action from line: ${error.message}`, 'debug');
+		return null;
+	}
+}
+
+/**
+ * Parseja una data del format Salesforce (ex: "12/8/2025, 11:54:14 CEST")
+ */
+function parseSalesforceDate(dateString) {
+	if (!dateString || typeof dateString !== 'string') {
+		return null;
+	}
+
+	try {
+		// Primer intent: format europeu D/M/YYYY (corregit)
+		const euDateMatch = dateString.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+		if (euDateMatch) {
+			const day = parseInt(euDateMatch[1]);
+			const month = parseInt(euDateMatch[2]) - 1; // Els mesos van de 0 a 11
+			const year = parseInt(euDateMatch[3]);
+			return new Date(year, month, day);
 		}
 
-		filteredCount++;
-		return true;
-	});
+		// Segon intent: format estàndard ISO
+		const isoDate = new Date(dateString);
+		if (!isNaN(isoDate.getTime())) {
+			return isoDate;
+		}
 
-	log('Resum del filtrat:', 'debug');
-	log(`  - Registres amb seccions no permeses: ${sectionFilteredCount}`, 'debug');
-	log(`  - Registres fora del rang de dates: ${dateFilteredCount}`, 'debug');
-	log(`  - Registres d'usuaris no coincidents: ${userFilteredCount}`, 'debug');
-	log(`  - Registres de metadata no coincident: ${metadataFilteredCount}`, 'debug');
-	log(`  - Registres que passen tots els filtres: ${filteredCount}`, 'debug');
+		// Tercer intent: format més genèric
+		const genericDate = new Date(dateString);
+		if (!isNaN(genericDate.getTime())) {
+			return genericDate;
+		}
 
-	return filteredData;
+		return null;
+	} catch (error) {
+		log(`Error parsing date "${dateString}": ${error.message}`, 'debug');
+		return null;
+	}
+}
+
+export async function getSetupAuditTrailToolHandler({lastDays = 30, username = null, metadataName = null}) {
+	try {
+		const fileName = 'SetupAuditTrail.csv';
+		const resourceUri = `file://SetupAuditTrail/${fileName}`;
+
+		log('Starting Setup Audit Trail file download...', 'debug');
+		let filePath = null;
+
+		try {
+			filePath = await retrieveSetupAuditTrailFile();
+		} catch (downloadError) {
+			log(`Setup Audit Trail file download error: ${downloadError.message}`, 'error');
+			throw downloadError;
+		}
+
+		if (!filePath || !fs.existsSync(filePath)) {
+			throw new Error('Could not retrieve Setup Audit Trail data. The file was not downloaded.');
+		}
+
+		// Step 1: Normalize the CSV file (convert multi-line records to single-line)
+		log('Normalizing CSV file...', 'debug');
+		const normalizedFilePath = normalizeCSVFile(filePath);
+
+		// Step 2: Filter by relevant sections
+		log('Filtering CSV by relevant sections...', 'debug');
+		const {filteredPath, totalRecords, filteredRecords} = filterCSVBySections(normalizedFilePath);
+
+		// Step 3: Filter by date (last X days)
+		log('Filtering CSV by date...', 'debug');
+		const {dateFilteredPath, totalRecords: totalRecordsAfterDateFilter, filteredRecords: filteredRecordsAfterDateFilter} = filterCSVByDate(filteredPath, lastDays);
+
+		// Step 4: Filter by user (if username is provided)
+		log('Filtering CSV by user...', 'debug');
+		const {userFilteredPath, totalRecords: totalRecordsAfterUserFilter, filteredRecords: filteredRecordsAfterUserFilter} = filterCSVByUser(dateFilteredPath, username);
+
+		// Step 5: Filter by metadata name (if metadataName is provided)
+		log('Filtering CSV by metadata name...', 'debug');
+		const {metadataNameFilteredPath, totalRecords: totalRecordsAfterMetadataNameFilter, filteredRecords: filteredRecordsAfterMetadataNameFilter} = filterCSVByMetadataName(userFilteredPath, metadataName);
+
+		// Get file stats for size information
+		const fileStats = fs.statSync(metadataNameFilteredPath);
+		const fileSize = fileStats.size;
+
+		// Read filtered file content for the resource
+		const fileContent = fs.readFileSync(metadataNameFilteredPath, 'utf8');
+
+		newResource(
+			resourceUri,
+			'Setup audit trail CSV (filtered)',
+			'Setup audit trail CSV with relevant sections only',
+			'text/csv',
+			fileContent,
+			{audience: ['user', 'assistant']}
+		);
+
+		const content = [{
+			type: 'text',
+			text: `Setup audit trail CSV processed successfully. Original: ${totalRecords} records, Filtered by Sections: ${filteredRecords} records, Filtered by Date: ${filteredRecordsAfterDateFilter} records, Filtered by User: ${filteredRecordsAfterUserFilter} records, Filtered by Metadata Name: ${filteredRecordsAfterMetadataNameFilter} records. File size: ${fileSize} bytes. Filtered file path: ${metadataNameFilteredPath}`
+		}];
+
+		if (client.supportsCapability('resource_links')) {
+			content.push({type: 'resource_link', uri: resourceUri});
+		}
+
+		return {
+			content,
+			structuredContent: {
+				filters: {
+					lastDays,
+					username,
+					metadataName
+				},
+				originalFilePath: filePath,
+				normalizedFilePath,
+				filteredFilePath: filteredPath,
+				dateFilteredFilePath: dateFilteredPath,
+				userFilteredFilePath: userFilteredPath,
+				metadataNameFilteredFilePath: metadataNameFilteredPath,
+				sectionFilterStats: {
+					totalRecords,
+					filteredRecords
+				},
+				dateFilterStats: {
+					totalRecords: totalRecordsAfterDateFilter,
+					filteredRecords: filteredRecordsAfterDateFilter
+				},
+				userFilterStats: {
+					totalRecords: totalRecordsAfterUserFilter,
+					filteredRecords: filteredRecordsAfterUserFilter
+				},
+				metadataNameFilterStats: {
+					totalRecords: totalRecordsAfterMetadataNameFilter,
+					filteredRecords: filteredRecordsAfterMetadataNameFilter
+				},
+				fileSize,
+				rawContent: fileContent
+			}
+		};
+
+	} catch (error) {
+		log(error, 'error', 'Error getting setup audit trail data');
+		return {
+			isError: true,
+			content: [{
+				type: 'text',
+				text: `Error retrieving Setup Audit Trail data:\n\nError message:\n${error.message}\n\nError stack:\n${error.stack}`
+			}]
+		};
+	}
 }
