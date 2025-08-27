@@ -12,8 +12,8 @@ Allows you to obtain the list of changes made to any metadata item in the curren
 You don't need to select an org -the tool will query the current target org- and you don't need to retrieve the org details beforehand.
 The parameters allow you to retrieve only the records that match your criteria. You can use none and all the records will be returned.
 - `lastDays`: If set, only the changes from the last number of days will be returned (must be between 1 and 60, if not set, the changes from the last 30 days will be returned)
-- `username`: If set, only the changes performed by this username will be returned (if not set, the changes from all users will be returned)
-- `metadataName`: If set, only the changes performed in this metadata will be returned (if not set, the changes from all metadata will be returned)
+- `username`: If set, only the changes performed by this username will be returned (if not set, the changes from all users will be returned). **Note**: Uses exact word matching to avoid false positives. Query the username first to ensure you are using the correct one.
+- `metadataName`: If set, only the changes performed in this metadata will be returned (if not set, the changes from all metadata will be returned). **Note**: Uses exact word matching to avoid false positives (e.g., searching for "MyApexClass" won't return changes for "MyApexClassTest"). Query the metadata name first to ensure you are using the correct one.,
 
 **Note**: The tool filters records by Section, only returning changes from the following allowed sections:
 - Apex Class, Lightning Components, Lightning Pages, Groups
@@ -38,34 +38,44 @@ For example, if the user wants to retrieve HIS changes for THE LAST WEEK, the pa
 ```
 
 ## Output format
-⚠️ **IMPORTANT** Show the output in a table with exactly the following columns:
-- **Date**: The date and time of the change.
-- **User**: The user who made the change.
-- **Change**: The change description.
+The tool returns a structured response with the following key information:
 
-Example:
-For the following tool response:
+### Structured Content
+- `filters`: The applied filters (lastDays, username, metadataName)
+- `setupAuditTrailFileTotalRecords`: Total number of records in the original file
+- `setupAuditTrailFileFilteredTotalRecords`: Number of records after applying all filters
+- `records`: Array of change records with the following structure:
+  - `date`: The date and time of the change
+  - `user`: The user who made the change
+  - `section`: The section where the change was made
+  - `action`: The action description
+
+### Example Response Structure
 ```json
 {
-    "records": {
-        "Sergi Mas": [
-            "21/07/25 08:26 - Apex - Changed CSBD_Opportunity_Operativas_Controller Apex Class code",
-            "21/07/25 7:36 - Apex - Changed CSBD_Opportunity_Operativas_Controller Apex Class code"
-        ],
-        "Joan García": [
-            "21/07/23 13:25 - Apex - Changed CSBD_Opportunity_Operativas_Controller Apex Class code",
-            "21/07/21 15:46 - Apex - Changed CSBD_Opportunity_Operativas_Controller Apex Class code"
-        ]
-    }
+    "filters": {
+        "lastDays": 30,
+        "username": null,
+        "metadataName": "CSBD_Opportunity"
+    },
+    "setupAuditTrailFileTotalRecords": 1500,
+    "setupAuditTrailFileFilteredTotalRecords": 45,
+    "records": [
+        {
+            "date": "12/8/2025, 11:54:14 CEST",
+            "user": "john.doe@company.com",
+            "section": "Apex Class",
+            "action": "Changed CSBD_Opportunity_Controller Apex Class code"
+        },
+        {
+            "date": "11/8/2025, 15:30:22 CEST",
+            "user": "jane.smith@company.com",
+            "section": "Custom Objects",
+            "action": "Changed CSBD_Opportunity__c Custom Object"
+        }
+    ]
 }
 ```
-The table should be:
-| Date | User | Change |
-|------|------|--------|
-| 21/07/25 08:26 | Sergi Mas | Changed CSBD_Opportunity_Operativas_Controller Apex Class code |
-| 21/07/25 7:36 | Sergi Mas | Changed CSBD_Opportunity_Operativas_Controller Apex Class code |
-| 21/07/23 13:25 | Joan García | Changed CSBD_Opportunity_Operativas_Controller Apex Class code |
-| 21/07/21 15:46 | Joan García | Changed CSBD_Opportunity_Operativas_Controller Apex Class code |
 
 ---
 
