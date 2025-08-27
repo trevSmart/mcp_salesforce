@@ -443,7 +443,7 @@ export class MCPToolsTestSuite {
 				name: 'runApexTest',
 				run: async () => {
 					return await this.mcpClient.callTool('runApexTest', {
-						classNames: [TEST_CONFIG.salesforce.runApexTestClassName]
+						methodNames: [TEST_CONFIG.salesforce.runApexTestMethodName]
 					});
 				}
 			}
