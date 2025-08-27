@@ -1,6 +1,6 @@
 import {mcpServer, resources, newResource} from '../mcp-server.js';
 import client from '../client.js';
-import {runApexTest, executeSoqlQuery} from '../salesforceServices.js';
+import {runApexTest, executeSoqlQuery, getApexClassCodeCoverage} from '../salesforceServices.js';
 import {log, textFileContent} from '../utils.js';
 import {z} from 'zod';
 
@@ -20,7 +20,12 @@ export const runApexTestToolDefinition = {
 		suiteNames: z
 			.array(z.string())
 			.optional()
-			.describe('Case sensitive. Names of the Apex test suites to run (all classes in the suites will be run).')
+			.describe('Case sensitive. Names of the Apex test suites to run (all classes in the suites will be run).'),
+		options: z.object({
+			thenGetApexClassesCodeCoverage: z.array(z.string())
+				.optional()
+				.describe('Case sensitive. Names of the Apex classes to get the code coverage for if the test run is successful.')
+		}).optional()
 	},
 	annotations: {
 		testHint: true,
@@ -72,7 +77,7 @@ async function classNameElicitation() {
 	});
 }
 
-export async function runApexTestToolHandler({classNames = [], methodNames = [], suiteNames = []}) {
+export async function runApexTestToolHandler({classNames = [], methodNames = [], suiteNames = [], options = {}}) {
 	try {
 		// Validate that only one input array has items
 		const hasClassNames = classNames && classNames.length > 0;
@@ -159,17 +164,24 @@ export async function runApexTestToolHandler({classNames = [], methodNames = [],
 			message: r.Message,
 			stackTrace: r.StackTrace
 		}));
-		result = {result};
+
+		let structuredContent = {result};
+
+		if (options.thenGetApexClassesCodeCoverage) {
+			const codeCoverage = await getApexClassCodeCoverage(options.thenGetApexClassesCodeCoverage);
+			structuredContent = {...structuredContent, codeCoverage};
+		}
+
 		return {
 			content: [{
 				type: 'text',
-				text: 'Render in table format: ' + JSON.stringify(result)
+				text: 'Successfully ran Apex tests'
 			}],
-			structuredContent: result
+			structuredContent
 		};
 
 	} catch (error) {
-		log(error, 'error');
+		log(error, 'error', 'Error running Apex tests');
 		return {
 			isError: true,
 			content: [{
