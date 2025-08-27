@@ -47,8 +47,12 @@ export class MCPToolsTestSuite {
 
 		// Helper function to truncate long output
 		const truncateOutput = (text, maxLength = MCPToolsTestSuite.TOOL_OUTPUT_MAX_LENGTH) => {
-			if (typeof text !== 'string') { return text; }
-			if (text.length <= maxLength) { return text; }
+			if (typeof text !== 'string') {
+				return text;
+			}
+			if (text.length <= maxLength) {
+				return text;
+			}
 			return text.substring(0, maxLength) + '... [truncated]';
 		};
 

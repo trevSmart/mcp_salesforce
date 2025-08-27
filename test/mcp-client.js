@@ -49,7 +49,9 @@ export class MCPClient {
 		this.buffer = lines.pop() || '';
 
 		for (const line of lines) {
-			if (!line.trim()) { continue; }
+			if (!line.trim()) {
+				continue;
+			}
 
 			try {
 				const message = JSON.parse(line);
