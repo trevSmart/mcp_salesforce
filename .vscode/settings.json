@@ -61,19 +61,6 @@
     "outline.showVariables": true,
     "outline.showMethods": true,
     "outline.showModules": true,
-    "eslint.useFlatConfig": true,
-    "eslint.workingDirectories": [
-        {
-            "mode": "auto"
-        }
-    ],
-    "eslint.validate": [
-        "javascript",
-        "javascriptreact"
-    ],
-    "eslint.options": {
-        "overrideConfigFile": "eslint.config.js"
-    },
     "actionButtons": {
         "commands": [
             {
@@ -112,10 +99,6 @@
         "*.js": "${capture}.md"
     },
     "notebook.outline.showCodeCells": false,
-    "editor.codeActionsOnSave": {
-        // "source.fixAll.eslint": "explicit",
-        // "source.organizeImports": "explicit"
-    },
     "workbench.colorCustomizations": {
         "editor.selectionBackground": "#e788ff7c",
         "editor.selectionHighlightBackground": "#ff00005b",

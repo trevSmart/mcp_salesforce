@@ -9,20 +9,28 @@ async function waitForDownloadLink(page, totalTimeoutMs = 20000, intervalMs = 20
 
 	const hasLink = async () => {
 		let link = page.locator('a:has-text("Download setup audit trail")').first();
-		if (await link.count()) { return link; }
+		if (await link.count()) {
+			return link;
+		}
 
 		for (const fr of page.frames()) {
 			const l = fr.locator('a:has-text("Download setup audit trail")').first();
-			if (await l.count()) { return l; }
+			if (await l.count()) {
+				return l;
+			}
 		}
 
 		const sels = ['a[href*="csv"]', 'a[href*="download"]', 'a[href*="audit"]'];
 		for (const sel of sels) {
 			let alt = page.locator(sel).first();
-			if (await alt.count()) { return alt; }
+			if (await alt.count()) {
+				return alt;
+			}
 			for (const fr of page.frames()) {
 				const fAlt = fr.locator(sel).first();
-				if (await fAlt.count()) { return fAlt; }
+				if (await fAlt.count()) {
+					return fAlt;
+				}
 			}
 		}
 		return null;
@@ -30,7 +38,9 @@ async function waitForDownloadLink(page, totalTimeoutMs = 20000, intervalMs = 20
 
 	while (Date.now() - start < totalTimeoutMs) {
 		const found = await hasLink();
-		if (found) { return found; }
+		if (found) {
+			return found;
+		}
 		await page.waitForTimeout(intervalMs);
 	}
 	return null;

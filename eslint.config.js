@@ -58,7 +58,7 @@ export default [
 			// Stylistic Issues
 			'array-bracket-spacing': ['error', 'never'],
 			'block-spacing': ['error', 'always'],
-			'brace-style': ['error', '1tbs', {'allowSingleLine': true}],
+			'brace-style': ['error', '1tbs', {'allowSingleLine': false}],
 			'comma-dangle': ['error', 'never'],
 			'comma-spacing': ['error', {'before': false, 'after': true}],
 			'indent': ['error', 'tab', {'SwitchCase': 1}],

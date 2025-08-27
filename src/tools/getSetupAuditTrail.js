@@ -106,7 +106,9 @@ function normalizeCSVFile(inputPath) {
 
 			if (newRecordRegex.test(line)) {
 				// És un nou registre
-				if (currentRecord) { normalizedLines.push(currentRecord); }
+				if (currentRecord) {
+					normalizedLines.push(currentRecord);
+				}
 				currentRecord = line.trim();
 			} else {
 				// Continuació del registre anterior, eliminar salt de línia
@@ -116,7 +118,9 @@ function normalizeCSVFile(inputPath) {
 			}
 		}
 
-		if (currentRecord) { normalizedLines.push(currentRecord); }
+		if (currentRecord) {
+			normalizedLines.push(currentRecord);
+		}
 
 		// Crear fitxer normalitzat en el mateix directori
 		const dir = path.dirname(inputPath);
@@ -224,11 +228,15 @@ function applyAllFilters(inputPath, lastDays, username, metadataName) {
 				continue;
 			}
 
-			if (!line.trim()) { continue; } // Saltar línies buides
+			if (!line.trim()) {
+				continue;
+			} // Saltar línies buides
 
 			// Parsejar la línia CSV per obtenir tots els camps necessaris
 			const fields = parseCSVLine(line);
-			if (!fields || fields.length < 5) { continue; }
+			if (!fields || fields.length < 5) {
+				continue;
+			}
 
 			const recordDate = parseSalesforceDate(fields[0]);
 			const recordUser = fields[1];
@@ -289,15 +297,17 @@ function parseCSVToRecords(csvContent) {
 	// Saltar la primera línia (capçalera)
 	for (let i = 1; i < lines.length; i++) {
 		const line = lines[i].trim();
-		if (!line) { continue; } // Saltar línies buides
+		if (!line) {
+			continue;
+		} // Saltar línies buides
 
 		try {
 			const fields = parseCSVLine(line);
 			if (fields && fields.length >= 5) {
 				const record = {
-					date: fields[0],
+					date: formatDateToLocal(fields[0]),
 					user: fields[1],
-					section: fields[4],
+					type: fields[4],
 					action: fields[3]
 				};
 				records.push(record);
@@ -309,6 +319,44 @@ function parseCSVToRecords(csvContent) {
 	}
 
 	return records;
+}
+
+/**
+ * Converteix una data de Salesforce al format local D/M/YY HH:MI
+ */
+function formatDateToLocal(dateString) {
+	if (!dateString || typeof dateString !== 'string') {
+		return '';
+	}
+
+	try {
+		// Parsejar la data de Salesforce (ex: "27/8/2025, 14:06:53 CEST")
+		const dateMatch = dateString.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}),\s*(\d{1,2}):(\d{1,2}):(\d{1,2})/);
+		if (dateMatch) {
+			const day = parseInt(dateMatch[1]);
+			const month = parseInt(dateMatch[2]);
+			const year = parseInt(dateMatch[3]);
+			const hours = parseInt(dateMatch[4]);
+			const minutes = parseInt(dateMatch[5]);
+
+			// Crear data local
+			const date = new Date(year, month - 1, day, hours, minutes);
+
+			// Formatar a D/M/YY HH:MI
+			const formattedDay = date.getDate();
+			const formattedMonth = date.getMonth() + 1;
+			const formattedYear = date.getFullYear().toString().slice(-2);
+			const formattedHours = date.getHours().toString().padStart(2, '0');
+			const formattedMinutes = date.getMinutes().toString().padStart(2, '0');
+
+			return `${formattedDay}/${formattedMonth}/${formattedYear} ${formattedHours}:${formattedMinutes}`;
+		}
+
+		return dateString; // Retornar original si no es pot parsejar
+	} catch (error) {
+		log(`Error formatting date "${dateString}": ${error.message}`, 'debug');
+		return dateString;
+	}
 }
 
 /**

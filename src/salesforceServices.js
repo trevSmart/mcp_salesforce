@@ -523,7 +523,9 @@ export async function getApexClassCodeCoverage(classNames = []) {
 			const aggregateByName = {};
 			for (const agg of coverageAggregates) {
 				const name = agg?.ApexClassOrTrigger?.Name;
-				if (name) { aggregateByName[name] = agg; }
+				if (name) {
+					aggregateByName[name] = agg;
+				}
 			}
 
 			// Update existing classes with coverage data
@@ -561,7 +563,9 @@ export async function getApexClassCodeCoverage(classNames = []) {
 				const coverages = responseCoverages?.records || [];
 				for (const cov of coverages) {
 					const entry = classesById[cov.ApexClassOrTriggerId];
-					if (!entry) { continue; }
+					if (!entry) {
+						continue;
+					}
 					const covCovered = cov.NumLinesCovered || 0;
 					const covUncovered = cov.NumLinesUncovered || 0;
 					const covTotal = covCovered + covUncovered;
@@ -589,8 +593,12 @@ export async function getApexClassCodeCoverage(classNames = []) {
 		// Compute summary and sort classes (worst coverage first, then missing classes)
 		classes.sort((a, b) => {
 			// Missing classes go to the end
-			if (a.coverageStatus === 'class not found' && b.coverageStatus !== 'class not found') { return 1; }
-			if (b.coverageStatus === 'class not found' && a.coverageStatus !== 'class not found') { return -1; }
+			if (a.coverageStatus === 'class not found' && b.coverageStatus !== 'class not found') {
+				return 1;
+			}
+			if (b.coverageStatus === 'class not found' && a.coverageStatus !== 'class not found') {
+				return -1;
+			}
 			// For existing classes, sort by coverage percentage
 			return a.percentage - b.percentage;
 		});
@@ -746,7 +754,9 @@ export async function generateMetadata({type, name, outputDir, triggerSObject, t
 
 		if (type === 'apexClass' || type === 'apexTestClass') {
 			command = `sf apex generate class --name "${name}"`;
-			if (resolvedOutputDir) { command += ` --output-dir "${resolvedOutputDir}"`; }
+			if (resolvedOutputDir) {
+				command += ` --output-dir "${resolvedOutputDir}"`;
+			}
 			// No template parameter from tool; we'll inject content later for test class
 
 		} else if (type === 'apexTrigger') {
@@ -780,8 +790,12 @@ export async function generateMetadata({type, name, outputDir, triggerSObject, t
 		if (type === 'apexClass' || type === 'apexTestClass') {
 			const classFilePath = path.join(resolvedDir, `${name}.cls`);
 			const metaFilePath = path.join(resolvedDir, `${name}.cls-meta.xml`);
-			try { await fs.access(classFilePath); files.push(classFilePath); } catch { /* File not accessible */ }
-			try { await fs.access(metaFilePath); files.push(metaFilePath); } catch { /* File not accessible */ }
+			try {
+				await fs.access(classFilePath); files.push(classFilePath);
+			} catch { /* File not accessible */ }
+			try {
+				await fs.access(metaFilePath); files.push(metaFilePath);
+			} catch { /* File not accessible */ }
 
 			// Overwrite content for Apex test classes with a fixed template
 			if (type === 'apexTestClass') {
@@ -813,10 +827,14 @@ public class ${name} {
 		} else if (type === 'apexTrigger') {
 			const triggerFilePath = path.join(resolvedDir, `${name}.trigger`);
 			const metaFilePath = path.join(resolvedDir, `${name}.trigger-meta.xml`);
-			try { await fs.access(triggerFilePath); files.push(triggerFilePath); } catch {
+			try {
+				await fs.access(triggerFilePath); files.push(triggerFilePath);
+			} catch {
 				log(`File not accessible: ${triggerFilePath}`, 'error');
 			}
-			try { await fs.access(metaFilePath); files.push(metaFilePath); } catch {
+			try {
+				await fs.access(metaFilePath); files.push(metaFilePath);
+			} catch {
 				log(`File not accessible: ${metaFilePath}`, 'error');
 			}
 
