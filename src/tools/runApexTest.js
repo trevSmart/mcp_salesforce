@@ -37,10 +37,11 @@ async function classNameElicitation() {
 	if ('mcp://mcp/apex-test-classes-list.txt' in resources) {
 		testClasses = JSON.parse(resources['mcp://mcp/apex-test-classes-list.txt'].text);
 	} else {
-		const soqlQuery = 'SELECT Name, Body, FORMAT(LastModifiedDate), LastModifiedBy.Name FROM ApexClass WHERE NamespacePrefix = NULL AND Status = \'Active\'';
+		const soqlQuery = 'SELECT Name, Body, FORMAT(LastModifiedDate), LastModifiedBy.Name FROM ApexClass WHERE NamespacePrefix = NULL AND Status = \'Active\' ORDER BY LastModifiedDate DESC';
 		const classes = (await executeSoqlQuery(soqlQuery)).records;
 		testClasses = classes.filter(r => r.Body.toLowerCase().includes('@istest')).map(r => ({
-			name: r.Name, description: `${r.LastModifiedBy.Name} · ${r.LastModifiedDate}`
+			name: r.Name,
+			description: `${r.Name} · Last modified on ${r.LastModifiedDate} by ${r.LastModifiedBy.Name}`
 		}));
 		testClasses = testClasses.sort((a, b) => a.name.localeCompare(b.name));
 		newResource(
@@ -88,15 +89,10 @@ export async function runApexTestToolHandler({classNames = [], methodNames = [],
 				const elicitResult = await classNameElicitation();
 				const selectedClassName = elicitResult.content?.confirm;
 				if (elicitResult.action !== 'accept' || !selectedClassName) {
-					return {
-						content: [{
-							type: 'text',
-							text: 'User has cancelled the Apex test run'
-						}],
-						structuredContent: elicitResult
-					};
+					throw new Error('User has cancelled the Apex test run');
 				}
 				classNames = [selectedClassName];
+
 			} else {
 				throw new Error('Test class/method name required');
 			}

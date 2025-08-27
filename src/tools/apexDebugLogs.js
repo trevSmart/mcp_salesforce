@@ -554,7 +554,7 @@ export async function apexDebugLogsToolHandler({action, logId, analyzeOptions}) 
 
 			if (logs && Array.isArray(logs)) {
 				// Take only the first 50 logs and format them
-				logs = logs.slice(0, 50).map(logItem => {
+				logs = logs.slice(0, 30).map(logItem => {
 					if (logItem.LogLength) {
 						const lengthInBytes = parseInt(logItem.LogLength);
 						if (lengthInBytes < 1024 * 1024) {
