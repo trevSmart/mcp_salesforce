@@ -1,7 +1,6 @@
 import {chromium} from 'playwright';
 import fs from 'fs';
 import path from 'path';
-import os from 'os';
 import {log} from './utils.js';
 import state from './state.js';
 
