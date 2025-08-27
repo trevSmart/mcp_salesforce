@@ -370,9 +370,9 @@ export function getFileNameFromPath(filePath) {
  * @returns {string} Formatted date string
  */
 export function formatDate(date) {
-	let formattedDate = date.toLocaleDateString('es-ES', {day: 'numeric', month: 'numeric', year: 'numeric'});
-	if (date.toDateString() === new Date().toDateString()) {
-		formattedDate += ' ' + date.toLocaleTimeString('es-ES', {hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: false});
+	let formattedDate = date.toLocaleTimeString('es-ES', {hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: false});
+	if (date.toDateString() !== new Date().toDateString()) {
+		formattedDate = date.toLocaleDateString('es-ES', {day: 'numeric', month: 'numeric', year: 'numeric'}) + ' ' + formattedDate;
 	}
 	return formattedDate;
 }
