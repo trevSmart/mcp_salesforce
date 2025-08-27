@@ -38,9 +38,10 @@ async function waitForDownloadLink(page, totalTimeoutMs = 20000, intervalMs = 20
 }
 
 async function retrieveFile() {
+	let browser = null;
 	try {
 		const setupSetupAuditTrailUrl = '/lightning/setup/SecurityEvents/home';
-		const browser = await chromium.launch({headless: true});
+		browser = await chromium.launch({headless: true});
 		const context = await browser.newContext({acceptDownloads: true});
 		const page = await context.newPage();
 
@@ -68,8 +69,8 @@ async function retrieveFile() {
 		log('Downloading CSV file...', 'debug');
 		const downloadPromise = page.waitForEvent('download', {timeout: 60000});
 
-		// Utilitzar clic directe en lloc de page.goto per evitar conflictes amb descàrregues
-		await page.evaluate((link) => link.click(), downloadLink);
+		// Use click() method directly instead of page.evaluate to avoid serialization issues
+		await downloadLink.click();
 
 		const download = await downloadPromise;
 
@@ -87,7 +88,9 @@ async function retrieveFile() {
 		throw error;
 
 	} finally {
-		// await browser.close();
+		if (browser) {
+			await browser.close();
+		}
 	}
 }
 

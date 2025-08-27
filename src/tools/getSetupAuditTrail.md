@@ -15,6 +15,22 @@ The parameters allow you to retrieve only the records that match your criteria. 
 - `createdByName`: If set, only the changes performed by this user will be returned (if not set, the changes from all users will be returned)
 - `metadataName`: If set, only the changes performed in this metadata will be returned (if not set, the changes from all metadata will be returned)
 
+**Note**: The tool filters records by Section, only returning changes from the following allowed sections:
+- Apex Class, Lightning Components, Manage Users, Lightning Pages, Groups
+- Custom Objects, Permission Set Group, Sharing Rules, Customize Cases
+- Customize Entitlement Process, Named Credentials, Certificate and Key Management
+- Customize Activities, Custom Apps, Apex Trigger, Rename Tabs and Labels
+- Custom Tabs, Custom Metadata Types, Validation Rules, Static Resource
+- Data Management, Field Dependencies, Customize Opportunities, Omni-Channel
+- Application, Global Value Sets, Triggers Settings, External Credentials
+- Customize Users, Custom Permissions, Customize Accounts, Customize Contacts
+- Standard Buttons and Links, Flows, Remote Access, Workflow Rule
+- Manage apps, Apex Email Notification, Sharing Defaults, Article Types
+- Data Classification, Connected Apps, Customize Chat Transcripts, Global Actions
+- Customize Content, Timeline Configurations, Session Settings, Change Data Capture
+- Track Field History, Page, Sandboxes, User Interface, Component
+- Customize Leads, Customize Contracts, Email Administration
+
 For example, if the user wants to retrieve HIS changes for THE LAST WEEK, the parameters should be:
 ```json
 {

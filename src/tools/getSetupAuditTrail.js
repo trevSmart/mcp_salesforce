@@ -3,15 +3,19 @@ import {newResource} from '../mcp-server.js';
 import {z} from 'zod';
 import {retrieveSetupAuditTrailFile} from '../auditTrailDownloader.js';
 import client from '../client.js';
+import {exec} from 'child_process';
+import {promisify} from 'util';
+
+const execAsync = promisify(exec);
 
 export const getSetupAuditTrailToolDefinition = {
 	name: 'getSetupAuditTrail',
-	title: 'Get the changes in the Salesforce org metadata performed in the last days from the Salesforce Setup Audit Trail data',
+	title: 'Get the changes in the Salesforce org metadata performed in the last days from the Salesforce Setup Audit Trail data, filtered by allowed sections',
 	description: textFileContent('getSetupAuditTrail'),
 	inputSchema: {
 		lastDays: z.number()
 			.int()
-			.max(90)
+			.max(30)
 			.optional()
 			.describe('Number of days to query (between 1 and 90)'),
 		createdByName: z.string()
@@ -27,7 +31,7 @@ export const getSetupAuditTrailToolDefinition = {
 		readOnlyHint: true,
 		idempotentHint: false,
 		openWorldHint: true,
-		title: 'Get the changes in the Salesforce org metadata performed in the last days from the Salesforce Setup Audit Trail data'
+		title: 'Get the changes in the Salesforce org metadata performed in the last days from the Salesforce Setup Audit Trail data, filtered by allowed sections'
 	}
 };
 
@@ -52,12 +56,13 @@ export async function getSetupAuditTrailToolHandler({lastDays = 90, createdByNam
 			throw new Error('No s\'ha pogut obtenir dades del Setup Audit Trail. El fitxer està buit.');
 		}
 
-		// Parsejar el CSV i convertir-lo a JSON
-		const allData = parseCsvToJson(fileContent);
+		// Aplicar filtres amb grep abans de parsejar a JSON
+		const filteredCsvContent = await filterCsvWithGrep(fileContent, lastDays, createdByName, metadataName);
+		log(`Contingut CSV filtrat amb grep: ${filteredCsvContent.length} bytes`, 'debug');
 
-		// Filtrar les dades segons els paràmetres
-		const filteredData = filterAuditTrailData(allData, lastDays, createdByName, metadataName);
-		log(`Registres després del filtrat: ${filteredData.length}`, 'debug');
+		// Parsejar només els registres filtrats a JSON
+		const filteredData = parseCsvToJson(filteredCsvContent);
+		log(`Registres després del filtrat amb grep: ${filteredData.length}`, 'debug');
 
 		newResource(
 			resourceUri,
@@ -103,6 +108,92 @@ export async function getSetupAuditTrailToolHandler({lastDays = 90, createdByNam
 }
 
 /**
+ * Filtra el contingut CSV utilitzant grep per millorar la performance
+ */
+async function filterCsvWithGrep(csvContent, lastDays, createdByName, metadataName) {
+	try {
+		// Escriure el contingut CSV a un fitxer temporal per grep
+		const tempFileName = `temp_audit_trail_${Date.now()}.csv`;
+		const tempFilePath = writeToTmpFile(csvContent, tempFileName);
+
+		// Construir la comanda grep per seccions permeses
+		const allowedSectionsPattern = ALLOWED_SECTIONS.map(section =>
+			section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escapar caràcters especials de regex
+		).join('|');
+
+		// Calcular la data de tall
+		const cutoffDate = new Date();
+		cutoffDate.setDate(cutoffDate.getDate() - lastDays);
+		const cutoffDateStr = cutoffDate.toISOString().split('T')[0]; // Format YYYY-MM-DD
+
+		// Construir la comanda completa utilitzant pipes correctament
+		let grepCommand = `cat "${tempFilePath}" | awk -F',' 'NR==1 || (NR>1 && $1 >= "${cutoffDateStr}")'`;
+
+		// Afegir filtre per seccions permeses
+		grepCommand = `${grepCommand} | grep -E "(${allowedSectionsPattern})"`;
+
+		// Afegir filtre per usuari si s'especifica
+		if (createdByName) {
+			const escapedUserName = createdByName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			grepCommand = `${grepCommand} | grep -E "(${escapedUserName})"`;
+		}
+
+		// Afegir filtre per metadata si s'especifica
+		if (metadataName) {
+			const escapedMetadataName = metadataName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			grepCommand = `${grepCommand} | grep -E "(${escapedMetadataName})"`;
+		}
+
+		log(`Executant comanda de filtrat: ${grepCommand}`, 'debug');
+
+		// Executar la comanda
+		const {stdout, stderr} = await execAsync(grepCommand, {shell: true});
+
+		if (stderr) {
+			log(`Warnings del filtrat: ${stderr}`, 'warn');
+		}
+
+		// Netejar el fitxer temporal
+		try {
+			await execAsync(`rm "${tempFilePath}"`);
+		} catch (cleanupError) {
+			log(`Error netejant fitxer temporal: ${cleanupError.message}`, 'warn');
+		}
+
+		return stdout;
+
+	} catch (error) {
+		log(`Error utilitzant grep per filtrar: ${error.message}`, 'error');
+		// Fallback al mètode anterior si grep falla
+		log('Utilitzant mètode de filtrat anterior com a fallback', 'warn');
+		return filterAuditTrailDataFallback(csvContent, lastDays, createdByName, metadataName);
+	}
+}
+
+/**
+ * Mètode de fallback per al filtrat si grep falla
+ */
+function filterAuditTrailDataFallback(csvContent, lastDays, createdByName, metadataName) {
+	const allData = parseCsvToJson(csvContent);
+	const filteredData = filterAuditTrailData(allData, lastDays, createdByName, metadataName);
+
+	// Convertir de tornada a CSV per mantenir la compatibilitat
+	const headers = Object.keys(filteredData[0] || {});
+	const csvLines = [headers.join(',')];
+
+	filteredData.forEach(record => {
+		const values = headers.map(header => {
+			const value = record[header] || '';
+			// Escapar cometes i afegir cometes si conté comes
+			return value.includes(',') ? `"${value.replace(/"/g, '""')}"` : value;
+		});
+		csvLines.push(values.join(','));
+	});
+
+	return csvLines.join('\n');
+}
+
+/**
  * Parseja el contingut CSV i el converteix a JSON
  */
 function parseCsvToJson(csvContent) {
@@ -117,6 +208,11 @@ function parseCsvToJson(csvContent) {
 
 	for (let i = 1; i < lines.length; i++) {
 		if (!lines[i]?.trim()) {
+			continue;
+		}
+
+		// Filtrar files que no comencen per dobles cometes
+		if (!lines[i].trim().startsWith('"')) {
 			continue;
 		}
 
@@ -145,6 +241,9 @@ function parseCsvLine(line) {
 		return [];
 	}
 
+	// Substituir dobles cometes consecutives per cometa simple
+	line = line.replace(/""/g, "'");
+
 	const values = [];
 	let inQuotes = false;
 	let currentValue = '';
@@ -153,16 +252,20 @@ function parseCsvLine(line) {
 		const char = line[i];
 
 		if (char === '"') {
+			// És una cometa d'obertura/tancament de camp
 			inQuotes = !inQuotes;
 		} else if (char === ',' && !inQuotes) {
-			values.push(currentValue.replace(/"/g, '').trim());
+			// És un separador de camp (només si no estem dins de cometes)
+			values.push(currentValue.trim());
 			currentValue = '';
 		} else {
+			// És un caràcter normal del valor
 			currentValue += char;
 		}
 	}
 
-	values.push(currentValue.replace(/"/g, '').trim());
+	// Afegir l'últim valor
+	values.push(currentValue.trim());
 	return values;
 }
 
@@ -223,34 +326,117 @@ function parseSalesforceDate(dateString) {
 }
 
 /**
- * Filtra les dades de l'audit trail segons els paràmetres
+ * Seccions permeses per l'audit trail
+ */
+const ALLOWED_SECTIONS = [
+	'Apex Class',
+	'Lightning Components',
+	'Lightning Pages',
+	'Groups',
+	'Custom Objects',
+	'Sharing Rules',
+	'Customize Cases',
+	'Customize Entitlement Process',
+	'Named Credentials',
+	'Customize Activities',
+	'Custom Apps',
+	'Apex Trigger',
+	'Rename Tabs and Labels',
+	'Custom Tabs',
+	'Custom Metadata Types',
+	'Validation Rules',
+	'Static Resource',
+	'Data Management',
+	'Field Dependencies',
+	'Customize Opportunities',
+	'Omni-Channel',
+	'Application',
+	'Global Value Sets',
+	'Triggers Settings',
+	'External Credentials',
+	'Custom Permissions',
+	'Customize Accounts',
+	'Customize Contacts',
+	'Standard Buttons and Links',
+	'Flows',
+	'Workflow Rule',
+	'Manage apps',
+	'Sharing Defaults',
+	'Connected Apps',
+	'Customize Chat Transcripts',
+	'Global Actions',
+	'Customize Content',
+	'Timeline Configurations [bmpyrckt]',
+	'Page',
+	'User Interface',
+	'Component',
+	'Customize Leads',
+	'Customize Contracts'
+];
+
+/**
+ * Filtra les dades de l'audit trail segons els paràmetres (mètode legacy)
  */
 function filterAuditTrailData(data, lastDays, createdByName, metadataName) {
 	const cutoffDate = new Date();
 	cutoffDate.setDate(cutoffDate.getDate() - lastDays);
 
-	return data.filter(record => {
+	log(`Data de tall per filtrat: ${cutoffDate.toISOString()} (últims ${lastDays} dies)`, 'debug');
+
+	let filteredCount = 0;
+	let sectionFilteredCount = 0;
+	let dateFilteredCount = 0;
+	let userFilteredCount = 0;
+	let metadataFilteredCount = 0;
+
+	const filteredData = data.filter(record => {
+		// FILTRE OBLIGATORI: Només seccions permeses
+		const section = record.Section || record.SectionType;
+		if (!section || !ALLOWED_SECTIONS.includes(section)) {
+			sectionFilteredCount++;
+			return false;
+		}
+
 		// Filtrar per data
 		const dateField = record.Date || record.CreatedDate || record.Timestamp;
 		if (!dateField) {
+			log(`Registre sense camp de data: ${JSON.stringify(record)}`, 'debug');
 			return false;
 		}
 
 		const recordDate = parseSalesforceDate(dateField);
-		if (!recordDate || recordDate < cutoffDate) {
+		if (!recordDate) {
+			log(`No es pot parsejar la data: ${dateField}`, 'debug');
 			return false;
 		}
 
-		// Filtrar per usuari
-		if (createdByName && record.CreatedBy && !record.CreatedBy.includes(createdByName)) {
+		if (recordDate < cutoffDate) {
+			dateFilteredCount++;
 			return false;
 		}
 
-		// Filtrar per nom de metadata
-		if (metadataName && record.Metadata && !record.Metadata.includes(metadataName)) {
+		// Filtrar per usuari (si s'especifica)
+		if (createdByName && record.CreatedBy !== createdByName) {
+			userFilteredCount++;
 			return false;
 		}
 
+		// Filtrar per metadata (si s'especifica)
+		if (metadataName && record.Metadata !== metadataName) {
+			metadataFilteredCount++;
+			return false;
+		}
+
+		filteredCount++;
 		return true;
 	});
+
+	log('Resum del filtrat:', 'debug');
+	log(`  - Registres amb seccions no permeses: ${sectionFilteredCount}`, 'debug');
+	log(`  - Registres fora del rang de dates: ${dateFilteredCount}`, 'debug');
+	log(`  - Registres d'usuaris no coincidents: ${userFilteredCount}`, 'debug');
+	log(`  - Registres de metadata no coincident: ${metadataFilteredCount}`, 'debug');
+	log(`  - Registres que passen tots els filtres: ${filteredCount}`, 'debug');
+
+	return filteredData;
 }
