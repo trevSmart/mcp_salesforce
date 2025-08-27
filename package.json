@@ -25,6 +25,7 @@
   "author": "Trevor Smart",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.3",
+    "@mermaid-js/mermaid-cli": "^11.9.0",
     "env-paths": "^3.0.0",
     "playwright": "^1.55.0",
     "semver": "^7.5.4",

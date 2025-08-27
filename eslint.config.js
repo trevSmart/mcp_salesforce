@@ -73,6 +73,7 @@ export default [
 			}],
 			'no-mixed-spaces-and-tabs': 'error',
 			'no-trailing-spaces': 'warn',
+			'nonblock-statement-body-position': ['error', 'beside'],
 			'object-curly-spacing': ['error', 'never'],
 			'quotes': ['error', 'single', {'avoidEscape': true}],
 			'semi': ['error', 'always'],
