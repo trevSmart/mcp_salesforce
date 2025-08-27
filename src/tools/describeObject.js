@@ -49,15 +49,29 @@ export async function describeObjectToolHandler({sObjectName, includeFields = tr
 			};
 		}
 
-		// Fetch from UI API
-		const response = await callSalesforceApi('GET', 'UI', `/object-info/${sObjectName}`);
+		let transformedData;
 
-		if (!response || response.error) {
-			throw new Error(response?.error?.message || 'Unknown error calling UI API');
+		if (useToolingApi) {
+			// Use Tooling API for Tooling objects
+			const response = await callSalesforceApi('GET', 'TOOLING', `/sobjects/${sObjectName}/describe`);
+
+			if (!response || response.error) {
+				throw new Error(response?.error?.message || 'Unknown error calling Tooling API');
+			}
+
+			// Transform Tooling API response to match our expected format
+			transformedData = transformToolingApiResponse(response, includePicklistValues);
+		} else {
+			// Use UI API for standard objects
+			const response = await callSalesforceApi('GET', 'UI', `/object-info/${sObjectName}`);
+
+			if (!response || response.error) {
+				throw new Error(response?.error?.message || 'Unknown error calling UI API');
+			}
+
+			// Transform UI API response to match our expected format
+			transformedData = transformUIApiResponse(response, 'all', includePicklistValues);
 		}
-
-		// Transform UI API response to match our expected format
-		const transformedData = transformUIApiResponse(response, 'all', includePicklistValues); // Pass includePicklistValues
 
 		// Apply filtering
 		const filteredData = applyFiltering(transformedData, includeFields, includePicklistValues);
@@ -164,6 +178,128 @@ function transformUIApiResponse(uiApiResponse, include, includePicklistValues) {
 	}
 
 	return result;
+}
+
+function transformToolingApiResponse(toolingApiResponse, includePicklistValues) {
+	const result = {
+		name: toolingApiResponse.name || toolingApiResponse.apiName,
+		label: toolingApiResponse.label || '',
+		labelPlural: toolingApiResponse.labelPlural || '',
+		keyPrefix: toolingApiResponse.keyPrefix || '',
+		searchable: toolingApiResponse.searchable || false,
+		createable: toolingApiResponse.createable || false,
+		custom: toolingApiResponse.custom || false,
+		deletable: toolingApiResponse.deletable || false,
+		updateable: toolingApiResponse.updateable || false,
+		queryable: toolingApiResponse.queryable || false
+	};
+
+	// Include fields if available
+	if (toolingApiResponse.fields) {
+		result.fields = transformToolingFields(toolingApiResponse.fields, includePicklistValues);
+	}
+
+	// Include record types if available
+	if (toolingApiResponse.recordTypeInfos) {
+		result.recordTypeInfos = transformToolingRecordTypes(toolingApiResponse.recordTypeInfos);
+	}
+
+	// Include child relationships if available
+	if (toolingApiResponse.childRelationships) {
+		result.childRelationships = transformToolingChildRelationships(toolingApiResponse.childRelationships);
+	}
+
+	return result;
+}
+
+function transformToolingFields(toolingFields, includePicklistValues) {
+	const transformedFields = [];
+
+	for (const fieldInfo of toolingFields) {
+		const transformedField = {
+			name: fieldInfo.name || '',
+			label: fieldInfo.label || '',
+			type: mapToolingDataType(fieldInfo.type),
+			length: fieldInfo.length || 0,
+			custom: fieldInfo.custom || false,
+			relationshipName: fieldInfo.relationshipName || null,
+			referenceTo: fieldInfo.referenceTo || [],
+			required: fieldInfo.nillable === false,
+			unique: fieldInfo.unique || false,
+			externalId: fieldInfo.externalId || false
+		};
+
+		// Include picklist values if requested
+		if (includePicklistValues && (fieldInfo.type === 'picklist' || fieldInfo.type === 'multipicklist')) {
+			transformedField.picklistValues = transformToolingPicklistValues(fieldInfo.picklistValues || []);
+		}
+
+		transformedFields.push(transformedField);
+	}
+
+	return transformedFields;
+}
+
+function transformToolingRecordTypes(toolingRecordTypes) {
+	const transformedRecordTypes = [];
+
+	for (const recordTypeInfo of toolingRecordTypes) {
+		transformedRecordTypes.push({
+			recordTypeId: recordTypeInfo.recordTypeId || '',
+			name: recordTypeInfo.name || '',
+			available: recordTypeInfo.available || false
+		});
+	}
+
+	return transformedRecordTypes;
+}
+
+function transformToolingChildRelationships(toolingChildRelationships) {
+	return toolingChildRelationships.map(relationship => ({
+		childSObject: relationship.childSObject || '',
+		field: relationship.field || '',
+		relationshipName: relationship.relationshipName || ''
+	}));
+}
+
+function mapToolingDataType(toolingDataType) {
+	// Map Tooling API data types to our standard format
+	const typeMapping = {
+		'string': 'string',
+		'textarea': 'textarea',
+		'email': 'email',
+		'phone': 'phone',
+		'url': 'url',
+		'boolean': 'boolean',
+		'currency': 'currency',
+		'double': 'double',
+		'int': 'double',
+		'percent': 'percent',
+		'date': 'date',
+		'datetime': 'datetime',
+		'time': 'time',
+		'picklist': 'picklist',
+		'multipicklist': 'multipicklist',
+		'reference': 'reference',
+		'id': 'string'
+	};
+
+	return typeMapping[toolingDataType] || toolingDataType?.toLowerCase() || 'string';
+}
+
+function transformToolingPicklistValues(toolingPicklistValues) {
+	const transformedValues = [];
+
+	if (Array.isArray(toolingPicklistValues)) {
+		for (const picklistValue of toolingPicklistValues) {
+			transformedValues.push({
+				value: picklistValue.value || '',
+				label: picklistValue.label || picklistValue.value || ''
+			});
+		}
+	}
+
+	return transformedValues;
 }
 
 function transformFields(uiFields, includePicklistValues) {
