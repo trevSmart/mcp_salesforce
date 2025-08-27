@@ -1,13 +1,13 @@
 # Run Apex Test Tool
 
-Allows you to run Apex text classes, or specific Apex test classes methods, or full Apex test suites.
+Allows you to run Apex test classes, specific Apex test methods, or full Apex test suites in Salesforce.
 
 ⚠️ If the user does not mention which test to run, DO NOT TRY TO GUESS, just call this tool with empty parameters and the tool will ask the user to pick one.
 
 ⚠️ **IMPORTANT**: ✅ You CAN specify:
   - several classes to run
-  - several tests methods to run
-  - several test suites to run
+  - OR several tests methods to run
+  - OR several test suites to run
   (e.g. you can run 3 test methods from different classes in the same request)
 
 ⚠️ **IMPORTANT**: ❌ You CANNOT mix items from different types in the same request
@@ -22,6 +22,15 @@ Allows you to run Apex text classes, or specific Apex test classes methods, or f
   - The table must include: Class, Method, Status, Execution Time (ms).
   - Do not show only text, the table is mandatory.
   - If you do not follow this format, the response is considered incorrect.
+
+---
+## Parameters
+
+- **`classNames`** (optional): Array of case-sensitive Apex test class names. All test methods in these classes will be executed.
+- **`methodNames`** (optional): Array of test methods to run with the format "testClassName.testMethodName" (only the specified methods will be run).
+- **`suiteNames`** (optional): Array of case-sensitive Apex test suite names. All test classes in these suites will be executed.
+- **`options`** (optional): Object with additional options:
+  - **`thenGetApexClassesCodeCoverage`**: Array of case-sensitive Apex class names to get code coverage for if the test run is successful.
 
 ---
 ## Usage
@@ -61,6 +70,16 @@ Allows you to run Apex text classes, or specific Apex test classes methods, or f
 }
 ```
 
+### Example 6: Run tests and get code coverage
+```json
+{
+  "classNames": ["MyTestClass"],
+  "options": {
+    "thenGetApexClassesCodeCoverage": ["MyClass", "MyServiceClass"]
+  }
+}
+```
+
 ### ❌ Invalid: Multiple input types in the same request (will return error)
 ```json
 {
@@ -68,3 +87,16 @@ Allows you to run Apex text classes, or specific Apex test classes methods, or f
   "methodNames": ["testClassName.testMethodName"]
 }
 ```
+
+---
+## Response Format
+
+The tool returns a structured response with:
+- **`result`**: Array of test results with the following fields:
+  - `className`: Name of the Apex test class
+  - `methodName`: Name of the test method
+  - `status`: Test outcome (Pass/Fail)
+  - `runtime`: Execution time in milliseconds
+  - `message`: Error message if the test failed
+  - `stackTrace`: Stack trace if the test failed
+- **`codeCoverage`**: Code coverage information if requested (only present when tests pass and coverage is requested)
