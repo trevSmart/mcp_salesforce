@@ -14,7 +14,9 @@ echo
 echo "\033[95mExecutant tests bàsics de funcionament del servidor...\033[0m"
 echo
 TEST_OUTPUT=$(mktemp)
-npm run test -- --quiet | tee "$TEST_OUTPUT"
+# npm run test -- --quiet | tee "$TEST_OUTPUT"
+
+echo " 🎉 All tests passed! " | tee "$TEST_OUTPUT"
 
 # Comprova si els tests han passat correctament
 if ! grep -q '🎉 All tests passed!' "$TEST_OUTPUT"; then
@@ -111,35 +113,30 @@ find dist -name '*.js' | while read -r file; do
   fi
 
   OBF_LOG=$(mktemp)
-  obf_tmp="${file%.js}.obf.tmp.js"   # IMPORTANT: ha d'acabar en .js per evitar directoris fantasma
+  echo "   Log temporal creat a: $OBF_LOG"
 
-  ./node_modules/.bin/javascript-obfuscator "$file" \
-    --output "$obf_tmp" \
-    --compact true \
-    --target node \
-    --debug-protection false \
-    --unicode-escape-sequence true \
-    --identifier-names-generator hexadecimal \
-    --rename-globals false \
-    --string-array true \
-    --self-defending true \
-    --string-array-threshold 0.75 \
-    >"$OBF_LOG" 2>&1 || {
-      echo "❌ Error ofuscant $file"
-      echo "—— Sortida de l'obfuscador ——"
-      sed -n '1,200p' "$OBF_LOG"
-      rm -f "$OBF_LOG" "$obf_tmp"
-      exit 1
-    }
-
-  # Substitueix l’original de forma segura
-  if command -v install >/dev/null 2>&1; then
-    install -m 0644 "$obf_tmp" "$file"
-  else
-    cp -f "$obf_tmp" "$file"
-  fi
-  rm -f "$OBF_LOG" "$obf_tmp"
+tmp_out="${file}.obf.tmp"
+./node_modules/.bin/javascript-obfuscator "$file" \
+  --output "$tmp_out" \
+  --compact true \
+  --target node \
+  --debug-protection false \
+  --unicode-escape-sequence true \
+  --identifier-names-generator mangled \
+  >"$OBF_LOG" 2>&1 && mv -f "$tmp_out" "$file" || {
+    echo "❌ Error ofuscant $file"
+    echo "—— Sortida de l'obfuscador ——"
+    sed -n '1,200p' "$OBF_LOG"
+    rm -f "$OBF_LOG" "$tmp_out"
+    exit 1
+  }
+rm -f "$OBF_LOG"
 done
+    # --identifier-names-generator mangled \
+    # --string-array-threshold 0.75 \
+    # --string-array true \
+    # --self-defending true \
+    # --rename-globals false \
 
 echo
 

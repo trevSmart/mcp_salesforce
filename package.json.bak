@@ -1,6 +1,6 @@
 {
   "name": "test_research4",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Test Research 4",
   "main": "index.js",
   "type": "module",
