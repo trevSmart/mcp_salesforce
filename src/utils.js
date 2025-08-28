@@ -83,12 +83,23 @@ export function log(data, logLevel = 'info', context = null) {
  * @returns {Promise<void>}
  */
 export async function validateUserPermissions(username) {
-	const query = await executeSoqlQuery(`SELECT Id FROM PermissionSetAssignment WHERE Assignee.Username = '${username}' AND PermissionSet.Name = 'IBM_SalesforceMcpUser'`);
-	if (query?.records?.length) {
-		state.userValidated = true;
-	} else {
+	try {
+		if (typeof username !== 'string' || !username.trim()) {
+			throw new Error('Invalid username parameter');
+		}
+		// Escape backslashes first, then single quotes for SOQL string literals
+		const safeUsername = username.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+		const soql = `SELECT Id FROM PermissionSetAssignment WHERE Assignee.Username = '${safeUsername}' AND PermissionSet.Name = 'IBM_SalesforceMcpUser'`;
+		const query = await executeSoqlQuery(soql);
+		if (query?.records?.length) {
+			state.userValidated = true;
+		} else {
+			state.userValidated = false;
+			log(`Insufficient permissions in org "${state.org.alias}". Assign Permission Set 'IBM_SalesforceMcpUser' to the user.`, 'emergency');
+		}
+	} catch (error) {
 		state.userValidated = false;
-		log(`Insuficient permissions in org "${state.org.alias}"`, 'emergency');
+		log(error, 'error', 'Error validating user permissions');
 	}
 }
 

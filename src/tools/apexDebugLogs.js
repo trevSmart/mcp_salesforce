@@ -677,16 +677,17 @@ export async function apexDebugLogsToolHandler({action, logId, analyzeOptions}) 
 				text: `Succesfully retrieved Apex debug log ${logId}`
 			}];
 
-			if (client.supportsCapability('embeddedResources')) {
-				const resource = newResource(
-					`file://mcp/apexLogs/${logId}.log`,
-					`${logId}.log`,
-					`Apex debug log ${logId}`,
-					'text/plain',
-					apexLog,
-					{audience: ['user']}
-				);
-				content.push({type: 'resource', resource});
+			const uri = `mcp://apexLogs/${logId}.log`;
+			newResource(
+				uri,
+				`${logId}.log`,
+				`Apex debug log ${logId}`,
+				'text/plain',
+				apexLog,
+				{audience: ['user']}
+			);
+			if (client.supportsCapability('resource_links')) {
+				content.push({type: 'resource_link', uri});
 			}
 
 			return {

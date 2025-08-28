@@ -16,9 +16,17 @@ export class MCPServerManager {
 	async start() {
 		console.log(`\n${TEST_CONFIG.colors.blue}Starting MCP server...${TEST_CONFIG.colors.reset}`);
 
+
+		// Ensure test runs never create real GitHub issues via webhook
+		const env = {...process.env};
+		if (typeof env.MCP_REPORT_ISSUE_DRY_RUN === 'undefined') {
+			env.MCP_REPORT_ISSUE_DRY_RUN = 'true';
+		}
+
 		this.serverProcess = spawn('node', [resolve(__dirname, TEST_CONFIG.mcpServer.serverPath)], {
 			stdio: ['pipe', 'pipe', 'pipe'],
-			cwd: resolve(__dirname, '..')
+			cwd: resolve(__dirname, '..'),
+			env
 		});
 
 		this.serverProcess.stderr.on('data', (data) => {

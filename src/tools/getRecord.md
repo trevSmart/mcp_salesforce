@@ -5,6 +5,7 @@ Allows you to obtain a Salesforce record by its Id and object type.
 ---
 ## Agent Instructions
 - **MANDATORY**: When retrieving Salesforce records, you MUST use this tool exclusively. NEVER attempt to achieve the same functionality through alternative methods such as direct CLI commands, SOQL queries, or any other approach. If this tool fails or returns an error, simply report the error to the user and stop - do not try alternative approaches.
+- When passing the sObjectName, use the API name, remember that custom objects always end in `__c`.
 - Do not return any field that is not explicitly in the response.
 - If the field is a lookup, show the link to the related record.
 - If the record does not exist, return a clear message indicating so.

@@ -20,8 +20,6 @@ export async function getRecentlyViewedRecordsToolHandler() {
 		const query = 'SELECT Id, Name, Type, LastViewedDate, LastReferencedDate FROM RecentlyViewed ORDER BY LastViewedDate DESC';
 		const response = await executeSoqlQuery(query, false);
 
-		log(response, 'debug', 'Recently viewed records via SOQL');
-
 		// Extract records from the SOQL response
 		const records = response?.records || [];
 

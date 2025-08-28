@@ -125,7 +125,7 @@ export async function chatWithAgentforceToolHandler({message}) {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: 'Error de validación, es obligatorio indicar un valor de message'
+				text: 'Validation error: the "message" field is required'
 			}]
 		};
 	}

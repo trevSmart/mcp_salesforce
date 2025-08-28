@@ -20,15 +20,15 @@ import targetOrgWatcher from './OrgWatcher.js';
 
 // import { codeModificationPromptDefinition, codeModificationPrompt } from './prompts/codeModificationPrompt.js';
 import {testToolsPromptDefinition, testToolsPrompt} from './prompts/test-tools.js';
-import {salesforceMcpUtilsToolDefinition} from './tools/salesforceMcpUtils.js';
+import {salesforceMcpUtilsToolDefinition, salesforceMcpUtilsToolHandler} from './tools/salesforceMcpUtils.js';
 import {dmlOperationToolDefinition} from './tools/dmlOperation.js';
-import {deployMetadataToolDefinition} from './tools/deployMetadata.js';
-import {describeObjectToolDefinition} from './tools/describeObject.js';
-import {executeAnonymousApexToolDefinition} from './tools/executeAnonymousApex.js';
+import {deployMetadataToolDefinition, deployMetadataToolHandler} from './tools/deployMetadata.js';
+import {describeObjectToolDefinition, describeObjectToolHandler} from './tools/describeObject.js';
+import {executeAnonymousApexToolDefinition, executeAnonymousApexToolHandler} from './tools/executeAnonymousApex.js';
 import {getRecentlyViewedRecordsToolDefinition} from './tools/getRecentlyViewedRecords.js';
-import {getRecordToolDefinition} from './tools/getRecord.js';
+import {getRecordToolDefinition, getRecordToolHandler} from './tools/getRecord.js';
 import {getSetupAuditTrailToolDefinition} from './tools/getSetupAuditTrail.js';
-import {executeSoqlQueryToolDefinition} from './tools/executeSoqlQuery.js';
+import {executeSoqlQueryToolDefinition, executeSoqlQueryToolHandler} from './tools/executeSoqlQuery.js';
 import {runApexTestToolDefinition} from './tools/runApexTest.js';
 import {getApexClassCodeCoverageToolDefinition} from './tools/getApexClassCodeCoverage.js';
 import {apexDebugLogsToolDefinition} from './tools/apexDebugLogs.js';
@@ -61,7 +61,7 @@ async function setWorkspacePath(workspacePath) {
 			log(error, 'error', 'Failed to change working directory');
 		}
 
-		log(`Workspace path set to: "${state.workspacePath}"`, 'info');
+		log(`Workspace path set to: "${state.workspacePath}"`, 'debug');
 	}
 }
 
@@ -120,14 +120,11 @@ export function clearResources() {
 	}
 }
 
-//Ready promise mechanism for external waiting
+// Ready promises for external waiting
 let resolveServerReady;
-const readyPromise = new Promise(resolve => resolveServerReady = resolve);
-
-//Add a promise to track directory change completion
-let resolveDirectoryChange;
-// eslint-disable-next-line no-unused-vars
-const directoryChangePromise = new Promise(resolve => resolveDirectoryChange = resolve);
+const readyPromise = new Promise(resolve => resolveServerReady = resolve); // transport connected
+let resolveOrgReady;
+const orgReadyPromise = new Promise(resolve => resolveOrgReady = resolve); // org details loaded/attempted
 
 //Server initialization function
 export async function setupServer() {
@@ -148,9 +145,6 @@ export async function setupServer() {
 				setWorkspacePath(listRootsResult.roots[0].uri);
 			}
 
-			if (typeof resolveDirectoryChange === 'function') {
-				resolveDirectoryChange();
-			}
 
 		} catch (error) {
 			log(error, 'error', 'Failed to request roots from client');
@@ -164,6 +158,16 @@ export async function setupServer() {
 	// mcpServer.registerPrompt('code-modification', codeModificationPromptDefinition, codeModificationPrompt);
 	mcpServer.registerPrompt('test-tools', testToolsPromptDefinition, testToolsPrompt);
 
+	// Handlers that we want to load statically (frequently used/core)
+	const STATIC_TOOL_HANDLERS = {
+		salesforceMcpUtils: salesforceMcpUtilsToolHandler,
+		executeSoqlQuery: executeSoqlQueryToolHandler,
+		describeObject: describeObjectToolHandler,
+		getRecord: getRecordToolHandler,
+		executeAnonymousApex: executeAnonymousApexToolHandler,
+		deployMetadata: deployMetadataToolHandler
+	};
+
 	const callToolHandler = tool => {
 		return async params => {
 			try {
@@ -174,8 +178,12 @@ export async function setupServer() {
 						throw new Error(`🚫 Request blocked due to unsuccessful user validation for "${state.org.user.username}".`);
 					}
 				}
-				const toolModule = await import(`./tools/${tool}.js`);
-				const toolHandler = toolModule?.[`${tool}ToolHandler`];
+				// Prefer statically loaded handlers for core tools; fallback to lazy dynamic import
+				let toolHandler = STATIC_TOOL_HANDLERS[tool];
+				if (!toolHandler) {
+					const toolModule = await import(`./tools/${tool}.js`);
+					toolHandler = toolModule?.[`${tool}ToolHandler`];
+				}
 				if (!toolHandler) {
 					throw new Error(`Tool ${tool} module does not export a tool handler.`);
 				}
@@ -239,24 +247,23 @@ export async function setupServer() {
 			//Execute org setup and validation after directory change is complete
 			(async () => {
 				try {
-					// Wait for directory change to complete before proceeding with org setup
-					// await directoryChangePromise;
-
+					// Start watching target org changes and perform initial fetch
 					// process.env.HOME = process.env.HOME ;
 					targetOrgWatcher.start(updateOrgAndUserDetails);
 					await updateOrgAndUserDetails();
 
 					log(`Server initialized and running. Target org: ${state.org.alias}`, 'debug');
+					if (typeof resolveOrgReady === 'function') {
+						resolveOrgReady();
+					}
 
 				} catch (error) {
 					log(error, 'error', 'Error during async org setup');
-					throw error;
+					// Swallow to avoid unhandled rejection; initialization continues and tools will gate on validation
+					if (typeof resolveOrgReady === 'function') {
+						resolveOrgReady();
+					}
 
-					// } finally { TODO
-					// 	//Mark server as ready after org setup is complete (or failed)
-					// 	/*if (typeof resolveServerReady === 'function') {
-					// 		resolveServerReady();
-					// 	}
 				}
 			})();
 
@@ -264,7 +271,8 @@ export async function setupServer() {
 
 		} catch (error) {
 			log(error, 'error', 'Error initializing server');
-			throw error;
+			// Return a structured error via JSON-RPC by throwing a concise Error
+			throw new Error(`Initialization failed: ${error.message}`);
 		}
 	});
 
@@ -278,5 +286,6 @@ export async function setupServer() {
 
 //Export the ready promise for external use
 export {readyPromise};
+export {orgReadyPromise};
 
 export {mcpServer};

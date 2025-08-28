@@ -50,7 +50,7 @@ export async function generateSoqlQueryToolHandler({soqlQueryDescription, involv
 				const descObjResult = (await describeObject(sObjectName)).result;
 
 				if (!descObjResult?.fields) {
-					throw new Error(`No s'ha trobat la propietat 'fields' a la descripció de l'objecte ${sObjectName}`);
+					throw new Error(`The 'fields' property was not found in the object description for ${sObjectName}`);
 				}
 				const childRelationships = descObjResult.childRelationships
 					.map(childRelationship => ({

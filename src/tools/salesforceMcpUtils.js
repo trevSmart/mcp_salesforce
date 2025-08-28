@@ -44,6 +44,9 @@ function generateManualTitle(description, toolName) {
 	return title;
 }
 
+// Lightweight, deterministic intent → tool recommender to reduce agent reasoning time
+// suggestToolFast removed to avoid extra tool-call overhead
+
 export async function salesforceMcpUtilsToolHandler({action, issueDescription, issueToolName}) {
 	try {
 		if (action === 'clearCache') {
@@ -157,7 +160,7 @@ export async function salesforceMcpUtilsToolHandler({action, issueDescription, i
 			return {
 				content: [{
 					type: 'text',
-					text: JSON.stringify(result, null, 2)
+					text: 'Successfully retrieved the org and user details'
 				}],
 				structuredContent: result
 			};
@@ -252,7 +255,7 @@ Return only the tool name or "Unknown" without any explanation.`;
 			// Check if client supports elicitation and ask for confirmation before sending issue
 			if (client.supportsCapability('elicitation') && mcpServer) {
 				const elicitResult = await mcpServer.server.elicitInput({
-					message: 'Please confirm that you want to report this issue.',
+					message: `⚠️ Please confirm that you want to report this issue.\n\nTitle: ${title}\n\nTool: ${detectedToolName}\n\nDescription: ${issueDescription}`,
 					requestedSchema: {
 						type: 'object',
 						title: 'Report issue?',
@@ -306,6 +309,21 @@ Return only the tool name or "Unknown" without any explanation.`;
 					capabilities: client.capabilities
 				}
 			};
+
+			// Test-friendly dry-run mode to avoid creating real issues from tests
+			if (String(process.env.MCP_REPORT_ISSUE_DRY_RUN || '').toLowerCase() === 'true') {
+				const fake = {
+					success: true,
+					issueId: 'DRY-RUN-' + Math.random().toString(36).slice(2, 10).toUpperCase(),
+					issueUrl: 'about:blank#dry-run',
+					message: 'Dry run: issue not sent to webhook',
+					request: {type: issueType, title, tool: detectedToolName, severity: issueSeverity}
+				};
+				return {
+					content: [{type: 'text', text: '✅ Dry run: issue report simulated (no webhook call)'}],
+					structuredContent: fake
+				};
+			}
 
 			try {
 				// Send issue to Netlify webhook

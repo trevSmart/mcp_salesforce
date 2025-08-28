@@ -7,11 +7,12 @@ import {TEST_CONFIG} from './test-config.js';
 
 // Test runner class
 class TestRunner {
-	constructor() {
+	constructor(quiet = false) {
 		this.serverManager = new MCPServerManager();
 		this.mcpClient = null;
 		this.testResults = [];
 		this.originalOrg = null;
+		this.quiet = quiet;
 	}
 
 	// Run a single test
@@ -59,8 +60,8 @@ class TestRunner {
 	}
 
 	// Run MCP tools tests
-	async runMCPToolsTests(testsToRun = null) {
-		const mcpToolsSuite = new MCPToolsTestSuite(this.mcpClient);
+	async runMCPToolsTests(testsToRun = null, quiet = false) {
+		const mcpToolsSuite = new MCPToolsTestSuite(this.mcpClient, quiet);
 		const testsToExecute = await mcpToolsSuite.runTests(testsToRun);
 
 		for (let i = 0; i < testsToExecute.length; i++) {
@@ -150,14 +151,23 @@ class TestRunner {
 			await this.mcpClient.setLoggingLevel(TEST_CONFIG.mcpServer.defaultLogLevel);
 
 			// Execute MCP tools tests
-			await this.runMCPToolsTests(tests);
+			await this.runMCPToolsTests(tests, this.quiet);
 
 			// Wait for any pending operations
 			await new Promise(resolveTimeout => setTimeout(resolveTimeout, 1000));
 
+			// Ensure all stdout listeners are removed
+			if (this.serverManager.getProcess() && this.serverManager.getProcess().stdout) {
+				this.serverManager.getProcess().stdout.removeAllListeners('data');
+			}
+
 		} finally {
 			// Stop server
+			console.log(`${TEST_CONFIG.colors.cyan}Stopping MCP server...${TEST_CONFIG.colors.reset}`);
 			await this.serverManager.stop();
+
+			// Wait a bit for server to fully shut down
+			await new Promise(resolve => setTimeout(resolve, 1000));
 
 			// Restore original org
 			if (this.originalOrg) {
@@ -168,6 +178,10 @@ class TestRunner {
 
 		// Print summary
 		this.printSummary();
+
+		// Ensure clean exit
+		console.log(`${TEST_CONFIG.colors.cyan}Test execution completed successfully.${TEST_CONFIG.colors.reset}`);
+		process.exit(0);
 	}
 
 	// Print test summary
@@ -210,7 +224,7 @@ async function main() {
 	}
 
 	// Run tests
-	const runner = new TestRunner();
+	const runner = new TestRunner(cmdArgs.quiet);
 	try {
 		await runner.runAllTests({
 			tests: TESTS_TO_RUN,
@@ -235,12 +249,15 @@ ${TEST_CONFIG.colors.cyan}Options:${TEST_CONFIG.colors.reset}
                     Valid values: emergency, alert, critical, error, warning, notice, info, debug
   --tests=<tests>     Comma-separated list of test names to run (partial matching)
                     Example: "apexDebugLogs,getRecord"
+  --quiet             Suppress tool output display for each test
   --help              Show this help message
 
 ${TEST_CONFIG.colors.cyan}Examples:${TEST_CONFIG.colors.reset}
   node test/runner.js --logLevel=debug
   node test/runner.js --tests=apexDebugLogs,getRecord
   node test/runner.js --logLevel=debug --tests=salesforceMcpUtils
+  node test/runner.js --quiet
+  node test/runner.js --quiet --tests=apexDebugLogs
 `);
 }
 

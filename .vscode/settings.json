@@ -113,5 +113,6 @@
     ],
     "github-actions.workflows.pinned.workflows": [
         ".github/workflows/push-checks.yml"
-    ]
+    ],
+    "chatgpt.openOnStartup": true
 }

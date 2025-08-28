@@ -130,7 +130,8 @@ export default [
 			'.env/**',
 			'.eslint.config.js',
 			'tmp/**',
-			'eslint.config.js'
+			'eslint.config.js',
+			'dist/**'
 		]
 	}
 ];

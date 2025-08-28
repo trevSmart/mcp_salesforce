@@ -35,6 +35,21 @@ Thumbs.db
 
 # Project-specific
 dev/
+test/
+venv/
+docs/
+notebooks/
+*.bak
+*.tmp
+*.temp
+rules/
+.fiveserverrc
+@/
+eslint.config.js
+.github/
+.cursorignore
+.env
+dist/
 
 # Intentionally NOT ignoring dist/ so it is published
 # Intentionally NOT ignoring src/ for now because the current entrypoint imports from ./src

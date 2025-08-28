@@ -5,7 +5,7 @@ export const TEST_CONFIG = {
 		startupDelay: 1000,
 		timeout: 90000,
 		serverPath: '../index.js',
-		defaultLogLevel: 'debug'
+		defaultLogLevel: 'info'
 	},
 
 	// Salesforce configuration
