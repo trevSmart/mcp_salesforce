@@ -7,7 +7,7 @@ package_name=$(node -p "require('./package.json').name")
 published_version=$(npm view "$package_name" version 2>/dev/null || true)
 
 echo "\033[38;2;255;140;0mScript de publicació a NPM de $package_name\033[0m"
-echo "\033[38;2;255;140;0mMarc Pla, 2025\033[0m"
+echo "\033[38;2;255;140;0mTrevor Smart, 2025\033[0m"
 echo
 
 # Executa els tests utilitzant el framework de test configurat
@@ -143,17 +143,26 @@ done
 
 echo
 
+echo "\033[95mNota: Els fitxers .apex no es poden ofuscar (només JavaScript) i es mantenen sense modificar.\033[0m"
+echo
+
 echo "\033[95mCodificant els fitxers Markdown...\033[0m"
-if [ -d "dist/src/tools" ]; then
-  find dist/src/tools -name '*.md' | while read -r file; do
-    if [ -f "$file" ]; then
-      b64file="$file.b64"
-      base64 -i "$file" -o "$b64file"
-      rm -f "$file"
-      echo "   $file"
-    fi
-  done
-fi
+# Codifica tots els fitxers .md de totes les carpetes (incloent static)
+md_files=()
+while IFS= read -r -d '' file; do
+  md_files+=("$file")
+done < <(find dist -name '*.md' -print0)
+
+echo "   Trobats ${#md_files[@]} fitxers Markdown per codificar"
+
+for file in "${md_files[@]}"; do
+  if [ -f "$file" ]; then
+    b64file="$file.b64"
+    base64 -i "$file" -o "$b64file"
+    rm -f "$file"
+    echo "   $file"
+  fi
+done
 
 # Neteja arxius que no calin dins el paquet i prepara package.json minimal
 rm -f dist/.npmignore
