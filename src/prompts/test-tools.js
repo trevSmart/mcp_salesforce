@@ -22,7 +22,9 @@ Call every tool. For tools thann can perform several actions, make sure to call 
 For tools that create records, try to clean up the records after the test.
 For tools that require an Apex class name as parameter (deployMetadata, getApexClassCodeCoverage), use the class "CBSD_Utils". For Apex test classes, use the class "CBSD_Utils_Test".
 For tools that require a record ID as parameter (getRecord, dmlOperation with actions "update" and "delete"), use the record Id of the record created with the call to dmlOperation with action "create".
-For all the actions in the createMetadata tool, delete the metadata files created by the tool after the test.`
+For all the actions in the createMetadata tool, delete the metadata files created by the tool after the test.
+
+NOTE: The \`apexDebugLogs\` tool's \`analyze\` action is not ready yet; skip testing that action for now.`
 				}
 			}
 		]

@@ -381,9 +381,24 @@ export function getFileNameFromPath(filePath) {
  * @returns {string} Formatted date string
  */
 export function formatDate(date) {
-	let formattedDate = date.toLocaleTimeString('es-ES', {hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: false});
+	// Use configured locale if provided; otherwise rely on system default locale
+	let locale = (typeof config?.locale === 'string' && config.locale.trim()) ? config.locale.trim() : undefined;
+
+	const timeOptions = {hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: false};
+	const dateOptions = {day: 'numeric', month: 'numeric', year: 'numeric'};
+
+	const safeFormat = (d, method, opts) => {
+		try {
+			return d[method](locale, opts);
+		} catch (e) {
+			// Fallback to system default locale if provided locale is invalid
+			return d[method](undefined, opts);
+		}
+	};
+
+	let formattedDate = safeFormat(date, 'toLocaleTimeString', timeOptions);
 	if (date.toDateString() !== new Date().toDateString()) {
-		formattedDate = date.toLocaleDateString('es-ES', {day: 'numeric', month: 'numeric', year: 'numeric'}) + ' ' + formattedDate;
+		formattedDate = safeFormat(date, 'toLocaleDateString', dateOptions) + ' ' + formattedDate;
 	}
 	return formattedDate;
 }

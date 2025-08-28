@@ -11,6 +11,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 
 import {log, validateUserPermissions} from './utils.js';
+import {createLogger} from './logger.js';
 import config from './config.js';
 import {fileURLToPath} from 'url';
 import client from './client.js';
@@ -38,6 +39,7 @@ import {createMetadataToolDefinition} from './tools/createMetadata.js';
 //import {generateSoqlQueryToolDefinition} from './tools/generateSoqlQuery.js';
 
 export let resources = {};
+const logger = createLogger('mcp-server');
 
 async function setWorkspacePath(workspacePath) {
 	// Normalize file:// URIs to local filesystem paths
@@ -58,10 +60,10 @@ async function setWorkspacePath(workspacePath) {
 		try {
 			process.chdir(state.workspacePath);
 		} catch (error) {
-			log(error, 'error', 'Failed to change working directory');
+			logger.error(error, 'Failed to change working directory');
 		}
 
-		log(`Workspace path set to: "${state.workspacePath}"`, 'debug');
+		logger.debug(`Workspace path set to: "${state.workspacePath}"`);
 	}
 }
 
@@ -76,7 +78,7 @@ async function updateOrgAndUserDetails() {
 		}
 
 	} catch (error) {
-		log(error, 'error', 'Error updating org and user details');
+		logger.error(error, 'Error updating org and user details');
 		state.org = {};
 		state.userValidated = false;
 
@@ -93,7 +95,7 @@ const mcpServer = new McpServer(serverInfo, {capabilities, instructions, debounc
 
 export function newResource(uri, name, description, mimeType = 'text/plain', content, annotations = {}) {
 	try {
-		log(`MCP resource "${uri}" changed.`, 'debug');
+		logger.debug(`MCP resource "${uri}" changed.`);
 		annotations = {...annotations, lastModified: new Date().toISOString()};
 		const resource = {
 			uri,
@@ -108,13 +110,13 @@ export function newResource(uri, name, description, mimeType = 'text/plain', con
 		return resource;
 
 	} catch (error) {
-		log(error, 'error', `Error setting resource ${uri}`);
+		logger.error(error, `Error setting resource ${uri}`);
 	}
 }
 
 export function clearResources() {
 	if (Object.keys(resources).length) {
-		log('Clearing resources...', 'debug');
+		logger.debug('Clearing resources...');
 		resources = {};
 		mcpServer.server.sendResourceListChanged();
 	}
@@ -136,7 +138,7 @@ export async function setupServer() {
 				try {
 					listRootsResult = await mcpServer.server.listRoots();
 				} catch (error) {
-					log(`Requested roots list but client returned error: ${JSON.stringify(error, null, 3)}`, 'debug');
+					logger.debug(`Requested roots list but client returned error: ${JSON.stringify(error, null, 3)}`);
 				}
 			}
 
@@ -147,7 +149,7 @@ export async function setupServer() {
 
 
 		} catch (error) {
-			log(error, 'error', 'Failed to request roots from client');
+			logger.error(error, 'Failed to request roots from client');
 		}
 	});
 
@@ -214,7 +216,7 @@ export async function setupServer() {
 
 	mcpServer.server.setRequestHandler(SetLevelRequestSchema, async ({params}) => {
 		state.currentLogLevel = params.level;
-		log(`Log level set to ${params.level}`, 'debug');
+		logger.debug(`Log level set to ${params.level}`);
 		return {};
 	});
 
@@ -223,10 +225,10 @@ export async function setupServer() {
 			const {clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion} = params;
 			client.initialize({clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion});
 
-			log(`IBM Salesforce MCP server (v${config.SERVER_CONSTANTS.serverInfo.version})`, 'info');
+			logger.info(`IBM Salesforce MCP server (v${config.SERVER_CONSTANTS.serverInfo.version})`);
 			const clientCapabilitiesString = 'Capabilities: ' + JSON.stringify(client.capabilities, null, 3);
-			log(`Connecting with client "${client.clientInfo.name}" (v${client.clientInfo.version}). ${clientCapabilitiesString}`, 'info');
-			log(`Current log level: ${state.currentLogLevel}`, 'info');
+			logger.info(`Connecting with client "${client.clientInfo.name}" (v${client.clientInfo.version}). ${clientCapabilitiesString}`);
+			logger.info(`Current log level: ${state.currentLogLevel}`);
 
 			if (process.env.WORKSPACE_FOLDER_PATHS) {
 				setWorkspacePath(process.env.WORKSPACE_FOLDER_PATHS);
@@ -236,7 +238,7 @@ export async function setupServer() {
 				try {
 					await mcpServer.server.listRoots();
 				} catch (error) {
-					log(`Requested roots list but client returned error: ${JSON.stringify(error, null, 3)}`, 'debug');
+					logger.debug(`Requested roots list but client returned error: ${JSON.stringify(error, null, 3)}`);
 				}
 			}
 

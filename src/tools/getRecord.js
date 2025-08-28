@@ -30,14 +30,29 @@ export async function getRecordToolHandler({sObjectName, recordId}) {
 			throw new Error('SObject name and record ID are required');
 		}
 
-		const result = await getRecord(sObjectName, recordId);
+		// Retrieve raw record from Salesforce
+		const rawRecord = await getRecord(sObjectName, recordId);
+
+		// Normalize into the tool's documented output schema
+		const id = rawRecord?.Id || rawRecord?.id || recordId;
+		const fields = {};
+		if (rawRecord && typeof rawRecord === 'object') {
+			for (const [key, value] of Object.entries(rawRecord)) {
+				if (key === 'attributes' || key === 'Id' || key === 'id') {
+					continue;
+				}
+				fields[key] = value;
+			}
+		}
+
+		const structured = {id, sObject: sObjectName, fields};
 
 		return {
 			content: [{
 				type: 'text',
-				text: `Successfully retrieved details for the ${sObjectName} record with Id ${recordId}`
+				text: `Successfully retrieved details for the ${sObjectName} record with Id ${id}`
 			}],
-			structuredContent: result
+			structuredContent: structured
 		};
 
 	} catch (error) {

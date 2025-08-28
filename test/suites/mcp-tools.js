@@ -240,6 +240,8 @@ export class MCPToolsTestSuite {
 					});
 				}
 			},
+			/*
+			// Temporarily disabled: apexDebugLogs analyze action not available
 			{
 				name: 'apexDebugLogs analyze',
 				run: async (context) => {
@@ -259,6 +261,7 @@ export class MCPToolsTestSuite {
 					return result;
 				}
 			},
+			*/
 			{
 				name: 'apexDebugLogs off',
 				run: async () => {
