@@ -125,12 +125,20 @@ export function textFileContent(toolName) {
 		//Calcular __dirname localment dins la funció
 		const localFilename = fileURLToPath(import.meta.url);
 		const localDirname = path.dirname(localFilename);
-		let mdPath = path.join(localDirname, 'tools', `${toolName}.md`);
-		if (!fs.existsSync(mdPath)) {
-			mdPath = path.join(localDirname, 'tools', `${toolName}.b64`);
-			if (!fs.existsSync(mdPath)) {
-				throw new Error(`No description found for tool: ${toolName}`);
+		const toolsDir = path.join(localDirname, 'tools');
+
+		// Buscar qualsevol fitxer amb qualsevol extensió
+		let mdPath = null;
+		if (fs.existsSync(toolsDir)) {
+			const files = fs.readdirSync(toolsDir);
+			const toolFile = files.find(file => file.startsWith(toolName + '.'));
+			if (toolFile) {
+				mdPath = path.join(toolsDir, toolFile);
 			}
+		}
+
+		if (!mdPath) {
+			throw new Error(`No description found for tool: ${toolName}`);
 		}
 
 		const content = fs.readFileSync(mdPath, 'utf8');
