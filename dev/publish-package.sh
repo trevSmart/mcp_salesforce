@@ -86,7 +86,7 @@ echo
 node dev/updateReadmeDeeplinks.js > /dev/null 2>&1 || true
 
 # Clona el codi font a dist (amb exclusions de .npmignore)
-echo "\033[95mEliminant directori dist existent...\033[0m"
+echo "\033[95mGenerant pkg amb el codi ofuscat...\033[0m"
 rm -rf dist || {
   echo "\033[91m❌ Error eliminant directori dist:\033[0m"
   echo "   Error: $?"
@@ -96,9 +96,7 @@ rm -rf dist || {
   restore_versions
   exit 1
 }
-echo "   ✅ Directori dist eliminat correctament"
 
-echo "\033[95mCreant directori dist...\033[0m"
 mkdir dist || {
   echo "\033[91m❌ Error creant directori dist:\033[0m"
   echo "   Error: $?"
@@ -108,16 +106,13 @@ mkdir dist || {
   restore_versions
   exit 1
 }
-echo "   ✅ Directori dist creat correctament"
 
-echo "\033[95mCopiant fitxers a dist...\033[0m"
 rsync -a --exclude-from=.npmignore ./ ./dist/ || {
   echo "\033[91m❌ Error copiant fitxers a dist:\033[0m"
   echo "   Error: $?"
   restore_versions
   exit 1
 }
-echo "   ✅ Fitxers copiats correctament"
 
 # Sortida silenciosa per aquestes línies tret que VERBOSE=1
 : "${VERBOSE:=0}"
@@ -152,7 +147,7 @@ else
   vecho "   Cap nom exportat detectat per reservar."
 fi
 
-echo "\033[95mOfuscant els fitxers JavaScript (preservant exports ESM)...\033[0m"
+echo "\033[96mOfuscant els fitxers JavaScript (preservant exports ESM)...\033[0m"
 find dist -name '*.js' | while read -r file; do
   echo "   $file..."
 
@@ -209,7 +204,7 @@ done
 
 echo
 
-echo "\033[95mCodificant els fitxers Markdown...\033[0m"
+echo "\033[96mCodificant els fitxers Markdown...\033[0m"
 # Codifica tots els fitxers .md de totes les carpetes (incloent static)
 find dist -name '*.md' | while read -r file; do
   if [ -f "$file" ]; then
@@ -222,7 +217,7 @@ done
 
 echo
 
-echo "\033[95mCodificant els fitxers Apex...\033[0m"
+echo "\033[96mCodificant els fitxers Apex...\033[0m"
 # Codifica tots els fitxers .apex de totes les carpetes (incloent static)
 find dist -name '*.apex' | while read -r file; do
   if [ -f "$file" ]; then
@@ -236,8 +231,6 @@ done
 # Neteja arxius que no calin dins el paquet i prepara package.json minimal
 rm -f dist/.npmignore
 echo
-
-echo "\033[95mAfegint package.json minimal per publicar...\033[0m"
 jq '{
   name, version, description, main, type, browser, bin, keywords, author, dependencies, engines
 } + { files: ["index.js", "src", "bin", "README.md", "LICENSE"] }' package.json > dist/package.json
@@ -248,7 +241,7 @@ echo "\033[95mValidant arrencada del paquet ofuscat (smoke test)...\033[0m"
   VALIDATE_LOG=$(mktemp)
   if MCP_PREPUBLISH_VALIDATE=1 node index.js > "$VALIDATE_LOG" 2>&1; then
     if grep -q 'PREPUBLISH_OK' "$VALIDATE_LOG"; then
-      echo "   ✅ Validació correcta: el paquet carrega sense errors."
+      echo "\033[92m✅ Validació completada amb èxit.\033[0m"
     else
       echo "\033[91m❌ Validació fallida: no s'ha confirmat l'arrencada.\033[0m"
       sed -n '1,200p' "$VALIDATE_LOG"
@@ -266,12 +259,10 @@ echo "\033[95mValidant arrencada del paquet ofuscat (smoke test)...\033[0m"
   rm -f "$VALIDATE_LOG"
 )
 
-echo "\033[95mPaquet preparat i llest per publicar a NPM.\033[0m"
 echo
 
 # Re-executa els tests, ara utilitzant el servidor MCP de la build ofuscada a dist/
 echo "\033[95mExecutant tests contra el servidor ofuscat (dist/)...\033[0m"
-echo
 TEST_DIST_OUTPUT=$(mktemp)
 # Indica al runner que arrenqui el servidor des de dist/index.js
 MCP_TEST_SERVER_PATH="../dist/index.js" npm run test -- --quiet | tee "$TEST_DIST_OUTPUT"
