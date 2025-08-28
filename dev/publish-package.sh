@@ -143,26 +143,46 @@ done
 
 echo
 
-echo "\033[95mNota: Els fitxers .apex no es poden ofuscar (només JavaScript) i es mantenen sense modificar.\033[0m"
+echo "\033[95mNota: Els fitxers .apex es codifiquen en base64 (igual que els Markdown) per preservar el contingut.\033[0m"
 echo
 
 echo "\033[95mCodificant els fitxers Markdown...\033[0m"
 # Codifica tots els fitxers .md de totes les carpetes (incloent static)
-md_files=()
-while IFS= read -r -d '' file; do
-  md_files+=("$file")
-done < <(find dist -name '*.md' -print0)
+echo "   Buscant fitxers Markdown..."
 
-echo "   Trobats ${#md_files[@]} fitxers Markdown per codificar"
-
-for file in "${md_files[@]}"; do
+# Compta i codifica els fitxers .md
+md_count=0
+find dist -name '*.md' | while read -r file; do
   if [ -f "$file" ]; then
-    b64file="$file.b64"
+    b64file="$file.pam"
     base64 -i "$file" -o "$b64file"
     rm -f "$file"
     echo "   $file"
+    md_count=$((md_count + 1))
   fi
 done
+
+echo "   Total fitxers Markdown codificats: $md_count"
+
+echo
+
+echo "\033[95mCodificant els fitxers Apex...\033[0m"
+# Codifica tots els fitxers .apex de totes les carpetes (incloent static)
+echo "   Buscant fitxers Apex..."
+
+# Compta i codifica els fitxers .apex
+apex_count=0
+find dist -name '*.apex' | while read -r file; do
+  if [ -f "$file" ]; then
+    b64file="$file.pam"
+    base64 -i "$file" -o "$b64file"
+    rm -f "$file"
+    echo "   $file"
+    apex_count=$((apex_count + 1))
+  fi
+done
+
+echo "   Total fitxers Apex codificats: $apex_count"
 
 # Neteja arxius que no calin dins el paquet i prepara package.json minimal
 rm -f dist/.npmignore
@@ -176,12 +196,17 @@ echo
 
 echo "\033[95mPublicant el paquet a NPM (des de dist/)...\033[0m"
 PUBLISH_OUTPUT=$(mktemp)
-if ! (cd dist && npm publish --access public) > "$PUBLISH_OUTPUT" 2>&1; then
+
+# Canvia al directori dist i executa npm publish
+cd dist
+if ! npm publish --access public > "$PUBLISH_OUTPUT" 2>&1; then
   echo "\033[91m❌ Error publicant el paquet a NPM:\033[0m"
   cat "$PUBLISH_OUTPUT"
   rm -f "$PUBLISH_OUTPUT"
+  cd ..  # Torna al directori original
   exit 1
 fi
+cd ..  # Torna al directori original
 
 # Mostra les línies de notice si l'execució ha estat exitosa
 grep -E 'npm notice (name:|version:|shasum:|total files:)' "$PUBLISH_OUTPUT" | while read -r line; do
