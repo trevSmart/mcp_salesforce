@@ -10,6 +10,18 @@ import {getAgentInstructions} from './utils.js';
  */
 export default {
 	logPrefix: '👁🐝Ⓜ️',
+	apiCache: {
+		// Enable/disable in-memory API response cache globally
+		enabled: true,
+		// Only cache idempotent reads
+		cacheGet: true,
+		// Default TTL for cached entries (ms)
+		defaultTtlMs: 10_000,
+		// Max entries before pruning oldest
+		maxEntries: 200,
+		// Clear cache after successful non-GET requests
+		invalidateOnWrite: true
+	},
 	SERVER_CONSTANTS: {
 		protocolVersion: '2025-06-18',
 		serverInfo: {

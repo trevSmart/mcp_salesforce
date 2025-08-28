@@ -1,4 +1,5 @@
 import {log} from './utils.js';
+import config from './config.js';
 import fs from 'fs/promises';
 import path from 'path';
 import state from './state.js';
@@ -70,7 +71,7 @@ export async function runCliCommand(command) {
 export async function executeSoqlQuery(query, useToolingApi = false) {
 	try {
 		if (!query || typeof query !== 'string') {
-			throw new Error('La consulta SOQL (query) és obligatòria i ha de ser una string');
+			throw new Error('The SOQL query is required and must be a string');
 		}
 
 		const apiType = useToolingApi ? 'TOOLING' : 'REST';
@@ -130,7 +131,9 @@ export async function getOrgAndUserDetails(skipCache = false) {
 		state.org = org;
 
 		const getUserFullName = async () => {
-			const soqlUserResult = await executeSoqlQuery(`SELECT Id, Name, Profile.Name FROM User WHERE Username = '${org.user.username}'`);
+			// Escape username to avoid SOQL injection in string literal
+			const safeUsername = org.user.username.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+			const soqlUserResult = await executeSoqlQuery(`SELECT Id, Name, Profile.Name FROM User WHERE Username = '${safeUsername}'`);
 			const user = soqlUserResult?.records?.[0];
 			state.org.user = {
 				id: user.Id,
@@ -897,6 +900,18 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 		throw new Error('Org details not initialized. Please wait for server initialization.');
 	}
 
+	// Simple in-memory cache for GET responses
+	const cacheConfig = config?.apiCache || {};
+	const API_CACHE_ENABLED = cacheConfig.enabled !== false; // default true
+	const API_CACHE_DEFAULT_TTL_MS = Number.isFinite(cacheConfig.defaultTtlMs) ? cacheConfig.defaultTtlMs : 10_000;
+	const API_CACHE_MAX_ENTRIES = Number.isFinite(cacheConfig.maxEntries) ? cacheConfig.maxEntries : 200;
+	const API_CACHE_CACHE_GET = cacheConfig.cacheGet !== false; // default true
+	const API_CACHE_INVALIDATE_ON_WRITE = cacheConfig.invalidateOnWrite !== false; // default true
+	if (API_CACHE_ENABLED && !globalThis.__SF_API_CACHE__) {
+		globalThis.__SF_API_CACHE__ = new Map();
+	}
+	const apiCache = globalThis.__SF_API_CACHE__;
+
 	// Build the full endpoint based on API type
 	const apiVersion = state.org.apiVersion;
 	let endpoint;
@@ -929,6 +944,19 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 		}
 	}
 
+	// Compose cache key (org + op + apiType + endpoint + extra)
+	const orgKey = state?.org?.id || 'noOrg';
+	const cacheKeyExtra = options.cacheKeyExtra ? `|${JSON.stringify(options.cacheKeyExtra)}` : '';
+	const cacheKeyBase = `${orgKey}|${String(operation).toUpperCase()}|${String(apiType).toUpperCase()}|${endpoint}${cacheKeyExtra}`;
+
+	// Helper to prune cache if it grows too much
+	const pruneCache = () => {
+		while (apiCache.size > API_CACHE_MAX_ENTRIES) {
+			const firstKey = apiCache.keys().next().value;
+			apiCache.delete(firstKey);
+		}
+	};
+
 	// Function to make the actual API call
 	const makeApiCall = async () => {
 		const requestOptions = {
@@ -948,6 +976,21 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 			requestOptions.body = JSON.stringify(body);
 		}
 
+
+		// Try cache for GET if not bypassed and globally enabled
+		const isGet = requestOptions.method === 'GET';
+		const bypassCache = options.bypassCache === true;
+		const cacheTtlMs = typeof options.cacheTtlMs === 'number' ? Math.max(0, options.cacheTtlMs) : API_CACHE_DEFAULT_TTL_MS;
+		const cacheKey = `${cacheKeyBase}`; // includes endpoint with query params
+
+		if (API_CACHE_ENABLED && API_CACHE_CACHE_GET && isGet && !bypassCache && cacheTtlMs > 0) {
+			const entry = apiCache.get(cacheKey);
+			if (entry && entry.expiresAt > Date.now()) {
+				log(`GET cache hit for ${service}`, 'debug');
+				return entry.data;
+			}
+		}
+
 		const response = await fetch(endpoint, requestOptions);
 
 		let logMessage = `${operation} request to ${apiType} API service ${service} ended ${response.statusText} (${response.status})`;
@@ -955,7 +998,15 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 			logMessage += `\n${JSON.stringify(options.queryParams, null, 3)}`;
 		}
 		if (Object.keys(requestOptions).length) {
-			logMessage += `\n${JSON.stringify(requestOptions, null, 3)}`;
+			// Remove sensitive headers before logging
+			const maskedRequestOptions = {...requestOptions, headers: {...(requestOptions.headers || {})}};
+			if ('Authorization' in maskedRequestOptions.headers) {
+				delete maskedRequestOptions.headers.Authorization;
+			}
+			if ('authorization' in maskedRequestOptions.headers) {
+				delete maskedRequestOptions.headers.authorization;
+			}
+			logMessage += `\n${JSON.stringify(maskedRequestOptions, null, 3)}`;
 		}
 		log(logMessage, 'debug');
 
@@ -981,11 +1032,22 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 		}
 
 		try {
-			return (await response.json());
+			const data = (await response.json());
+			// Store in cache for GET
+			if (API_CACHE_ENABLED && API_CACHE_CACHE_GET && isGet && !bypassCache && cacheTtlMs > 0) {
+				apiCache.set(cacheKey, {data, expiresAt: Date.now() + cacheTtlMs});
+				pruneCache();
+			}
+			return data;
 
 		} catch (parseError) {
 			log(`Could not parse JSON response: ${parseError.message}`, 'warning');
-			return (await response.text());
+			const text = (await response.text());
+			if (API_CACHE_ENABLED && API_CACHE_CACHE_GET && isGet && !bypassCache && cacheTtlMs > 0) {
+				apiCache.set(cacheKey, {data: text, expiresAt: Date.now() + cacheTtlMs});
+				pruneCache();
+			}
+			return text;
 		}
 	};
 
@@ -996,7 +1058,12 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 
 	while (retryCount <= maxRetries) {
 		try {
-			return await makeApiCall();
+			const result = await makeApiCall();
+			// Invalidate cache on non-GET successful operations to avoid stale reads
+			if (API_CACHE_ENABLED && API_CACHE_INVALIDATE_ON_WRITE && !['GET', 'HEAD'].includes(String(operation).toUpperCase())) {
+				apiCache.clear();
+			}
+			return result;
 		} catch (error) {
 			// Check if this is an INVALID_SESSION_ID error
 			if (error.message === 'INVALID_SESSION_ID' && retryCount < maxRetries) {

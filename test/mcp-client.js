@@ -106,8 +106,8 @@ export class MCPClient {
 			const result = await this.sendMessage('initialize', {
 				protocolVersion: '2025-06-18',
 				capabilities: {
-					sampling: {},
-					elicitation: {}
+					// sampling: {},
+					// elicitation: {}
 				},
 				clientInfo: clientConfig
 			});

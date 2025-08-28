@@ -76,7 +76,7 @@ export async function executeAnonymousApexToolHandler({apexCode, mayModify}) {
 
 		const content = [{
 			type: 'text',
-			text: `Resultat execució Anonymous Apex:\n\n${JSON.stringify(result.logs)}`
+			text: `Anonymous Apex execution result:\n\n${JSON.stringify(result.logs)}`
 		}];
 
 		//Use the same naming format as the main execution
@@ -85,17 +85,20 @@ export async function executeAnonymousApexToolHandler({apexCode, mayModify}) {
 		// const logPath = await writeToTmpFileAsync(result.logs, 'ApexRun', 'log', 'utf8', state.workspacePath);
 		const logSize = (Buffer.byteLength(result.logs, 'utf8') / 1024).toFixed(1);
 
-		if (client.supportsCapability('embeddedResources') && result?.logs) {
+		if (result?.logs) {
 			const logFileName = `apex_run_${getTimestamp(true)}.log`;
-			const resourceApexLog = newResource(
-				`file://apex/${logFileName}`,
+			const uri = `mcp://apex/${logFileName}`;
+			newResource(
+				uri,
 				logFileName,
 				`${getTimestamp(true)} - ${username} - ${logSize}KB`,
 				'text/plain',
 				result.logs,
 				{audience: ['user', 'assistant']}
 			);
-			content.push({type: 'resource', resource: resourceApexLog});
+			if (client.supportsCapability('resource_links')) {
+				content.push({type: 'resource_link', uri});
+			}
 		}
 
 		return {content, structuredContent: result};

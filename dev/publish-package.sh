@@ -10,16 +10,21 @@ echo "\033[38;2;255;140;0mScript de publicació a NPM de $package_name\033[0m"
 echo "\033[38;2;255;140;0mMarc Pla, 2025\033[0m"
 echo
 
-# Executa el script de testTools.js i comprova si hi ha algun KO
+# Executa els tests utilitzant el framework de test configurat
 echo "\033[95mExecutant tests bàsics de funcionament del servidor...\033[0m"
 echo
 TEST_OUTPUT=$(mktemp)
-node dev/testTools.js | tee "$TEST_OUTPUT"
-if grep -q 'KO' "$TEST_OUTPUT"; then
-  echo "\033[95mS'han detectat errors (KO) als tests. Aturant la build.\033[0m"
+npm run test -- --quiet | tee "$TEST_OUTPUT"
+
+# Comprova si els tests han passat correctament
+if ! grep -q '🎉 All tests passed!' "$TEST_OUTPUT"; then
+  echo "\033[95mS'han detectat errors als tests. Aturant la build.\033[0m"
   rm -f "$TEST_OUTPUT"
   exit 1
 fi
+
+echo
+echo "\033[95m✅ Tots els tests han passat correctament.\033[0m"
 rm -f "$TEST_OUTPUT"
 
 if [ -n "$published_version" ]; then
@@ -32,8 +37,32 @@ major=$(echo $current_version | cut -d. -f1)
 minor=$(echo $current_version | cut -d. -f2)
 patch=$(echo $current_version | cut -d. -f3)
 new_patch=$((patch + 1))
-new_version="$major.$minor.$(printf '%02d' $new_patch)"
+proposed_version="$major.$minor.$(printf '%02d' $new_patch)"
 
+echo "\033[95mVersió actual: $current_version"
+echo "Versió proposada: $proposed_version"
+echo
+echo "Vols utilitzar la versió proposada o introduir una altra? (p/altra):\033[0m"
+read -r resposta
+
+if [[ "$resposta" =~ ^[Pp]$ ]]; then
+  new_version="$proposed_version"
+  echo "\033[95mUtilitzant versió proposada: $new_version\033[0m"
+else
+  echo "\033[95mIntrodueix la nova versió (format: major.minor.patch, ex: 1.2.3):\033[0m"
+  read -r custom_version
+
+  # Valida el format de la versió
+  if [[ ! "$custom_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "\033[91mError: Format de versió invàlid. Ha de ser major.minor.patch (ex: 1.2.3)\033[0m"
+    exit 1
+  fi
+
+  new_version="$custom_version"
+  echo "\033[95mUtilitzant versió personalitzada: $new_version\033[0m"
+fi
+
+echo
 echo "\033[95mATENCIÓ: S'actualitzarà la versió a la $new_version i es publicarà a NPM (versió actual: $published_version). Vols continuar? (S/n)\033[0m"
 read -r resposta
 if [[ ! "$resposta" =~ ^[Ss]$ ]]; then
@@ -66,7 +95,7 @@ echo
 # Clona el codi font a dist
 rm -rf dist
 mkdir dist
-rsync -a --exclude='node_modules' --exclude='logs' --exclude='*.log' --exclude='.idea' --exclude='.vscode' --exclude='.DS_Store' --exclude='Thumbs.db' --exclude='*.swp' --exclude='*.swo' --exclude='package*.json' --exclude='dist' --exclude='tmp' --exclude='.eslintrc.json' --exclude='.gitignore' --exclude='.npmignore' --exclude='.*' --exclude='*.bak' --exclude='*.tmp' --exclude='*.temp' --exclude='rules' --exclude='dev' --exclude='.src' --exclude='.git' --exclude='@/deva' ./ ./dist/
+rsync -a --exclude-from=.npmignore ./ ./dist/
 
 echo "\033[95mOfuscant els fitxers JavaScript...\033[0m"
 find dist -name '*.js' | while read -r file; do
