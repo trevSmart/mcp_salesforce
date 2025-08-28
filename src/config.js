@@ -2,7 +2,7 @@ import {createRequire} from 'module';
 const require = createRequire(import.meta.url);
 const pkg = require('../package.json');
 
-import {getAgentInstructions} from './utils.js';
+import {getAgentInstructions} from './instructions.js';
 
 /**
  * Configuration object for the MCP server

@@ -3,9 +3,21 @@ import fs from 'fs';
 import state from './state.js';
 import path from 'path';
 import {fileURLToPath} from 'url';
-import {mcpServer} from './mcp-server.js';
 import client from './client.js';
-import {executeSoqlQuery} from './salesforceServices.js';
+// Avoid static import of salesforceServices to prevent ESM cycles during module init
+let _executeSoqlQuery = null;
+async function __getExecuteSoqlQuery() {
+	if (!_executeSoqlQuery) {
+		try {
+			const mod = await import('./salesforceServices.js');
+			_executeSoqlQuery = mod.executeSoqlQuery;
+		} catch {
+			_executeSoqlQuery = null;
+		}
+	}
+	return _executeSoqlQuery;
+}
+import {getAgentInstructions as _getAgentInstructions} from './instructions.js';
 
 /**
  * Logs data with specified level and context
@@ -64,9 +76,10 @@ export function log(data, logLevel = 'info', context = null) {
 		}
 
 		const logPrefix = getLogPrefix(logLevel);
-		if (shouldLog && mcpServer?.isConnected()) {
+		const mcp = globalThis.__mcpServer;
+		if (shouldLog && mcp?.isConnected()) {
 			const logger = `${logPrefix} MCP server`;
-			mcpServer.server.sendLoggingMessage({level: logLevel, logger, data: logData});
+			mcp.server.sendLoggingMessage({level: logLevel, logger, data: logData});
 
 		} else if (shouldError) {
 			console.error(`${logPrefix} | ${logLevel} | ${logData}`);
@@ -90,7 +103,8 @@ export async function validateUserPermissions(username) {
 		// Escape backslashes first, then single quotes for SOQL string literals
 		const safeUsername = username.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 		const soql = `SELECT Id FROM PermissionSetAssignment WHERE Assignee.Username = '${safeUsername}' AND PermissionSet.Name = 'IBM_SalesforceMcpUser'`;
-		const query = await executeSoqlQuery(soql);
+		const execSoql = await __getExecuteSoqlQuery();
+		const query = execSoql ? await execSoql(soql) : null;
 		if (query?.records?.length) {
 			state.userValidated = true;
 		} else {
@@ -116,41 +130,78 @@ export function notifyProgressChange(progressToken, total, progress, message) {
 */
 
 /**
- * Reads content from a tool's description file (.md or .b64)
- * @param {string} toolName - Name of the tool
+ * Reads text content from a file with flexible lookup rules.
+ * - If input contains a path separator, it is treated as a path relative to src/ (this file's folder),
+ *   with automatic fallback to a '.pam' variant when the original file doesn't exist (useful after packaging).
+ * - If input does not contain a path separator, it is treated as a tool descriptor name and looked up under src/tools.
+ * - If the found file content looks base64, it is decoded automatically.
+ * @param {string} input - Tool name (legacy) or relative/absolute path to a file (without or with extension).
  * @returns {string|null} Content of the file or null if not found
  */
-export function textFileContent(toolName) {
+export function textFileContent(input) {
 	try {
-		//Calcular __dirname localment dins la funció
 		const localFilename = fileURLToPath(import.meta.url);
 		const localDirname = path.dirname(localFilename);
-		const toolsDir = path.join(localDirname, 'tools');
 
-		// Buscar qualsevol fitxer amb qualsevol extensió
-		let mdPath = null;
-		if (fs.existsSync(toolsDir)) {
-			const files = fs.readdirSync(toolsDir);
-			const toolFile = files.find(file => file.startsWith(toolName + '.'));
-			if (toolFile) {
-				mdPath = path.join(toolsDir, toolFile);
+		const tryRead = (fullPath) => {
+			if (!fullPath || !fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) {
+				return null;
 			}
+			const content = fs.readFileSync(fullPath, 'utf8');
+			const trimmed = content.trim();
+			// Detect base64 payloads (used in publish step for .md/.apex → .pam)
+			const isBase64 = /^[A-Za-z0-9+/\r\n]*={0,2}$/.test(trimmed) && trimmed.length > 0;
+			return isBase64 ? Buffer.from(trimmed, 'base64').toString('utf8') : content;
+		};
+
+		const looksLikePath = input.includes('/') || input.includes('\\');
+
+		// Case A: explicit path lookup
+		if (looksLikePath) {
+			const basePath = path.isAbsolute(input) ? input : path.join(localDirname, input);
+
+			// 1) Exact path
+			let content = tryRead(basePath);
+			if (content !== null) {
+				return content;
+			}
+
+			// 2) Try ".pam" sibling (for packaged artifacts)
+			content = tryRead(basePath + '.pam');
+			if (content !== null) {
+				return content;
+			}
+
+			// 3) Try prefix match inside the same directory (e.g., basename.*)
+			const dir = path.dirname(basePath);
+			const base = path.basename(basePath);
+			if (fs.existsSync(dir)) {
+				const entry = (fs.readdirSync(dir) || []).find(f => f.startsWith(base + '.'));
+				if (entry) {
+					content = tryRead(path.join(dir, entry));
+					if (content !== null) {
+						return content;
+					}
+				}
+			}
+
+			return null;
 		}
 
-		if (!mdPath) {
-			throw new Error(`No description found for tool: ${toolName}`);
+		// Case B: legacy tool descriptor lookup under src/tools
+		const toolsDir = path.join(localDirname, 'tools');
+		if (!fs.existsSync(toolsDir)) {
+			return null;
 		}
-
-		const content = fs.readFileSync(mdPath, 'utf8');
-		//Detecta si és base64 (Base64 típicament conté només caràcters alfanumèrics, +, /, i = per padding)
-		const isBase64 = /^[A-Za-z0-9+/]*={0,2}$/.test(content.trim()) && content.length > 0;
-		if (isBase64) {
-			return Buffer.from(content, 'base64').toString('utf8');
-		} else {
-			return content;
+		const files = fs.readdirSync(toolsDir);
+		const toolFile = files.find(file => file.startsWith(input + '.'));
+		if (!toolFile) {
+			return null;
 		}
+		return tryRead(path.join(toolsDir, toolFile));
 
-	} catch {
+	} catch (error) {
+		log(error, 'debug', 'textFileContent error');
 		return null;
 	}
 }
@@ -313,23 +364,7 @@ export async function writeToTmpFileAsync(content, filename, extension = 'txt', 
  * @returns {string} Instructions text
  */
 export function getAgentInstructions(name) {
-	try {
-		// Load instructions from markdown files in the static directory
-		const localFilename = fileURLToPath(import.meta.url);
-		const localDirname = path.dirname(localFilename);
-		const staticPath = path.join(localDirname, 'static', `${name}.md`);
-
-		if (fs.existsSync(staticPath)) {
-			const content = fs.readFileSync(staticPath, 'utf8');
-			return content;
-		}
-
-		// Fallback for unknown agent types
-		return '';
-	} catch (error) {
-		log(`Error loading agent instructions for ${name}: ${error.message}`, 'error');
-		return '';
-	}
+	return _getAgentInstructions(name);
 }
 
 /**
@@ -398,7 +433,7 @@ export function formatDate(date) {
 	const safeFormat = (d, method, opts) => {
 		try {
 			return d[method](locale, opts);
-		} catch (e) {
+		} catch {
 			// Fallback to system default locale if provided locale is invalid
 			return d[method](undefined, opts);
 		}

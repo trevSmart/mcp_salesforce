@@ -93,6 +93,10 @@ const mcpServer = new McpServer(serverInfo, {capabilities, instructions, debounc
 	'notifications/prompts/list_changed'
 ]});
 
+// Expose server instance to break import cycles in utility logging
+// (utils reads via globalThis.__mcpServer instead of importing this module)
+globalThis.__mcpServer = mcpServer;
+
 export function newResource(uri, name, description, mimeType = 'text/plain', content, annotations = {}) {
 	try {
 		logger.debug(`MCP resource "${uri}" changed.`);

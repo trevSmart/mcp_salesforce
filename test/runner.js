@@ -2,25 +2,29 @@
 
 import {MCPServerManager, SalesforceOrgManager, TestHelpers} from './helpers.js';
 import {MCPClient} from './mcp-client.js';
-import {MCPToolsTestSuite} from './suites/mcp-tools.js';
+import {SalesforceMcpTestSuite} from './suites/mcp-tools.js';
 import {TEST_CONFIG} from './test-config.js';
 
 // Test runner class
 class TestRunner {
-	constructor(quiet = false) {
-		this.serverManager = new MCPServerManager();
+	constructor({compact = false, quiet = false} = {}) {
+		this.serverManager = new MCPServerManager(quiet);
 		this.mcpClient = null;
 		this.testResults = [];
 		this.originalOrg = null;
+		this.compact = compact;
 		this.quiet = quiet;
+		this.startTime = null;
 	}
 
 	// Run a single test
 	async runTest(name, testFunction) {
 		const timestamp = new Date().toISOString().slice(11, 23);
-		console.log(`\n\n${TEST_CONFIG.colors.cyan}${'='.repeat(80)}${TEST_CONFIG.colors.reset}`);
-		console.log(`${TEST_CONFIG.colors.orange}[${timestamp}] Running test: ${name}${TEST_CONFIG.colors.reset}`);
-		console.log(`${TEST_CONFIG.colors.cyan}${'='.repeat(80)}${TEST_CONFIG.colors.reset}`);
+		if (!this.quiet) {
+			console.log(`\n\n${TEST_CONFIG.colors.cyan}${'='.repeat(80)}${TEST_CONFIG.colors.reset}`);
+			console.log(`${TEST_CONFIG.colors.orange}[${timestamp}] Running test: ${name}${TEST_CONFIG.colors.reset}`);
+			console.log(`${TEST_CONFIG.colors.cyan}${'='.repeat(80)}${TEST_CONFIG.colors.reset}`);
+		}
 
 		const startTime = Date.now();
 		let success = false;
@@ -54,50 +58,189 @@ class TestRunner {
 
 	// Display test result (separated from runTest for better control)
 	displayTestResult(testResult) {
+		if (this.quiet) {
+			console.log(`  Test ${TEST_CONFIG.colors.cyan}${testResult.name}${TEST_CONFIG.colors.reset}: ${testResult.status} ${TEST_CONFIG.colors.gray}(${testResult.duration})${TEST_CONFIG.colors.reset}`);
+			return;
+		}
 		console.log(`\n${TEST_CONFIG.colors.cyan}${'─'.repeat(40)}${TEST_CONFIG.colors.reset}`);
-		console.log(`${testResult.status} ${testResult.name} (${testResult.duration}ms)`);
+		console.log(`${testResult.status} ${testResult.name} (${testResult.duration})`);
 		console.log(`${TEST_CONFIG.colors.cyan}${'─'.repeat(40)}${TEST_CONFIG.colors.reset}`);
 	}
 
-	// Run MCP tools tests
-	async runMCPToolsTests(testsToRun = null, quiet = false) {
-		const mcpToolsSuite = new MCPToolsTestSuite(this.mcpClient, quiet);
-		const testsToExecute = await mcpToolsSuite.runTests(testsToRun);
+	// Run test suite
+	async runSuiteTests(testsToRun = null) {
+		const suppressToolOutput = this.compact || this.quiet;
+		const suite = new SalesforceMcpTestSuite(this.mcpClient, suppressToolOutput);
 
-		for (let i = 0; i < testsToExecute.length; i++) {
-			const test = testsToExecute[i];
-
-			// Run the test through the TestRunner for proper tracking
-			let result;
-			const testResult = await this.runTest(`Test ${test.name}`, async () => {
-			// Execute the test and get the result INSIDE runTest so title appears first
-				try {
-					result = await test.run(mcpToolsSuite.context);
-					return result;
-				} catch (error) {
-					console.log(`${TEST_CONFIG.colors.red}❌ Test ${test.name} failed: ${error.message}${TEST_CONFIG.colors.reset}`);
-					throw error;
+		// Global pre-suite hook (optional)
+		if (typeof suite.scriptBeforeAll === 'function') {
+			try {
+				if (!this.quiet) {
+					console.log(`${TEST_CONFIG.colors.cyan}Executing global pre-suite script...${TEST_CONFIG.colors.reset}`);
 				}
-			});
+				await suite.scriptBeforeAll(suite.context);
+			} catch (e) {
+				console.log(`${TEST_CONFIG.colors.red}❌ Global pre-suite script failed: ${e.message}${TEST_CONFIG.colors.reset}`);
+			}
+		}
 
-			// Display tool output AFTER the test execution
-			mcpToolsSuite.displayToolOutput(test.name, result);
+		const testData = await suite.runTests(testsToRun);
 
-			// Execute post-test script if it exists
-			if (test.script) {
-				try {
-					console.log(`${TEST_CONFIG.colors.cyan}Executing post-test script for ${test.name}...${TEST_CONFIG.colors.reset}`);
-					await test.script(result, mcpToolsSuite.context);
-				} catch (scriptError) {
-					console.log(`${TEST_CONFIG.colors.red}❌ Script execution failed for ${test.name}: ${scriptError.message}${TEST_CONFIG.colors.reset}`);
+		// Run using a dependency-aware queue scheduler (no phases)
+		await this.runTestsWithDependencies(testData.tests, suite);
+
+		// Global post-suite hook (optional)
+		if (typeof suite.scriptAfterAll === 'function') {
+			try {
+				if (!this.quiet) {
+					console.log(`${TEST_CONFIG.colors.cyan}Executing global post-suite script...${TEST_CONFIG.colors.reset}`);
 				}
+				await suite.scriptAfterAll(suite.context);
+			} catch (e) {
+				console.log(`${TEST_CONFIG.colors.red}❌ Global post-suite script failed: ${e.message}${TEST_CONFIG.colors.reset}`);
+			}
+		}
+	}
+
+	// Dependency-aware scheduler honoring canRunInParallel
+	async runTestsWithDependencies(tests, mcpToolsSuite) {
+		const maxConcurrency = 7;
+		// const nameToTest = new Map(tests.map(t => [t.name, t]));
+		const dependents = new Map();
+		const depCount = new Map();
+		const started = new Set();
+		const completed = new Set();
+		const running = new Set();
+
+		// Build dependency graph
+		for (const test of tests) {
+			depCount.set(test.name, (test.dependencies || []).length);
+			for (const dep of (test.dependencies || [])) {
+				if (!dependents.has(dep)) {
+					dependents.set(dep, []);
+				}
+				dependents.get(dep).push(test.name);
+			}
+		}
+
+		const ready = () => tests.filter(t => !started.has(t.name) && (depCount.get(t.name) || 0) === 0);
+		const delay = ms => new Promise(r => setTimeout(r, ms));
+
+		const runAndTrack = async (test) => {
+			running.add(test.name);
+			try {
+				await this.runSingleTest(test, mcpToolsSuite);
+				completed.add(test.name);
+				// Decrement dependents depCount
+				const deps = dependents.get(test.name) || [];
+				for (const depName of deps) {
+					depCount.set(depName, (depCount.get(depName) || 0) - 1);
+				}
+			} finally {
+				running.delete(test.name);
+			}
+		};
+
+		if (!this.quiet) {
+			console.log(`${TEST_CONFIG.colors.cyan}Starting dependency-aware queue: ${tests.length} tests, concurrency ${maxConcurrency}${TEST_CONFIG.colors.reset}`);
+		}
+
+		while (completed.size < tests.length) {
+			let candidates = ready();
+
+			if (candidates.length === 0 && running.size === 0) {
+				const remaining = tests.filter(t => !completed.has(t.name));
+				throw new Error(`No runnable tests. Possible circular dependency among: ${remaining.map(t => t.name).join(', ')}`);
 			}
 
-			// Display test result AFTER everything else
-			this.displayTestResult(testResult);
+			// Prioritize high-priority tests
+			const highPriority = candidates.filter(t => t.priority === 'high');
+			const regular = candidates.filter(t => t.priority !== 'high');
+			candidates = [...highPriority, ...regular];
 
-			// Apply delay if specified (after the test has been fully processed by TestRunner)
-			if ((test.thenWait || 0) > 0) {
+			// If any exclusive test is ready, run it alone (prefer high-priority exclusives)
+			const exclusive = candidates.find(t => !t.canRunInParallel);
+			if (exclusive) {
+				// Wait for current running tests to finish
+				while (running.size > 0) {
+					await delay(100);
+				}
+				started.add(exclusive.name);
+				await runAndTrack(exclusive);
+				continue; // re-evaluate
+			}
+
+			// Start as many parallelizable tests as possible
+			let startedAny = false;
+			for (const t of candidates) {
+				if (running.size >= maxConcurrency) {
+					break;
+				}
+				if (!t.canRunInParallel) {
+					continue;
+				} // handled above
+				started.add(t.name);
+				startedAny = true;
+				// Fire and forget; scheduler will poll
+				runAndTrack(t);
+			}
+
+			// If nothing started, wait for progress
+			if (!startedAny) {
+				await delay(100);
+			}
+		}
+	}
+
+	// Run a single test with all the TestRunner logic
+	async runSingleTest(test, suite) {
+		// Run the test through the TestRunner for proper tracking
+		let result;
+		// Execute pre-test script if present
+		if (test.scriptBefore) {
+			try {
+				if (!this.quiet) {
+					console.log(`${TEST_CONFIG.colors.cyan}Executing pre-test script for ${test.name}...${TEST_CONFIG.colors.reset}`);
+				}
+				await test.scriptBefore(suite.context);
+			} catch (scriptError) {
+				console.log(`${TEST_CONFIG.colors.red}❌ Pre-test script failed for ${test.name}: ${scriptError.message}${TEST_CONFIG.colors.reset}`);
+			}
+		}
+
+		const testResult = await this.runTest(`${test.name}`, async () => {
+			try {
+				result = await test.run(suite.context);
+				return result;
+			} catch (error) {
+				console.log(`${TEST_CONFIG.colors.red}❌ Test ${test.name} failed: ${error.message}${TEST_CONFIG.colors.reset}`);
+				throw error;
+			}
+		});
+
+		// Display tool output AFTER the test execution
+		suite.displayToolOutput(test.name, result);
+
+		// Execute post-test script if it exists
+		if (test.scriptAfter) {
+			try {
+				if (!this.quiet) {
+					console.log(`${TEST_CONFIG.colors.cyan}Executing post-test script for ${test.name}...${TEST_CONFIG.colors.reset}`);
+				}
+				await test.scriptAfter(result, suite.context);
+			} catch (scriptError) {
+				console.log(`${TEST_CONFIG.colors.red}❌ Script execution failed for ${test.name}: ${scriptError.message}${TEST_CONFIG.colors.reset}`);
+			}
+		}
+
+		// Display test result AFTER everything else
+		this.displayTestResult(testResult);
+
+		// Apply delay if specified (after the test has been fully processed by TestRunner)
+		if ((test.thenWait || 0) > 0) {
+			if (this.quiet) {
+				await new Promise(resolve => setTimeout(resolve, test.thenWait));
+			} else {
 				console.log(`\n${TEST_CONFIG.colors.cyan}Wait for ${Math.ceil(test.thenWait / 1000)}s after test "${test.name}"...${TEST_CONFIG.colors.reset}`);
 				const delayStart = Date.now();
 
@@ -122,16 +265,62 @@ class TestRunner {
 				console.log('    Finished waiting.');
 			}
 		}
+
+		return testResult;
+	}
+
+	// Run tests in parallel with limited concurrency
+	async runTestsInParallel(tests, mcpToolsSuite) {
+		const maxConcurrency = 7; // Limit concurrent tests to avoid overwhelming Salesforce
+		const testResults = new Map();
+		const runningTests = new Set();
+
+		// Helper function to run a single test
+		const runTestWithTracking = async (test) => {
+			try {
+				const result = await this.runSingleTest(test, mcpToolsSuite);
+				testResults.set(test.name, result);
+			} catch (error) {
+				testResults.set(test.name, {error: error.message});
+			} finally {
+				runningTests.delete(test);
+			}
+		};
+
+		// Process tests with limited concurrency
+		for (const test of tests) {
+			// Wait if we've reached max concurrency
+			while (runningTests.size >= maxConcurrency) {
+				await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
+			}
+
+			// Start the test
+			runningTests.add(test);
+			runTestWithTracking(test);
+		}
+
+		// Wait for all remaining tests to complete
+		while (runningTests.size > 0) {
+			await new Promise(resolve => setTimeout(resolve, 100));
+		}
+
+		// Return results in the same order as input
+		return tests.map(test => testResults.get(test.name));
 	}
 
 	// Run all tests
 	async runAllTests(options = {}) {
-		const {tests} = options;
+		const {tests, logLevel} = options;
+
+		// Record start time for total execution time calculation
+		this.startTime = Date.now();
 
 		try {
 			// Ensure we're in the test org
-			console.log(`\n${TEST_CONFIG.colors.cyan}Managing Salesforce org...${TEST_CONFIG.colors.reset}`);
-			this.originalOrg = await SalesforceOrgManager.ensureTestOrg();
+			if (!this.quiet) {
+				console.log(`\n${TEST_CONFIG.colors.cyan}Managing Salesforce org...${TEST_CONFIG.colors.reset}`);
+			}
+			this.originalOrg = await SalesforceOrgManager.ensureTestOrg(this.quiet);
 
 			// Start server
 			await this.serverManager.start();
@@ -140,18 +329,24 @@ class TestRunner {
 			await new Promise(resolveTimeout => setTimeout(resolveTimeout, TEST_CONFIG.mcpServer.startupDelay));
 
 			// Create MCP client and set up communication
-			this.mcpClient = new MCPClient(this.serverManager.getProcess());
+			this.mcpClient = new MCPClient(this.serverManager.getProcess(), {quiet: this.quiet});
 
 			// Set up stdout handling for the client
 			this.serverManager.getProcess().stdout.on('data', (data) => {
 				this.mcpClient.handleServerMessage(data);
 			});
 
-			// Set the MCP server logging level
-			await this.mcpClient.setLoggingLevel(TEST_CONFIG.mcpServer.defaultLogLevel);
+			// Set the MCP server logging level (quiet mode forces 'warning')
+			const requestedLevel = logLevel || TEST_CONFIG.mcpServer.defaultLogLevel;
+			const effectiveLevel = this.quiet ? 'warning' : requestedLevel;
+			if (this.quiet) {
+				// Explicitly indicate quiet-mode log level change
+				console.log(`Setting logging level to "${effectiveLevel}" (quiet mode)`);
+			}
+			await this.mcpClient.setLoggingLevel(effectiveLevel);
 
-			// Execute MCP tools tests
-			await this.runMCPToolsTests(tests, this.quiet);
+			// Execute tests
+			await this.runSuiteTests(tests);
 
 			// Wait for any pending operations
 			await new Promise(resolveTimeout => setTimeout(resolveTimeout, 1000));
@@ -163,7 +358,9 @@ class TestRunner {
 
 		} finally {
 			// Stop server
-			console.log(`${TEST_CONFIG.colors.cyan}Stopping MCP server...${TEST_CONFIG.colors.reset}`);
+			if (!this.quiet) {
+				console.log(`${TEST_CONFIG.colors.cyan}Stopping MCP server...${TEST_CONFIG.colors.reset}`);
+			}
 			await this.serverManager.stop();
 
 			// Wait a bit for server to fully shut down
@@ -171,16 +368,38 @@ class TestRunner {
 
 			// Restore original org
 			if (this.originalOrg) {
-				console.log(`${TEST_CONFIG.colors.orange}Restoring Salesforce org...${TEST_CONFIG.colors.reset}`);
-				SalesforceOrgManager.restoreOriginalOrg(this.originalOrg);
+				if (!this.quiet) {
+					console.log(`${TEST_CONFIG.colors.orange}Restoring Salesforce org...${TEST_CONFIG.colors.reset}`);
+				}
+				SalesforceOrgManager.restoreOriginalOrg(this.originalOrg, this.quiet);
 			}
 		}
 
-		// Print summary
-		this.printSummary();
+		// Print summary (in quiet mode, print only the final outcome line)
+		if (!this.quiet) {
+			this.printSummary();
+		} else {
+			const total = this.testResults.length;
+			const passed = this.testResults.filter(r => r.success).length;
+			const failed = total - passed;
+			console.log(`${failed === 0 ? '🎉 All tests passed! 🎉' : '💥 Some tests failed! 💥'}`);
+		}
+
+		// Show total execution time
+		const formattedTotalTime = TestHelpers.formatDuration(this.startTime);
+
+		if (!this.quiet) {
+			console.log(`\n${TEST_CONFIG.colors.cyan}${'─'.repeat(40)}${TEST_CONFIG.colors.reset}`);
+			console.log(`${TEST_CONFIG.colors.bright}⏱️  Total execution time: ${formattedTotalTime}${TEST_CONFIG.colors.reset}`);
+			console.log(`${TEST_CONFIG.colors.cyan}${'─'.repeat(40)}${TEST_CONFIG.colors.reset}`);
+		} else {
+			console.log(`⏱️  Total time: ${formattedTotalTime}`);
+		}
 
 		// Ensure clean exit
-		console.log(`${TEST_CONFIG.colors.cyan}Test execution completed successfully.${TEST_CONFIG.colors.reset}`);
+		if (!this.quiet) {
+			console.log(`${TEST_CONFIG.colors.cyan}Test execution completed successfully.${TEST_CONFIG.colors.reset}`);
+		}
 		process.exit(0);
 	}
 
@@ -215,16 +434,20 @@ async function main() {
 	const cmdArgs = TestHelpers.parseCommandLineArgs();
 	const LOG_LEVEL = cmdArgs.logLevel || TEST_CONFIG.mcpServer.defaultLogLevel;
 	const TESTS_TO_RUN = cmdArgs.tests ? cmdArgs.tests.split(',').map(test => test.trim()) : null;
+	const COMPACT = Boolean(cmdArgs.compact);
+	const QUIET = Boolean(cmdArgs.quiet);
 
 	// Show tests to run if specified
-	if (TESTS_TO_RUN) {
-		console.log(`${TEST_CONFIG.colors.cyan}Selected tests to run: ${TESTS_TO_RUN.join(', ')} using log level: ${LOG_LEVEL}${TEST_CONFIG.colors.reset}`);
-	} else {
-		console.log(`${TEST_CONFIG.colors.cyan}Running all available tests using log level: ${LOG_LEVEL}${TEST_CONFIG.colors.reset}`);
+	if (!QUIET) {
+		if (TESTS_TO_RUN) {
+			console.log(`${TEST_CONFIG.colors.cyan}Selected tests to run: ${TESTS_TO_RUN.join(', ')} using log level: ${LOG_LEVEL}${TEST_CONFIG.colors.reset}`);
+		} else {
+			console.log(`${TEST_CONFIG.colors.cyan}Running all available tests using log level: ${LOG_LEVEL}${TEST_CONFIG.colors.reset}`);
+		}
 	}
 
 	// Run tests
-	const runner = new TestRunner(cmdArgs.quiet);
+	const runner = new TestRunner({compact: COMPACT, quiet: QUIET});
 	try {
 		await runner.runAllTests({
 			tests: TESTS_TO_RUN,
@@ -249,14 +472,15 @@ ${TEST_CONFIG.colors.cyan}Options:${TEST_CONFIG.colors.reset}
                     Valid values: emergency, alert, critical, error, warning, notice, info, debug
   --tests=<tests>     Comma-separated list of test names to run (partial matching)
                     Example: "apexDebugLogs,getRecord"
-  --quiet             Suppress tool output display for each test
+  --compact           Reduce output by hiding tool outputs
+  --quiet             Minimal output; only one-line per test result
   --help              Show this help message
 
 ${TEST_CONFIG.colors.cyan}Examples:${TEST_CONFIG.colors.reset}
   node test/runner.js --logLevel=debug
   node test/runner.js --tests=apexDebugLogs,getRecord
   node test/runner.js --logLevel=debug --tests=salesforceMcpUtils
-  node test/runner.js --quiet
+  node test/runner.js --compact
   node test/runner.js --quiet --tests=apexDebugLogs
 `);
 }

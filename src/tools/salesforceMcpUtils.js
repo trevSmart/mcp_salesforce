@@ -5,10 +5,6 @@ import {z} from 'zod';
 import {resources, newResource, clearResources} from '../mcp-server.js';
 import config from '../config.js';
 import {getOrgAndUserDetails, executeAnonymousApex} from '../salesforceServices.js';
-import {readFile} from 'fs/promises';
-import {existsSync, readdirSync} from 'fs';
-import {join, dirname} from 'path';
-import {fileURLToPath} from 'url';
 
 export const salesforceMcpUtilsToolDefinition = {
 	name: 'salesforceMcpUtils',
@@ -102,23 +98,12 @@ export async function salesforceMcpUtilsToolHandler({action, issueDescription, i
 				content.push({type: 'text', text: '✅ Object record prefixes resource already loaded'});
 
 			} else {
-				// Read the Apex script file directly - buscar amb qualsevol extensió
-				const staticDir = join(dirname(fileURLToPath(import.meta.url)), '../static');
-				let apexScriptPath = null;
-
-				if (existsSync(staticDir)) {
-					const files = readdirSync(staticDir);
-					const scriptFile = files.find(file => file.startsWith('retrieve-sobject-prefixes.'));
-					if (scriptFile) {
-						apexScriptPath = join(staticDir, scriptFile);
-					}
+				// Load Apex script content via generalized textFileContent helper.
+				// Works in dev (src/static/*.apex) and in packaged builds (src/static/*.apex.pam).
+				const apexScript = textFileContent('static/retrieve-sobject-prefixes.apex');
+				if (!apexScript) {
+					throw new Error('No retrieve-sobject-prefixes.apex(.pam) content found under static');
 				}
-
-				if (!apexScriptPath) {
-					throw new Error('No retrieve-sobject-prefixes file found in static directory');
-				}
-
-				const apexScript = await readFile(apexScriptPath, 'utf8');
 				const result = await executeAnonymousApex(apexScript);
 				if (result.success) {
 					const resultLogs = result.logs;
