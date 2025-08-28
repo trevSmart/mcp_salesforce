@@ -92,29 +92,44 @@ npm version $new_version --no-git-tag-version > /dev/null 2>&1
 
 echo
 
-# Clona el codi font a dist
+# Actualitza deeplinks del README abans de preparar dist
+node dev/updateReadmeDeeplinks.js > /dev/null 2>&1 || true
+
+# Clona el codi font a dist (amb exclusions de .npmignore)
 rm -rf dist
 mkdir dist
 rsync -a --exclude-from=.npmignore ./ ./dist/
 
-echo "\033[95mOfuscant els fitxers JavaScript...\033[0m"
+echo "\033[95mOfuscant els fitxers JavaScript (sense canviar noms exportats)...\033[0m"
 find dist -name '*.js' | while read -r file; do
   echo "   $file..."
+
+  # Evita ofuscar scripts amb shebang (ex. CLI), per evitar problemes de processament i preservar la capçalera
+  if head -n 1 "$file" | grep -q '^#!'; then
+    echo "   (omès - script amb shebang)"
+    continue
+  fi
+
+  OBF_LOG=$(mktemp)
   ./node_modules/.bin/javascript-obfuscator "$file" \
     --output "$file" \
     --compact true \
     --string-array true \
     --string-array-threshold 0.75 \
-    --identifier-names-generator mangled \
     --target node \
     --self-defending true \
     --debug-protection false \
     --unicode-escape-sequence true \
-    --rename-globals true \
-    >/dev/null 2>&1 || {
+    --rename-globals false \
+    --reserved-names '.*' \
+    >"$OBF_LOG" 2>&1 || {
       echo "❌ Error ofuscant $file"
+      echo "—— Sortida de l'obfuscador ——"
+      sed -n '1,200p' "$OBF_LOG"
+      rm -f "$OBF_LOG"
       exit 1
     }
+  rm -f "$OBF_LOG"
 done
 
 echo
@@ -131,16 +146,20 @@ if [ -d "dist/src/tools" ]; then
   done
 fi
 
-node dev/updateReadmeDeeplinks.js > /dev/null 2>&1
+# Neteja arxius que no calin dins el paquet i prepara package.json minimal
+rm -f dist/.npmignore
 
-sed -i '' "s/\(version: '\)[^']*'/\1$new_version'/" index.js
+echo "\033[95mPreparant package.json minimal per publicar...\033[0m"
+jq '{
+  name, version, description, main, type, browser, bin, keywords, author, dependencies, engines
+} + { files: ["index.js", "src", "bin", "README.md", "LICENSE"] }' package.json > dist/package.json
 
 echo
 
-echo "\033[95mPublicant el paquet a NPM...\033[0m"
+echo "\033[95mPublicant el paquet a NPM (des de dist/)...\033[0m"
 PUBLISH_OUTPUT=$(mktemp)
-if ! (npm publish --access public) > "$PUBLISH_OUTPUT" 2>&1; then
-  echo "\033[91m❌ Error publicant el paquet a NPM:\033[0m"ie
+if ! (cd dist && npm publish --access public) > "$PUBLISH_OUTPUT" 2>&1; then
+  echo "\033[91m❌ Error publicant el paquet a NPM:\033[0m"
   cat "$PUBLISH_OUTPUT"
   rm -f "$PUBLISH_OUTPUT"
   exit 1

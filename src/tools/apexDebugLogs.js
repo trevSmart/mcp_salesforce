@@ -2,39 +2,40 @@ import {newResource} from '../mcp-server.js';
 import {mcpServer} from '../mcp-server.js';
 import state from '../state.js';
 import client from '../client.js';
-import {log, textFileContent, formatDate, ensureTmpDir, writeToTmpFile} from '../utils.js';
+import {log, textFileContent, formatDate} from '../utils.js'; // ensureTmpDir, writeToTmpFile
 import {executeSoqlQuery, dmlOperation, runCliCommand} from '../salesforceServices.js';
 import {z} from 'zod';
-import path from 'path';
-import {execSync} from 'child_process';
+// import path from 'path';
+// import {execSync} from 'child_process';
 
 export const apexDebugLogsToolDefinition = {
 	name: 'apexDebugLogs',
 	title: 'Manage Apex debug logs',
 	description: textFileContent('apexDebugLogs'),
 	inputSchema: {
-		action: z.enum(['status', 'on', 'off', 'list', 'get', 'analyze'])
-			.describe('The action to perform. Possible values: "status", "on", "off", "list", "get", "analyze".'),
+		action: z.enum(['status', 'on', 'off', 'list', 'get'])
+			.describe('The action to perform. Possible values: "status", "on", "off", "list", "get".'),
 		logId: z.string()
 			.optional()
-			.describe('The ID of the log to retrieve (optional for "get" and "analyze" actions - if not provided, user will be prompted to select from available logs)'),
-		analyzeOptions: z.object({
-			minDurationMs: z
-				.number()
-				.optional()
-				.default(0)
-				.describe('Filter out events shorter than this duration in milliseconds.'),
-			maxEvents: z
-				.number()
-				.optional()
-				.default(200)
-				.describe('Trim to the first N completed events after filtering.'),
-			output: z
-				.enum(['both', 'json', 'diagram'])
-				.optional()
-				.default('both')
-				.describe('Which artifacts to return in the tool output.')
-		}).optional().describe('Options for analyze action (only used when action is "analyze")')
+			.describe('The ID of the log to retrieve (only used when action is "get"; selection is prompted if not provided).')
+		// analyzeOptions temporarily disabled while analyze action is not ready
+		// analyzeOptions: z.object({
+		// 	minDurationMs: z
+		// 		.number()
+		// 		.optional()
+		// 		.default(0)
+		// 		.describe('Filter out events shorter than this duration in milliseconds.'),
+		// 	maxEvents: z
+		// 		.number()
+		// 		.optional()
+		// 		.default(200)
+		// 		.describe('Trim to the first N completed events after filtering.'),
+		// 	output: z
+		// 		.enum(['both', 'json', 'diagram'])
+		// 		.optional()
+		// 		.default('both')
+		// 		.describe('Which artifacts to return in the tool output.')
+		// }).optional().describe('Options for analyze action (only used when action is "analyze")')
 	},
 	annotations: {
 		readOnlyHint: false,
@@ -44,6 +45,7 @@ export const apexDebugLogsToolDefinition = {
 	}
 };
 
+/*
 async function analyzeApexLog(logContent, minDurationMs = 0, maxEvents = 200, output = 'both') {
 	try {
 		if (!logContent) {
@@ -361,10 +363,11 @@ async function exportMermaidToPng(mermaidText, fileBaseName) {
 		throw error;
 	}
 }
+*/
 
-export async function apexDebugLogsToolHandler({action, logId, analyzeOptions}) {
+export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOptions
 	try {
-		if (!['status', 'on', 'off', 'list', 'get', 'analyze'].includes(action)) {
+		if (!['status', 'on', 'off', 'list', 'get'].includes(action)) {
 			throw new Error(`Invalid action: ${action}`);
 		}
 
@@ -695,87 +698,14 @@ export async function apexDebugLogsToolHandler({action, logId, analyzeOptions}) 
 				structuredContent: {apexLog}
 			};
 
+		/*
 		} else if (action === 'analyze') {
-			// Handle analyze action with automatic log selection if needed
-			if (!logId) {
-				if (client.supportsCapability('elicitation')) {
-					// Get the list of available logs for selection
-					let response = await runCliCommand('sf apex list log --json');
-					let logs = [];
-
-					try {
-						const parsedResponse = JSON.parse(response);
-						logs = parsedResponse?.result || [];
-					} catch (error) {
-						log(`Error parsing JSON response: ${error.message}`, 'error');
-						logs = [];
-					}
-
-					if (!logs || !Array.isArray(logs) || logs.length === 0) {
-						throw new Error('No Apex debug logs available for selection');
-					}
-
-					// Take only the first 50 logs and format them for selection
-					const availableLogs = logs.slice(0, 50).map(logItem => {
-						const startTime = formatDate(new Date(logItem.StartTime));
-						const logUser = logItem.ExecutedBy || logItem.User || 'Unknown';
-						const size = logItem.LogLength ?
-							(parseInt(logItem.LogLength) < 1024 * 1024 ?
-								`${Math.floor(parseInt(logItem.LogLength) / 1024)} KB` :
-								`${(parseInt(logItem.LogLength) / (1024 * 1024)).toFixed(1)} MB`) : 'N/A';
-
-						return {
-							id: logItem.Id,
-							description: `${startTime} · ${logUser} · ${size}`
-						};
-					});
-
-					const elicitResult = await mcpServer.server.elicitInput({
-						message: `Please select an Apex debug log to analyze. Available logs: ${availableLogs.length}`,
-						requestedSchema: {
-							type: 'object',
-							title: 'Select Apex debug log to analyze',
-							properties: {
-								logId: {
-									type: 'string',
-									enum: availableLogs.map(logItem => logItem.id),
-									enumNames: availableLogs.map(logItem => logItem.description),
-									description: 'Select the Apex debug log to analyze'
-								}
-							},
-							required: ['logId']
-						}
-					});
-
-					if (elicitResult.action !== 'accept' || !elicitResult.content?.logId) {
-						return {
-							content: [{
-								type: 'text',
-								text: 'User has cancelled the log selection'
-							}],
-							structuredContent: elicitResult
-						};
-					}
-
-					logId = elicitResult.content.logId;
-				} else {
-					throw new Error('logId is required for the "analyze" action');
-				}
-			}
-
-			// Get the log content for analysis
-			const apexLog = await runCliCommand(`sf apex get log --log-id ${logId}`);
-
-			// Extract analyze options with defaults
-			const options = analyzeOptions || {};
-			const minDurationMs = options.minDurationMs || 0;
-			const maxEvents = options.maxEvents || 200;
-			const output = options.output || 'both';
-
-			// Analyze the log using the separate analysis logic
-			const analysisResult = await analyzeApexLog(apexLog, minDurationMs, maxEvents, output);
-
-			return analysisResult;
+			// Analyze action temporarily disabled (feature not ready)
+			return {
+				isError: true,
+				content: [{type: 'text', text: 'Analyze action is temporarily disabled.'}]
+			};
+			*/
 		}
 
 	} catch (error) {

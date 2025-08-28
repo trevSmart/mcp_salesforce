@@ -5,7 +5,8 @@ Allows you to manage Apex debug logs in Salesforce.
 ---
 ## Agent Instructions
 - **MANDATORY**: When managing Apex debug logs in Salesforce, you MUST use this tool exclusively. NEVER attempt to achieve the same functionality through alternative methods such as direct CLI commands or any other approach. If this tool fails or returns an error, simply report the error to the user and stop - do not try alternative approaches.
-- Use only the allowed action values: "status", "on", "off", "list", "get" or "analyze".
+- Use only the allowed action values: "status", "on", "off", "list", "get".
+- Note: The `analyze` action is temporarily disabled and not available.
 
 ---
 ## Usage
@@ -89,40 +90,7 @@ Allows you to manage Apex debug logs in Salesforce.
     - Expiration date: expiration date as returned by the tool
     - Debug level
 
-- `action: 'analyze'`: Analyze debug logs:
-  - **IMPORTANT**: For the "analyze" action, if no logId is provided, the tool will automatically show a selection menu to the user to select from the available logs.
-  - Parameters:
-    - **`logId`**: The ID of the log to analyze (optional for "analyze" action - if not provided, user will be prompted to select from available logs)
-    - **`analyzeOptions`**: Object with options for the analyze action (only used when action is "analyze")
-      - **`analyzeOptions.minDurationMs`**: Filter out events shorter than this duration in milliseconds (default: 0)
-      - **`analyzeOptions.maxEvents`**: Trim to the first N completed events after filtering (default: 200)
-      - **`analyzeOptions.output`**: Which artifacts to return in the tool output. Options: "both", "json", "diagram" (default: "both")
-
-  - Example with specific logId (user has mentioned a specific logId):
-    ```json
-    {
-      "action": "analyze",
-      "logId": "000000000000000"
-    }
-    ```
-  - Example without logId (triggers automatic log selection):
-    ```json
-    {
-      "action": "analyze"
-    }
-    ```
-  - Example with custom analyze options:
-    ```json
-    {
-      "action": "analyze",
-      "logId": "000000000000000",
-      "analyzeOptions": {
-        "minDurationMs": 1000,
-        "maxEvents": 100,
-        "output": "both"
-      }
-    }
-    ```
+- `action: 'analyze'`: Temporarily unavailable.
 ---
 ## Examples
 
@@ -141,26 +109,8 @@ Allows you to manage Apex debug logs in Salesforce.
 }
 ```
 
-### Analyze with Default Options
-```json
-{
-  "action": "analyze",
-  "logId": "000000000000000"
-}
-```
-
-### Analyze with Custom Options
-```json
-{
-  "action": "analyze",
-  "logId": "000000000000000",
-  "analyzeOptions": {
-    "minDurationMs": 5000,
-    "maxEvents": 50,
-    "output": "diagram"
-  }
-}
-```
+### Analyze (Disabled)
+The `analyze` action is temporarily disabled and has been removed from examples until re-enabled.
 
 ### List All Available Logs
 ```json
