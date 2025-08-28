@@ -1,5 +1,7 @@
-#!/bin/bash
+#!/bin/sh
 set -e
+
+# Script compatible amb sh (POSIX). Treu dependència de bash.
 
 # Obté el nom del paquet des de package.json
 package_name=$(node -p "require('./package.json').name")
@@ -10,9 +12,40 @@ echo "\033[38;2;255;140;0mScript de publicació a NPM de $package_name\033[0m"
 echo "\033[38;2;255;140;0mTrevor Smart, 2025\033[0m"
 echo
 
+# Gestió de la versió abans dels tests
+if [ -n "$published_version" ]; then
+  tmpfile=$(mktemp)
+  jq --arg v "$published_version" '.version = $v' package.json > "$tmpfile" && mv "$tmpfile" package.json
+fi
+
+current_version=$(node -p "require('./package.json').version")
+major=$(echo $current_version | cut -d. -f1)
+minor=$(echo $current_version | cut -d. -f2)
+patch=$(echo $current_version | cut -d. -f3)
+new_patch=$((patch + 1))
+proposed_version="$major.$minor.$new_patch"
+
+# Mostra instrucció clara i demana la nova versió
+echo "\033[38;5;99mVersió $current_version\033[0m\033[36m --> \033[1m$proposed_version\033[22m.\033[0m\033[95m Accepta (↵) o indica'n una altra:\033[0m"
+
+IFS= read -r new_version
+if [ -z "$new_version" ]; then
+  new_version="$proposed_version"
+fi
+
+# Si l'usuari no ha introduït res, utilitza la versió proposada
+if [ -z "$new_version" ]; then
+  new_version="$proposed_version"
+fi
+
+# Valida el format de la versió
+echo "$new_version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || {
+  echo "\033[91mError: Format de versió invàlid. El format ha de ser 'major.minor.patch' (ex: 1.2.3)\033[0m"
+  exit 1
+}
+
 # Executa els tests utilitzant el framework de test configurat
 echo "\033[95mExecutant tests bàsics de funcionament del servidor...\033[0m"
-echo
 TEST_OUTPUT=$(mktemp)
 npm run test -- --quiet | tee "$TEST_OUTPUT"
 
@@ -27,51 +60,8 @@ echo
 echo "\033[95m✅ Tots els tests han passat correctament.\033[0m"
 rm -f "$TEST_OUTPUT"
 
-if [ -n "$published_version" ]; then
-  tmpfile=$(mktemp)
-  jq --arg v "$published_version" '.version = $v' package.json > "$tmpfile" && mv "$tmpfile" package.json
-fi
-
-current_version=$(node -p "require('./package.json').version")
-major=$(echo $current_version | cut -d. -f1)
-minor=$(echo $current_version | cut -d. -f2)
-patch=$(echo $current_version | cut -d. -f3)
-new_patch=$((patch + 1))
-proposed_version="$major.$minor.$(printf '%02d' $new_patch)"
-
-echo "\033[95mVersió actual: $current_version"
-echo "Versió proposada: $proposed_version"
-echo
-echo "Vols utilitzar la versió proposada o introduir una altra? (p/altra):\033[0m"
-read -r resposta
-
-if [[ "$resposta" =~ ^[Pp]$ ]]; then
-  new_version="$proposed_version"
-  echo "\033[95mUtilitzant versió proposada: $new_version\033[0m"
-else
-  echo "\033[95mIntrodueix la nova versió (format: major.minor.patch, ex: 1.2.3):\033[0m"
-  read -r custom_version
-
-  # Valida el format de la versió
-  if [[ ! "$custom_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "\033[91mError: Format de versió invàlid. Ha de ser major.minor.patch (ex: 1.2.3)\033[0m"
-    exit 1
-  fi
-
-  new_version="$custom_version"
-  echo "\033[95mUtilitzant versió personalitzada: $new_version\033[0m"
-fi
-
-echo
-echo "\033[95mATENCIÓ: S'actualitzarà la versió a la $new_version i es publicarà a NPM (versió actual: $published_version). Vols continuar? (S/n)\033[0m"
-read -r resposta
-if [[ ! "$resposta" =~ ^[Ss]$ ]]; then
-  echo
-  echo "\033[95mOperació cancel·lada per l'usuari.\033[0m"
-  exit 1
-fi
-
-npm view "$package_name" version > /dev/null 2>&1
+# No facis fallar el script si el paquet encara no existeix a NPM
+npm view "$package_name" version > /dev/null 2>&1 || true
 
 cp package.json package.json.bak
 cp index.js index.js.bak
@@ -86,7 +76,7 @@ restore_versions() {
   mv package.json.bak package.json
   mv index.js.bak index.js
 }
-trap restore_versions ERR
+# En sh no hi ha 'ERR'; es farà restore manual en cas d'error
 
 npm version $new_version --no-git-tag-version > /dev/null 2>&1
 
@@ -96,11 +86,73 @@ echo
 node dev/updateReadmeDeeplinks.js > /dev/null 2>&1 || true
 
 # Clona el codi font a dist (amb exclusions de .npmignore)
-rm -rf dist
-mkdir dist
-rsync -a --exclude-from=.npmignore ./ ./dist/
+echo "\033[95mEliminant directori dist existent...\033[0m"
+rm -rf dist || {
+  echo "\033[91m❌ Error eliminant directori dist:\033[0m"
+  echo "   Error: $?"
+  echo "   Directori actual: $(pwd)"
+  echo "   Contingut:"
+  ls -la dist/ 2>&1 || echo "   No es pot llistar"
+  restore_versions
+  exit 1
+}
+echo "   ✅ Directori dist eliminat correctament"
 
-echo "\033[95mOfuscant els fitxers JavaScript (sense canviar noms exportats)...\033[0m"
+echo "\033[95mCreant directori dist...\033[0m"
+mkdir dist || {
+  echo "\033[91m❌ Error creant directori dist:\033[0m"
+  echo "   Error: $?"
+  echo "   Directori actual: $(pwd)"
+  echo "   Permisos del directori pare:"
+  ls -ld . 2>&1 || echo "   No es poden veure els permisos"
+  restore_versions
+  exit 1
+}
+echo "   ✅ Directori dist creat correctament"
+
+echo "\033[95mCopiant fitxers a dist...\033[0m"
+rsync -a --exclude-from=.npmignore ./ ./dist/ || {
+  echo "\033[91m❌ Error copiant fitxers a dist:\033[0m"
+  echo "   Error: $?"
+  restore_versions
+  exit 1
+}
+echo "   ✅ Fitxers copiats correctament"
+
+# Sortida silenciosa per aquestes línies tret que VERBOSE=1
+: "${VERBOSE:=0}"
+# Ensure vecho never returns non-zero under set -e
+vecho() {
+  if [ "${VERBOSE}" = "1" ]; then
+    printf "%s\n" "$*"
+  fi
+  return 0
+}
+vecho "\033[95mPreparant llista de noms exportats per preservar...\033[0m"
+
+# Construeix una llista de noms exportats (ESM) per reservar-los durant l'ofuscació
+reserved_tmp=$(mktemp)
+# export function|class|const|let|var NAME
+grep -RhoE "export[[:space:]]+(function|class|const|let|var)[[:space:]]+[A-Za-z_][$A-Za-z0-9_]*" dist 2>/dev/null | awk '{print $NF}' >> "$reserved_tmp" || true
+# export { a, b as c }
+grep -RhoE "export[[:space:]]*\{[^}]+\}" dist 2>/dev/null \
+  | sed -E 's/.*\{([^}]*)\}.*/\1/' \
+  | tr ',' '\n' \
+  | sed -E 's/[[:space:]]+as[[:space:]]+.*$//' \
+  | sed -E 's/^\s+|\s+$//g' \
+  | grep -E '^[A-Za-z_][$A-Za-z0-9_]*$' >> "$reserved_tmp" || true
+
+# Construeix patró per a --reserved-names (separat per comes)
+OBF_RESERVED=$(sort -u "$reserved_tmp" | awk 'BEGIN{ORS=","} {printf "^%s$", $0} END{print ""}' | sed 's/,$//')
+rm -f "$reserved_tmp"
+
+if [ -n "$OBF_RESERVED" ]; then
+  vecho "   Noms reservats: $(echo "$OBF_RESERVED" | tr ',' ' ')"
+else
+  vecho "   Cap nom exportat detectat per reservar."
+fi
+
+echo "\033[95mOfuscant els fitxers JavaScript (preservant exports ESM)...\033[0m"
 find dist -name '*.js' | while read -r file; do
   echo "   $file..."
 
@@ -109,6 +161,8 @@ find dist -name '*.js' | while read -r file; do
     echo "   (omès - script amb shebang)"
     continue
   fi
+
+  # Continua: ofuscar també ESM però preservant els noms exportats i desactivant self-defending
 
   OBF_LOG=$(mktemp)
   obf_tmp="${file%.js}.obf.tmp.js"   # IMPORTANT: ha d'acabar en .js per evitar directoris fantasma
@@ -122,15 +176,27 @@ find dist -name '*.js' | while read -r file; do
     --identifier-names-generator hexadecimal \
     --rename-globals false \
     --string-array true \
-    --self-defending true \
+    --self-defending false \
     --string-array-threshold 0.75 \
+    ${OBF_RESERVED:+--reserved-names "$OBF_RESERVED"} \
     >"$OBF_LOG" 2>&1 || {
       echo "❌ Error ofuscant $file"
       echo "—— Sortida de l'obfuscador ——"
       sed -n '1,200p' "$OBF_LOG"
       rm -f "$OBF_LOG" "$obf_tmp"
+      restore_versions
       exit 1
     }
+
+  # Valida que el codi ofuscat és vàlid abans de substituir
+  if ! node --check "$obf_tmp" 2>/dev/null; then
+    echo "❌ Error: El codi ofuscat per $file no és vàlid JavaScript"
+    echo "—— Contingut del fitxer ofuscat ——"
+    head -n 10 "$obf_tmp"
+    rm -f "$OBF_LOG" "$obf_tmp"
+    restore_versions
+    exit 1
+  fi
 
   # Substitueix l’original de forma segura
   if command -v install >/dev/null 2>&1; then
@@ -143,75 +209,121 @@ done
 
 echo
 
-echo "\033[95mNota: Els fitxers .apex es codifiquen en base64 (igual que els Markdown) per preservar el contingut.\033[0m"
-echo
-
 echo "\033[95mCodificant els fitxers Markdown...\033[0m"
 # Codifica tots els fitxers .md de totes les carpetes (incloent static)
-echo "   Buscant fitxers Markdown..."
-
-# Compta i codifica els fitxers .md
-md_count=0
 find dist -name '*.md' | while read -r file; do
   if [ -f "$file" ]; then
     b64file="$file.pam"
     base64 -i "$file" -o "$b64file"
     rm -f "$file"
     echo "   $file"
-    md_count=$((md_count + 1))
   fi
 done
-
-echo "   Total fitxers Markdown codificats: $md_count"
 
 echo
 
 echo "\033[95mCodificant els fitxers Apex...\033[0m"
 # Codifica tots els fitxers .apex de totes les carpetes (incloent static)
-echo "   Buscant fitxers Apex..."
-
-# Compta i codifica els fitxers .apex
-apex_count=0
 find dist -name '*.apex' | while read -r file; do
   if [ -f "$file" ]; then
     b64file="$file.pam"
     base64 -i "$file" -o "$b64file"
     rm -f "$file"
     echo "   $file"
-    apex_count=$((apex_count + 1))
   fi
 done
 
-echo "   Total fitxers Apex codificats: $apex_count"
-
 # Neteja arxius que no calin dins el paquet i prepara package.json minimal
 rm -f dist/.npmignore
+echo
 
-echo "\033[95mPreparant package.json minimal per publicar...\033[0m"
+echo "\033[95mAfegint package.json minimal per publicar...\033[0m"
 jq '{
   name, version, description, main, type, browser, bin, keywords, author, dependencies, engines
 } + { files: ["index.js", "src", "bin", "README.md", "LICENSE"] }' package.json > dist/package.json
 
+echo "\033[95mValidant arrencada del paquet ofuscat (smoke test)...\033[0m"
+(
+  cd dist
+  VALIDATE_LOG=$(mktemp)
+  if MCP_PREPUBLISH_VALIDATE=1 node index.js > "$VALIDATE_LOG" 2>&1; then
+    if grep -q 'PREPUBLISH_OK' "$VALIDATE_LOG"; then
+      echo "   ✅ Validació correcta: el paquet carrega sense errors."
+    else
+      echo "\033[91m❌ Validació fallida: no s'ha confirmat l'arrencada.\033[0m"
+      sed -n '1,200p' "$VALIDATE_LOG"
+      rm -f "$VALIDATE_LOG"
+      restore_versions
+      exit 1
+    fi
+  else
+    echo "\033[91m❌ Validació fallida: error en executar node index.js\033[0m"
+    sed -n '1,200p' "$VALIDATE_LOG"
+    rm -f "$VALIDATE_LOG"
+    restore_versions
+    exit 1
+  fi
+  rm -f "$VALIDATE_LOG"
+)
+
+echo "\033[95mPaquet preparat i llest per publicar a NPM.\033[0m"
 echo
 
+# Re-executa els tests, ara utilitzant el servidor MCP de la build ofuscada a dist/
+echo "\033[95mExecutant tests contra el servidor ofuscat (dist/)...\033[0m"
+echo
+TEST_DIST_OUTPUT=$(mktemp)
+# Indica al runner que arrenqui el servidor des de dist/index.js
+MCP_TEST_SERVER_PATH="../dist/index.js" npm run test -- --quiet | tee "$TEST_DIST_OUTPUT"
+
+if ! grep -q '🎉 All tests passed!' "$TEST_DIST_OUTPUT"; then
+  echo "\033[91m❌ Els tests contra la build ofuscada han fallat.\033[0m"
+  rm -f "$TEST_DIST_OUTPUT"
+  restore_versions
+  exit 1
+fi
+
+rm -f "$TEST_DIST_OUTPUT"
+echo
+echo "\033[95m✅ Tests amb el paquet ofuscat completats correctament.\033[0m"
+echo
+echo "\033[95mVols continuar amb la publicació del paquet a NPM? (S/n)\033[0m"
+IFS= read -r resposta
+case "$resposta" in
+  S|s) : ;;
+  *)
+    echo
+    echo "\033[95mPublicació cancel·lada per l'usuari.\033[0m"
+    exit 1
+    ;;
+esac
+
+echo
 echo "\033[95mPublicant el paquet a NPM (des de dist/)...\033[0m"
 PUBLISH_OUTPUT=$(mktemp)
 
-# Canvia al directori dist i executa npm publish
+# Canvia al directori dist i executa npm publish amb redireccions separades (més robust)
 cd dist
-if ! npm publish --access public > "$PUBLISH_OUTPUT" 2>&1; then
+npm publish --access public > "$PUBLISH_OUTPUT" 2>&1
+publish_status=$?
+if [ $publish_status -ne 0 ]; then
   echo "\033[91m❌ Error publicant el paquet a NPM:\033[0m"
   cat "$PUBLISH_OUTPUT"
   rm -f "$PUBLISH_OUTPUT"
   cd ..  # Torna al directori original
+  restore_versions
   exit 1
 fi
 cd ..  # Torna al directori original
 
-# Mostra les línies de notice si l'execució ha estat exitosa
-grep -E 'npm notice (name:|version:|shasum:|total files:)' "$PUBLISH_OUTPUT" | while read -r line; do
-  printf "   \033[96mnpm notice\033[0m%s\n" "${line#npm notice}"
-done
+# Mostra les línies de notice si l'execució ha estat exitosa (sense parèntesis a l'script)
+while IFS= read -r line; do
+  case "$line" in
+    "npm notice name:"*|"npm notice version:"*|"npm notice shasum:"*|"npm notice total files:"*)
+      printf "   \033[96mnpm notice\033[0m%s\n" "${line#npm notice}"
+      ;;
+  esac
+done < "$PUBLISH_OUTPUT"
 rm -f "$PUBLISH_OUTPUT"
 
 echo

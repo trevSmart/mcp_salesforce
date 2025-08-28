@@ -1,13 +1,14 @@
 import {TEST_CONFIG} from './test-config.js';
 
 export class MCPClient {
-	constructor(serverProcess) {
+	constructor(serverProcess, {quiet = false} = {}) {
 		this.serverProcess = serverProcess;
 		this.messageId = 0;
 		this.pendingRequests = new Map();
 		this.tools = new Map();
 		this.initialized = false;
 		this.buffer = ''; // Buffer for incomplete messages
+		this.quiet = quiet;
 	}
 
 	// Send a message to the server
@@ -86,6 +87,9 @@ export class MCPClient {
 
 	// Log notification messages
 	logNotification(level, text) {
+		if (this.quiet) {
+			return;
+		}
 		const color = {
 			'emergency': TEST_CONFIG.colors.red,
 			'alert': TEST_CONFIG.colors.red,
@@ -112,13 +116,15 @@ export class MCPClient {
 				clientInfo: clientConfig
 			});
 
-			console.log(`${TEST_CONFIG.colors.green}✓ Server initialized${TEST_CONFIG.colors.reset}`);
-			console.log(`  Protocol version: ${result.protocolVersion}`);
-			console.log(`  Server: ${result.serverInfo.name} v${result.serverInfo.version}`);
-			console.log(`  Client: ${clientConfig.name} v${clientConfig.version}`);
+			if (!this.quiet) {
+				console.log(`${TEST_CONFIG.colors.green}✓ Server initialized${TEST_CONFIG.colors.reset}`);
+				console.log(`  Protocol version: ${result.protocolVersion}`);
+				console.log(`  Server: ${result.serverInfo.name} v${result.serverInfo.version}`);
+				console.log(`  Client: ${clientConfig.name} v${clientConfig.version}`);
+			}
 
 			// Log server capabilities for debugging
-			if (result.capabilities) {
+			if (!this.quiet && result.capabilities) {
 				console.log('  Server capabilities:');
 				for (const [key, value] of Object.entries(result.capabilities)) {
 					console.log(`    - ${key}: ${JSON.stringify(value)}`);
@@ -127,7 +133,9 @@ export class MCPClient {
 
 			// Send initialized notification to indicate client is ready
 			await this.sendNotification('notifications/initialized');
-			console.log(`${TEST_CONFIG.colors.blue}Sent initialized notification${TEST_CONFIG.colors.reset}`);
+			if (!this.quiet) {
+				console.log(`${TEST_CONFIG.colors.blue}Sent initialized notification${TEST_CONFIG.colors.reset}`);
+			}
 
 			this.initialized = true;
 			return result;
@@ -142,10 +150,16 @@ export class MCPClient {
 	async listTools() {
 		const result = await this.sendMessage('tools/list');
 
-		console.log(`  Found ${result.tools.length} tools:`);
-		for (const tool of result.tools) {
-			console.log(`    - ${tool.name}`);
-			this.tools.set(tool.name, tool);
+		if (!this.quiet) {
+			console.log(`  Found ${result.tools.length} tools:`);
+			for (const tool of result.tools) {
+				console.log(`    - ${tool.name}`);
+				this.tools.set(tool.name, tool);
+			}
+		} else {
+			for (const tool of result.tools) {
+				this.tools.set(tool.name, tool);
+			}
 		}
 
 		return result.tools;
@@ -157,7 +171,9 @@ export class MCPClient {
 			throw new Error(`Tool '${name}' not found. Available tools: ${Array.from(this.tools.keys()).join(', ')}`);
 		}
 
-		console.log(`${TEST_CONFIG.colors.blue}Calling tool "${name}" with arguments: ${JSON.stringify(arguments_)}${TEST_CONFIG.colors.reset}`);
+		if (!this.quiet) {
+			console.log(`${TEST_CONFIG.colors.blue}Calling tool "${name}" with arguments: ${JSON.stringify(arguments_)}${TEST_CONFIG.colors.reset}`);
+		}
 
 		const result = await this.sendMessage('tools/call', {
 			name,
@@ -175,11 +191,15 @@ export class MCPClient {
 
 	// Set logging level
 	async setLoggingLevel(level = TEST_CONFIG.mcpServer.defaultLogLevel) {
-		console.log(`${TEST_CONFIG.colors.blue}Setting logging level to "${level}"${TEST_CONFIG.colors.reset}`);
+		if (!this.quiet) {
+			console.log(`${TEST_CONFIG.colors.blue}Setting logging level to "${level}"${TEST_CONFIG.colors.reset}`);
+		}
 
 		const result = await this.sendMessage('logging/setLevel', {level});
 
-		console.log(`${TEST_CONFIG.colors.green}✓ Logging level set to: ${level}${TEST_CONFIG.colors.reset}`);
+		if (!this.quiet) {
+			console.log(`${TEST_CONFIG.colors.green}✓ Logging level set to: ${level}${TEST_CONFIG.colors.reset}`);
+		}
 		return result;
 	}
 

@@ -4,7 +4,8 @@ export const TEST_CONFIG = {
 	mcpServer: {
 		startupDelay: 1000,
 		timeout: 90000,
-		serverPath: '../index.js',
+		// Allow overriding the server path via env for prepublish tests (e.g., '../dist/index.js')
+		serverPath: process.env.MCP_TEST_SERVER_PATH || '../index.js',
 		defaultLogLevel: 'info'
 	},
 

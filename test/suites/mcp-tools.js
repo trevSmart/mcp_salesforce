@@ -24,15 +24,29 @@ class TestContext {
 	}
 }
 
-export class MCPToolsTestSuite {
+export class SalesforceMcpTestSuite {
 	// Configuration constants
-	static TOOL_OUTPUT_MAX_LENGTH = 600;
+	static TOOL_OUTPUT_MAX_LENGTH = 300;
+	static MAX_CONCURRENT_TESTS = 7; // Limit concurrent tests to avoid overwhelming Salesforce
 
 	constructor(mcpClient, quiet = false) {
 		this.mcpClient = mcpClient;
 		this.context = new TestContext();
 		this.quiet = quiet;
 	}
+
+	// Optional global hooks
+	// Override these in this file if you need suite-wide setup/teardown.
+	// They are invoked once before any test and once after all tests.
+	async scriptBeforeAll(/* context */) {
+		// Clean up audit trail files
+		const forceAppDir = 'force-app';
+		if (fs.existsSync(forceAppDir)) {
+			fs.rmSync(forceAppDir, {recursive: true, force: true});
+		}
+	}
+
+	async scriptAfterAll(/* context */) { /* no-op by default */ }
 
 	// Display tool output in a formatted way
 	displayToolOutput(toolName, result) {
@@ -52,7 +66,7 @@ export class MCPToolsTestSuite {
 		}
 
 		// Helper function to truncate long output
-		const truncateOutput = (text, maxLength = MCPToolsTestSuite.TOOL_OUTPUT_MAX_LENGTH) => {
+		const truncateOutput = (text, maxLength = SalesforceMcpTestSuite.TOOL_OUTPUT_MAX_LENGTH) => {
 			if (typeof text !== 'string') {
 				return text;
 			}
@@ -110,7 +124,7 @@ export class MCPToolsTestSuite {
 		console.log(`\n${TEST_CONFIG.colors.cyan}=== End Tool Output ===${TEST_CONFIG.colors.reset}`);
 	}
 
-	// Get all available MCP tool tests
+	// Get all available MCP tool tests with dependency information
 	getAvailableTests() {
 		return [
 			{
@@ -118,14 +132,18 @@ export class MCPToolsTestSuite {
 				run: async () => {
 					await this.mcpClient.initialize({name: 'IBM Salesforce MCP Test Client', version: '1.0.0'});
 				},
-				required: true
+				required: true,
+				dependencies: [],
+				canRunInParallel: false
 			},
 			{
 				name: 'List Available Tools',
 				run: async () => {
 					await this.mcpClient.listTools();
 				},
-				required: true
+				required: true,
+				dependencies: ['Initialize MCP Connection'],
+				canRunInParallel: false
 			},
 			{
 				name: 'salesforceMcpUtils getOrgAndUserDetails',
@@ -133,7 +151,10 @@ export class MCPToolsTestSuite {
 					return await this.mcpClient.callTool('salesforceMcpUtils', {action: 'getOrgAndUserDetails'});
 				},
 				required: true,
-				thenWait: 2500
+				dependencies: ['List Available Tools'],
+				canRunInParallel: false,
+				priority: 'high',
+				thenWait: 2000
 			},
 			{
 				name: 'salesforceMcpUtils getState',
@@ -144,7 +165,9 @@ export class MCPToolsTestSuite {
 						throw new Error('getState: structuredContent must include state, client and resources');
 					}
 					return result;
-				}
+				},
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true
 			},
 			{
 				name: 'salesforceMcpUtils loadRecordPrefixesResource',
@@ -158,19 +181,25 @@ export class MCPToolsTestSuite {
 						throw new Error('loadRecordPrefixesResource: no prefixes returned');
 					}
 					return result;
-				}
+				},
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true
 			},
 			{
 				name: 'salesforceMcpUtils getCurrentDatetime',
 				run: async () => {
 					return await this.mcpClient.callTool('salesforceMcpUtils', {action: 'getCurrentDatetime'});
-				}
+				},
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true
 			},
 			{
 				name: 'salesforceMcpUtils clearCache',
 				run: async () => {
 					return await this.mcpClient.callTool('salesforceMcpUtils', {action: 'clearCache'});
-				}
+				},
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true
 			},
 			{
 				name: 'salesforceMcpUtils reportIssue validation',
@@ -195,19 +224,46 @@ export class MCPToolsTestSuite {
 						}
 						throw error;
 					}
-				}
+				},
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true
+			},
+			{
+				name: 'salesforceMcpUtils reportIssue success (dry-run)',
+				run: async () => {
+					// Server process is started with MCP_REPORT_ISSUE_DRY_RUN=true (see test/helpers.js),
+					// so this will not hit the real webhook and should return a fake success payload.
+					const result = await this.mcpClient.callTool('salesforceMcpUtils', {
+						action: 'reportIssue',
+						issueDescription: 'Valid issue description for success path testing (>= 10 chars)',
+						issueToolName: 'testTool'
+					});
+
+					const sc = result?.structuredContent;
+					if (!sc || sc.success !== true || !sc.issueId) {
+						throw new Error('reportIssue: expected dry-run success with issueId');
+					}
+					return result;
+				},
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true
 			},
 			{
 				name: 'apexDebugLogs status',
 				run: async () => {
 					return await this.mcpClient.callTool('apexDebugLogs', {action: 'status'});
-				}
+				},
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true
 			},
 			{
 				name: 'apexDebugLogs on',
 				run: async () => {
 					return await this.mcpClient.callTool('apexDebugLogs', {action: 'on'});
-				}
+				},
+				dependencies: ['apexDebugLogs status'],
+				canRunInParallel: false,
+				priority: 'high'
 			},
 			{
 				name: 'apexDebugLogs list',
@@ -221,11 +277,16 @@ export class MCPToolsTestSuite {
 						if (!first.Id) {
 							throw new Error('apexDebugLogs list: first log missing Id');
 						}
-						console.log(`${TEST_CONFIG.colors.cyan}Saving logId in context...${TEST_CONFIG.colors.reset}`);
+						if (!this.quiet) {
+							console.log(`${TEST_CONFIG.colors.cyan}Saving logId in context...${TEST_CONFIG.colors.reset}`);
+						}
 						context.set('logId', first.Id);
 					}
 					return result;
-				}
+				},
+				dependencies: ['apexDebugLogs on'],
+				canRunInParallel: false,
+				priority: 'high'
 			},
 			{
 				name: 'apexDebugLogs get',
@@ -238,7 +299,10 @@ export class MCPToolsTestSuite {
 						action: 'get',
 						logId: logId
 					});
-				}
+				},
+				dependencies: ['apexDebugLogs list'],
+				canRunInParallel: false,
+				priority: 'high'
 			},
 			/*
 			// Temporarily disabled: apexDebugLogs analyze action not available
@@ -262,11 +326,30 @@ export class MCPToolsTestSuite {
 				}
 			},
 			*/
+			/*
+			// NOTE: The analyze action is currently disabled in the tool implementation.
+			// When re-enabled in src/tools/apexDebugLogs.js, consider extending this block
+			// with additional option variants like:
+			//  - analyzeOptions: {minDurationMs: 5, maxEvents: 25, output: 'diagram'}
+			//  - analyzeOptions: {minDurationMs: 0, maxEvents: 100, output: 'json'}
+			// and assert that structuredContent includes the expected artifacts/summary.
+			*/
 			{
 				name: 'apexDebugLogs off',
 				run: async () => {
 					return await this.mcpClient.callTool('apexDebugLogs', {action: 'off'});
-				}
+				},
+				dependencies: ['apexDebugLogs get'],
+				canRunInParallel: false,
+				priority: 'high'
+			},
+			{
+				name: 'salesforceMcpUtils clearCache (final)',
+				run: async () => {
+					return await this.mcpClient.callTool('salesforceMcpUtils', {action: 'clearCache'});
+				},
+				dependencies: ['apexDebugLogs off', 'describeObject Account (cached, no fields + picklists)'],
+				canRunInParallel: false
 			},
 			{
 				name: 'describeObject Account',
@@ -284,7 +367,9 @@ export class MCPToolsTestSuite {
 						throw new Error('describeObject: fields array missing or empty');
 					}
 					return result;
-				}
+				},
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true
 			},
 			{
 				name: 'executeSoqlQuery',
@@ -306,7 +391,9 @@ export class MCPToolsTestSuite {
 						}
 					}
 					return result;
-				}
+				},
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true
 			},
 			{
 				name: 'getRecentlyViewedRecords',
@@ -317,7 +404,9 @@ export class MCPToolsTestSuite {
 						throw new Error('getRecentlyViewedRecords: invalid structuredContent shape');
 					}
 					return result;
-				}
+				},
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true
 			},
 			{
 				name: 'getApexClassCodeCoverage',
@@ -325,9 +414,10 @@ export class MCPToolsTestSuite {
 					return await this.mcpClient.callTool('getApexClassCodeCoverage', {
 						classNames: ['TestMCPTool']
 					});
-				}
+				},
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true
 			},
-			// (Duplicate removed) createMetadata Apex Class
 			{
 				name: 'describeObject Account (cached, no fields + picklists)',
 				run: async () => {
@@ -347,7 +437,29 @@ export class MCPToolsTestSuite {
 						throw new Error('describeObject(cached): fields should be present due to includePicklistValues');
 					}
 					return result;
-				}
+				},
+				dependencies: ['describeObject Account'],
+				canRunInParallel: false
+			},
+			{
+				name: 'describeObject Account (no fields, no picklists)',
+				run: async () => {
+					const result = await this.mcpClient.callTool('describeObject', {
+						sObjectName: 'Account',
+						includeFields: false,
+						includePicklistValues: false
+					});
+					const sc = result?.structuredContent;
+					if (!sc || sc.name !== 'Account') {
+						throw new Error('describeObject (no fields): invalid name or missing structuredContent');
+					}
+					if ('fields' in sc) {
+						throw new Error('describeObject (no fields): fields should not be present');
+					}
+					return result;
+				},
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true
 			},
 			{
 				name: 'describeObject ApexClass (Tooling API)',
@@ -364,7 +476,9 @@ export class MCPToolsTestSuite {
 						throw new Error('describeObject (Tooling): fields missing');
 					}
 					return result;
-				}
+				},
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true
 			},
 			{
 				name: 'executeSoqlQuery (Tooling API)',
@@ -387,7 +501,9 @@ export class MCPToolsTestSuite {
 						}
 					}
 					return result;
-				}
+				},
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true
 			},
 			// (Removed misplaced cleanup script for duplicate test)
 			{
@@ -398,12 +514,24 @@ export class MCPToolsTestSuite {
 						name: 'TestMCPToolClassTest'
 					});
 				},
-				script: async () => {
-					// Clean up force-app directory
-					const forceAppPath = 'force-app';
-					if (fs.existsSync(forceAppPath)) {
-						fs.rmSync(forceAppPath, {recursive: true, force: true});
-						console.warn(`Deleted directory: ${forceAppPath}`);
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true,
+				scriptAfter: async () => {
+					// Clean up only the files created by this test
+					const classDir = 'force-app/main/default/classes';
+					const classFiles = [
+						`${classDir}/TestMCPToolClassTest.cls`,
+						`${classDir}/TestMCPToolClassTest.cls-meta.xml`
+					];
+					for (const filePath of classFiles) {
+						if (fs.existsSync(filePath)) {
+							try {
+								fs.rmSync(filePath, {force: true});
+								!this.quiet && console.warn(`Deleted file: ${filePath}`);
+							} catch {
+								console.error(`Warning: Could not delete file: ${filePath}`);
+							}
+						}
 					}
 				}
 			},
@@ -417,12 +545,24 @@ export class MCPToolsTestSuite {
 						triggerEvent: ['after insert', 'before update']
 					});
 				},
-				script: async () => {
-					// Clean up force-app directory
-					const forceAppPath = 'force-app';
-					if (fs.existsSync(forceAppPath)) {
-						fs.rmSync(forceAppPath, {recursive: true, force: true});
-						console.warn(`Deleted directory: ${forceAppPath}`);
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true,
+				scriptAfter: async () => {
+					// Clean up only the files created by this test
+					const triggerDir = 'force-app/main/default/triggers';
+					const triggerFiles = [
+						`${triggerDir}/TestMCPToolTrigger.trigger`,
+						`${triggerDir}/TestMCPToolTrigger.trigger-meta.xml`
+					];
+					for (const filePath of triggerFiles) {
+						if (fs.existsSync(filePath)) {
+							try {
+								fs.rmSync(filePath, {force: true});
+								!this.quiet && console.warn(`Deleted file: ${filePath}`);
+							} catch {
+								console.error(`Warning: Could not delete file: ${filePath}`);
+							}
+						}
 					}
 				}
 			},
@@ -434,12 +574,18 @@ export class MCPToolsTestSuite {
 						name: 'testMCPToolComponent'
 					});
 				},
-				script: async () => {
-					// Clean up force-app directory
-					const forceAppPath = 'force-app';
-					if (fs.existsSync(forceAppPath)) {
-						fs.rmSync(forceAppPath, {recursive: true, force: true});
-						console.warn(`Deleted directory: ${forceAppPath}`);
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true,
+				scriptAfter: async () => {
+					// Clean up only the folder created by this test
+					const lwcFolder = 'force-app/main/default/lwc/testMCPToolComponent';
+					if (fs.existsSync(lwcFolder)) {
+						try {
+							fs.rmSync(lwcFolder, {recursive: true, force: true});
+							!this.quiet && console.warn(`Deleted directory: ${lwcFolder}`);
+						} catch {
+							console.error(`Warning: Could not delete directory: ${lwcFolder}`);
+						}
 					}
 				}
 			},
@@ -452,7 +598,41 @@ export class MCPToolsTestSuite {
 					});
 				}
 			},
+			// NOTE: Left commented deliberately. This test would deploy real metadata
+			// to the org, which is not desirable in automated test runs. We need to
+			// decide on a safe strategy (e.g., scratch org, deploy to a namespaced
+			// path, or a full mock for deploy) before enabling it.
 			*/
+			{
+				name: 'createMetadata Apex Class',
+				run: async () => {
+					// Create a plain Apex class (not a test class)
+					return await this.mcpClient.callTool('createMetadata', {
+						type: 'apexClass',
+						name: 'TestMCPToolClass'
+					});
+				},
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true,
+				scriptAfter: async () => {
+					// Clean up only the files created by this test
+					const classDir = 'force-app/main/default/classes';
+					const classFiles = [
+						`${classDir}/TestMCPToolClass.cls`,
+						`${classDir}/TestMCPToolClass.cls-meta.xml`
+					];
+					for (const filePath of classFiles) {
+						if (fs.existsSync(filePath)) {
+							try {
+								fs.rmSync(filePath, {force: true});
+								!this.quiet && console.warn(`Deleted file: ${filePath}`);
+							} catch {
+								console.error(`Warning: Could not delete file: ${filePath}`);
+							}
+						}
+					}
+				}
+			},
 			{
 				name: 'dmlOperation Create',
 				run: async (context) => {
@@ -474,9 +654,13 @@ export class MCPToolsTestSuite {
 					}
 					const createdRecordId = sc.successes[0].id;
 					context.set('createdAccountId', createdRecordId);
-					console.log(`${TEST_CONFIG.colors.green}✓ Saved createdAccountId: ${createdRecordId}${TEST_CONFIG.colors.reset}`);
+					if (!this.quiet) {
+						console.log(`${TEST_CONFIG.colors.green}✓ Saved createdAccountId: ${createdRecordId}${TEST_CONFIG.colors.reset}`);
+					}
 					return result;
-				}
+				},
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true
 			},
 			{
 				name: 'getRecord',
@@ -486,7 +670,9 @@ export class MCPToolsTestSuite {
 						throw new Error('createdAccountId not found in context. Make sure dmlOperation Create test runs first and sets the createdAccountId.');
 					}
 
-					console.log(`${TEST_CONFIG.colors.cyan}Using createdAccountId: ${createdAccountId}${TEST_CONFIG.colors.reset}`);
+					if (!this.quiet) {
+						console.log(`${TEST_CONFIG.colors.cyan}Using createdAccountId: ${createdAccountId}${TEST_CONFIG.colors.reset}`);
+					}
 
 					const result = await this.mcpClient.callTool('getRecord', {
 						sObjectName: 'Account',
@@ -500,7 +686,9 @@ export class MCPToolsTestSuite {
 						throw new Error('getRecord: expected fields.Name to be present');
 					}
 					return result;
-				}
+				},
+				dependencies: ['dmlOperation Create'],
+				canRunInParallel: false
 			},
 			{
 				name: 'dmlOperation Update',
@@ -525,7 +713,37 @@ export class MCPToolsTestSuite {
 						throw new Error('dmlOperation Update: outcome was not success');
 					}
 					return result;
-				}
+				},
+				dependencies: ['getRecord'],
+				canRunInParallel: false
+			},
+			{
+				name: 'dmlOperation Update (bypass confirmation)',
+				run: async (context) => {
+					const createdAccountId = context.get('createdAccountId');
+					if (!createdAccountId) {
+						throw new Error('createdAccountId not found in context. Make sure dmlOperation Create test runs first and sets the createdAccountId.');
+					}
+
+					const result = await this.mcpClient.callTool('dmlOperation', {
+						operations: {
+							update: [{
+								sObjectName: 'Account',
+								recordId: createdAccountId,
+								fields: {
+									Description: 'Bypass confirmation update'
+								}
+							}]
+						},
+						options: {bypassUserConfirmation: true}
+					});
+					if (result?.structuredContent?.outcome !== 'success') {
+						throw new Error('dmlOperation Update (bypass): outcome was not success');
+					}
+					return result;
+				},
+				dependencies: ['getRecord'],
+				canRunInParallel: false
 			},
 			{
 				name: 'dmlOperation Delete',
@@ -547,7 +765,36 @@ export class MCPToolsTestSuite {
 						throw new Error('dmlOperation Delete: outcome was not success');
 					}
 					return result;
-				}
+				},
+				dependencies: ['dmlOperation Update'],
+				canRunInParallel: false
+			},
+			{
+				name: 'dmlOperation allOrNone=true (expect failure)',
+				run: async () => {
+					// Try creating two records with allOrNone=true where one is invalid (missing Name)
+					try {
+						await this.mcpClient.callTool('dmlOperation', {
+							operations: {
+								create: [
+									{sObjectName: 'Account', fields: {Name: 'AllOrNone Test OK'}},
+									{sObjectName: 'Account', fields: {Description: 'This will fail because Name is required'}}
+								]
+							},
+							options: {allOrNone: true}
+						});
+						// If no error, then allOrNone did not trigger as expected
+						throw new Error('Expected dmlOperation to fail with allOrNone=true, but it succeeded');
+					} catch {
+						// Pass if the tool returned an error (MCP client throws on tool isError)
+						return {
+							content: [{type: 'text', text: '✅ allOrNone=true correctly failed the batch'}],
+							structuredContent: {validation: 'passed'}
+						};
+					}
+				},
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true
 			},
 			{
 				name: 'executeAnonymousApex',
@@ -556,10 +803,39 @@ export class MCPToolsTestSuite {
 						apexCode: 'System.debug(\'Hello from MCP tool test\');\nSystem.debug(\'Current time: \' + Datetime.now());',
 						mayModify: false
 					});
-				}
+				},
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true,
+				priority: 'high' // Marca com a alta prioritat per executar-lo abans
 			},
 			{
 				name: 'getSetupAuditTrail',
+				scriptBefore: async () => {
+					// Clean up audit trail files
+					const tmpDir = 'tmp';
+					if (fs.existsSync(tmpDir)) {
+						try {
+							const files = fs.readdirSync(tmpDir);
+							const auditTrailFiles = files.filter(file => file.startsWith('SetupAuditTrail'));
+
+							if (auditTrailFiles.length > 0) {
+								for (const file of auditTrailFiles) {
+									const filePath = `${tmpDir}/${file}`;
+									if (fs.existsSync(filePath)) {
+										fs.rmSync(filePath, {recursive: true, force: true});
+										if (!this.quiet) {
+											console.warn(`Deleted file: ${filePath}`);
+										}
+									}
+								}
+							}
+						} catch (error) {
+							if (!this.quiet) {
+								console.warn(`Warning: Could not clean up audit trail files: ${error.message}`);
+							}
+						}
+					}
+				},
 				run: async () => {
 					const result = await this.mcpClient.callTool('getSetupAuditTrail', {lastDays: 2});
 					const sc = result?.structuredContent;
@@ -581,7 +857,9 @@ export class MCPToolsTestSuite {
 						}
 					}
 					return result;
-				}
+				},
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true
 			},
 			{
 				name: 'runApexTest',
@@ -600,12 +878,94 @@ export class MCPToolsTestSuite {
 						}
 					}
 					return result;
-				}
+				},
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true,
+				priority: 'high' // Marca com a alta prioritat per executar-lo abans
 			}
 		];
 	}
 
-	// Run specific tests or all tests
+	// Group tests by execution phase for parallel execution
+	groupTestsForParallelExecution(tests) {
+		const phases = [];
+		const completedTests = new Set();
+
+		// Helper function to check if all dependencies are completed
+		const areDependenciesCompleted = (test) => {
+			return test.dependencies.every(dep => completedTests.has(dep));
+		};
+
+		// Helper function to get tests that can run in current phase
+		const getRunnableTests = (availableTests) => {
+			return availableTests.filter(test =>
+				!completedTests.has(test.name) && areDependenciesCompleted(test)
+			);
+		};
+
+		let currentPhase = 0;
+		while (completedTests.size < tests.length) {
+			const currentTests = getRunnableTests(tests);
+
+			if (currentTests.length === 0) {
+				// No tests can run, this indicates a circular dependency
+				const remainingTests = tests.filter(test => !completedTests.has(test.name));
+				throw new Error(`Circular dependency detected. Remaining tests: ${remainingTests.map(t => t.name).join(', ')}`);
+			}
+
+			// Group tests by whether they can run in parallel
+			const sequentialTests = currentTests.filter(test => !test.canRunInParallel);
+			const parallelTests = currentTests.filter(test => test.canRunInParallel);
+
+			// Add sequential tests first (they must run one by one)
+			if (sequentialTests.length > 0) {
+				phases[currentPhase] = {
+					phase: currentPhase,
+					tests: sequentialTests,
+					canRunInParallel: false
+				};
+				sequentialTests.forEach(test => completedTests.add(test.name));
+				currentPhase++;
+			}
+
+			// For parallel tests, prioritize high-priority tests first
+			if (parallelTests.length > 0) {
+				// Separate high-priority tests from regular ones
+				const highPriorityTests = parallelTests.filter(test => test.priority === 'high');
+				const regularTests = parallelTests.filter(test => test.priority !== 'high');
+
+				// Add each high-priority test in its own phase for immediate execution
+				if (highPriorityTests.length > 0) {
+					for (const highPriorityTest of highPriorityTests) {
+						phases[currentPhase] = {
+							phase: currentPhase,
+							tests: [highPriorityTest], // Un sol test per fase
+							canRunInParallel: true,
+							priority: 'high'
+						};
+						completedTests.add(highPriorityTest.name);
+						currentPhase++;
+					}
+				}
+
+				// Add regular parallel tests
+				if (regularTests.length > 0) {
+					phases[currentPhase] = {
+						phase: currentPhase,
+						tests: regularTests,
+						canRunInParallel: true,
+						priority: 'regular'
+					};
+					regularTests.forEach(test => completedTests.add(test.name));
+					currentPhase++;
+				}
+			}
+		}
+
+		return phases;
+	}
+
+	// Run specific tests or all tests with parallel execution support
 	async runTests(testsToRun = null) {
 		const availableTests = this.getAvailableTests();
 
@@ -625,19 +985,47 @@ export class MCPToolsTestSuite {
 			testsToExecute = [...requiredTests, ...selectedTests];
 
 			if (selectedTests.length > 0) {
-				console.log(`${TEST_CONFIG.colors.cyan}Running ${selectedTests.length} selected tests plus ${requiredTests.length} required tests${TEST_CONFIG.colors.reset}`);
-				console.log(`${TEST_CONFIG.colors.cyan}Selected tests: ${selectedTests.map(t => t.name).join(', ')}${TEST_CONFIG.colors.reset}`);
+				if (!this.quiet) {
+					console.log(`${TEST_CONFIG.colors.cyan}Running ${selectedTests.length} selected tests plus ${requiredTests.length} required tests${TEST_CONFIG.colors.reset}`);
+				}
+				if (!this.quiet) {
+					console.log(`${TEST_CONFIG.colors.cyan}Selected tests: ${selectedTests.map(t => t.name).join(', ')}${TEST_CONFIG.colors.reset}`);
+				}
 			} else {
-				console.log(`${TEST_CONFIG.colors.yellow}No tests found matching: ${testsToRun.join(', ')}${TEST_CONFIG.colors.reset}`);
-				console.log(`${TEST_CONFIG.colors.cyan}Running only ${requiredTests.length} required tests${TEST_CONFIG.colors.reset}`);
+				if (!this.quiet) {
+					console.log(`${TEST_CONFIG.colors.yellow}No tests found matching: ${testsToRun.join(', ')}${TEST_CONFIG.colors.reset}`);
+				}
+				if (!this.quiet) {
+					console.log(`${TEST_CONFIG.colors.cyan}Running only ${requiredTests.length} required tests${TEST_CONFIG.colors.reset}`);
+				}
 			}
 		}
 
 		// Clear context before running tests
 		this.context.clear();
 
-		// Return the tests to execute without running them
-		// The TestRunner will handle the actual execution
-		return testsToExecute;
+		// Group tests for parallel execution
+		const executionPhases = this.groupTestsForParallelExecution(testsToExecute);
+
+		if (!this.quiet) {
+			console.log(`${TEST_CONFIG.colors.cyan}Execution phases:${TEST_CONFIG.colors.reset}`);
+			executionPhases.forEach((phase, index) => {
+				let phaseText = phase.canRunInParallel ? ' (parallel)' : ' (sequential)';
+				if (phase.priority === 'high') {
+					phaseText += ' [HIGH PRIORITY]';
+				}
+				console.log(`  Phase ${index}: ${phase.tests.length} tests${phaseText}`);
+				phase.tests.forEach(test => {
+					const priorityText = test.priority === 'high' ? ' [HIGH PRIORITY]' : '';
+					console.log(`    - ${test.name}${priorityText}`);
+				});
+			});
+		}
+
+		// Return both the tests and the execution phases
+		return {
+			tests: testsToExecute,
+			phases: executionPhases
+		};
 	}
 }
