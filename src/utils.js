@@ -4,6 +4,7 @@ import state from './state.js';
 import path from 'path';
 import {fileURLToPath} from 'url';
 import {createModuleLogger} from './lib/logger.js';
+import {cleanupObsoleteTempFiles} from './lib/tempManager.js';
 const logger = createModuleLogger(import.meta.url);
 
 // Avoid static import of salesforceServices to prevent ESM cycles during module init
@@ -167,7 +168,8 @@ export function writeToFile(file, data, options = {}) {
 		async = false,
 		extension,
 		encoding = 'utf8',
-		workspacePath = `${process.cwd()}/tmp`
+		// workspacePath should be the workspace root, NOT the tmp folder itself
+		workspacePath = process.cwd()
 	} = options;
 
 	try {
@@ -187,6 +189,12 @@ export function writeToFile(file, data, options = {}) {
 		} else {
 			// File is just a filename, use tmp directory
 			const tmpDir = ensureTmpDir(workspacePath);
+			// Opportunistic cleanup of obsolete temp files
+			try {
+				cleanupObsoleteTempFiles({baseDir: tmpDir});
+			} catch {
+				logger.warn('Error cleaning up obsolete temp files');
+			}
 			const timestamp = getTimestamp();
 
 			// Determine extension based on content type if not provided
@@ -234,7 +242,13 @@ export function writeToFile(file, data, options = {}) {
  * @param {string} filename - Base name for the file (without extension)
  */
 export function saveToFile(object, filename) {
-	const filePath = path.join(state.tempPath, `${filename}_${Date.now()}.json`);
+	const tmpDir = ensureTmpDir();
+	try {
+		cleanupObsoleteTempFiles({baseDir: tmpDir});
+	} catch {
+		logger.warn('Error cleaning up obsolete temp files');
+	}
+	const filePath = path.join(tmpDir, `${filename}_${Date.now()}.json`);
 	fs.writeFileSync(filePath, JSON.stringify(object, null, 3), 'utf8');
 	logger.debug(`Object written to temporary file: ${filePath}`);
 }
@@ -245,7 +259,8 @@ export function saveToFile(object, filename) {
  * @returns {string} Path to the tmp directory
  */
 export function ensureTmpDir(workspacePath = null) {
-	const tmpDir = workspacePath ? path.join(workspacePath, 'tmp') : path.join(process.cwd(), 'tmp');
+	const base = workspacePath && typeof workspacePath === 'string' ? workspacePath : process.cwd();
+	const tmpDir = path.join(base, 'tmp');
 
 	if (!fs.existsSync(tmpDir)) {
 		fs.mkdirSync(tmpDir, {recursive: true});
@@ -266,6 +281,11 @@ export function ensureTmpDir(workspacePath = null) {
 export function writeToTmpFile(content, filename, encoding = 'utf8', workspacePath = null) {
 	try {
 		const tmpDir = ensureTmpDir(workspacePath);
+		try {
+			cleanupObsoleteTempFiles({baseDir: tmpDir});
+		} catch {
+			logger.warn('Error cleaning up obsolete temp files');
+		}
 		const fullPath = path.join(tmpDir, filename);
 
 		fs.writeFileSync(fullPath, content, encoding);
@@ -290,6 +310,11 @@ export function writeToTmpFile(content, filename, encoding = 'utf8', workspacePa
 export async function writeToTmpFileAsync(content, filename, extension = 'txt', encoding = 'utf8', workspacePath = null) {
 	try {
 		const tmpDir = ensureTmpDir(workspacePath);
+		try {
+			cleanupObsoleteTempFiles({baseDir: tmpDir});
+		} catch {
+			logger.warn('Error cleaning up obsolete temp files');
+		}
 		const timestamp = getTimestamp();
 		const fullFilename = `${filename}_${timestamp}.${extension}`;
 		const fullPath = path.join(tmpDir, fullFilename);

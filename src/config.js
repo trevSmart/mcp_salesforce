@@ -10,6 +10,12 @@ import {getAgentInstructions} from './instructions.js';
  */
 export default {
 	logPrefix: '👁🐝Ⓜ️',
+	tempDir: {
+		// Subfolder under workspace to store temp artifacts
+		baseSubdir: 'tmp',
+		// Remove temp files older than N days
+		retentionDays: 7
+	},
 	apiCache: {
 		// Enable/disable in-memory API response cache globally
 		enabled: true,

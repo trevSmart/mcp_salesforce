@@ -81,8 +81,8 @@ export class AuditTrailDownloaderTestSuite {
 							await retrieveSetupAuditTrailFile();
 							throw new Error('Function should have failed due to missing state');
 						} catch (error) {
-							if (error.message.includes('No s\'ha trobat l\'usuari a l\'estat') ||
-								error.message.includes('No s\'ha trobat la URL de la instància')) {
+							if (error.message.includes('User not found in state') ||
+								error.message.includes('Instance URL not found')) {
 								console.log(`${TEST_CONFIG.colors.green}✓ State validation working correctly${TEST_CONFIG.colors.reset}`);
 								console.log(`${TEST_CONFIG.colors.blue}Expected error: ${error.message}${TEST_CONFIG.colors.reset}`);
 							} else {
@@ -210,8 +210,8 @@ export class AuditTrailDownloaderTestSuite {
 							}
 
 						} catch (error) {
-							if (error.message.includes('No s\'ha trobat l\'usuari a l\'estat') ||
-								error.message.includes('No s\'ha trobat la URL de la instància')) {
+							if (error.message.includes('User not found in state') ||
+								error.message.includes('Instance URL not found')) {
 								console.log(`${TEST_CONFIG.colors.yellow}⚠ Integration test skipped: No Salesforce session${TEST_CONFIG.colors.reset}`);
 								console.log(`${TEST_CONFIG.colors.blue}This is expected in test environments${TEST_CONFIG.colors.reset}`);
 							} else {

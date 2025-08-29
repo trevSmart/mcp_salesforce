@@ -111,15 +111,15 @@ export async function runApexTestToolHandler({classNames = [], methodNames = [],
 
 		let testRunId;
 		if (methodNames && methodNames.length) {
-			//Cas B: només mètodes concrets, ignora classNames
+			// Case B: only specific methods, ignore classNames
 			testRunId = await runApexTest([], methodNames, []);
 
 		} else if (classNames && classNames.length) {
-			//Cas A: només classes senceres, ignora methodNames
+			// Case A: only whole classes, ignore methodNames
 			testRunId = await runApexTest(classNames, [], []);
 
 		} else if (suiteNames && suiteNames.length) {
-			//Cas C: només suites senceres, ignora classNames i methodNames
+			// Case C: only whole suites, ignore classNames and methodNames
 			testRunId = await runApexTest([], [], suiteNames);
 
 		} else {
@@ -131,18 +131,18 @@ export async function runApexTestToolHandler({classNames = [], methodNames = [],
 		}
 
 		//const progressToken = classNames?.length > 1 ? _meta?.progressToken : null;
-		//Polling per esperar que el test acabi
+		// Polling to wait for test completion
 		let testRunResult;
 		while (true) {
 			const testRunResults = await executeSoqlQuery(`SELECT Id, Status, StartTime, TestTime, TestSetupTime, ClassesEnqueued, ClassesCompleted, MethodsEnqueued, MethodsCompleted, MethodsFailed FROM ApexTestRunResult WHERE AsyncApexJobId = '${testRunId}'`);
 			testRunResult = testRunResults.records[0];
 
 			if (!testRunResult || testRunResult.Status !== 'Processing' && testRunResult.Status !== 'Queued') {
-				//notifyProgressChange(progressToken, testRunResult.MethodsEnqueued, testRunResult.MethodsEnqueued, 'Test finalitzat');
+				//notifyProgressChange(progressToken, testRunResult.MethodsEnqueued, testRunResult.MethodsEnqueued, 'Test finished');
 				break;
 			}
 			//const progress = testRunResult.MethodsCompleted + testRunResult.MethodsFailed;
-			//notifyProgressChange(progressToken, testRunResult.MethodsEnqueued, progress, 'Executant el test...');
+			//notifyProgressChange(progressToken, testRunResult.MethodsEnqueued, progress, 'Running the test...');
 			await new Promise(resolve => setTimeout(resolve, 8000)); //Polling every 8 seconds
 		}
 
@@ -151,7 +151,7 @@ export async function runApexTestToolHandler({classNames = [], methodNames = [],
 			throw new Error('No valid test run result found. The test may have failed to start or complete.');
 		}
 
-		//Obtenir els resultats finals dels tests
+		// Get the final test results
 		const testResults = await executeSoqlQuery(`SELECT ApexClass.Name, MethodName, Outcome, RunTime, Message, StackTrace FROM ApexTestResult WHERE ApexTestRunResultId = '${testRunResult.Id}'`);
 
 		if (!Array.isArray(testResults.records)) {

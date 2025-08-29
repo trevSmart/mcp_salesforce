@@ -1,11 +1,9 @@
-import {z} from 'zod';
 import config from '../config.js';
 
 export const testToolsPromptDefinition = {
 	title: 'Test tools',
 	description: 'Test tools prompt for testing purposes',
 	argsSchema: {}
-
 };
 
 export function testToolsPrompt() {

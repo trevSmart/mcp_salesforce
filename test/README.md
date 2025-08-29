@@ -1,99 +1,99 @@
 # Test Structure
 
-Aquest directori conté tots els tests del projecte IBM Salesforce MCP.
+This directory contains all tests for the IBM Salesforce MCP project.
 
-## Estructura
+## Structure
 
 ```
 test/
-├── runner.js              # Executor principal de tests (usa `ibm-test-mcp-client`)
-├── helpers.js             # Funcions auxiliars i gestió d'infraestructura
-├── test-config.js         # Configuració dels tests
-├── suites/                # Suites de tests organitzades per funcionalitat
-│   └── mcp-tools.js       # Tests de les tools MCP
-└── fixtures/              # Dades de test (futur)
+├── runner.js              # Main test runner (uses `ibm-test-mcp-client`)
+├── helpers.js             # Helper functions and infrastructure management
+├── test-config.js         # Test configuration
+├── suites/                # Test suites organized by functionality
+│   └── mcp-tools.js       # Tests for MCP tools
+└── fixtures/              # Test data (future)
 ```
 
-## Com Executar els Tests
+## How to Run Tests
 
-### Executar tots els tests
+### Run all tests
 ```bash
 npm test
 ```
 
-### Executar tests específics
+### Run specific tests
 ```bash
 npm test -- --tests=apexDebugLogs,getRecord
 ```
 
-### Establir nivell de log
+### Set log level
 ```bash
 npm test -- --logLevel=debug
 ```
 
-### Modes de sortida
+### Output modes
 ```bash
-# Sortida compacta (amaga el detall de les tools)
+# Compact output (hides tool details)
 npm test -- --compact
 
-# Sortida mínima (una línia per test)
+# Minimal output (one line per test)
 npm test -- --quiet
 ```
 
-### Veure ajuda
+### See help
 ```bash
 npm run test:help
 ```
 
-## Organització del Codi
+## Code Organization
 
 ### `runner.js`
-- Coordina l'execució de tots els tests
-- Gestiona el cicle de vida del servidor MCP
-- Mostra resums i resultats dels tests
+- Coordinates the execution of all tests
+- Manages the MCP server lifecycle
+- Prints summaries and test results
 
-### Client MCP
-- El `runner.js` utilitza el paquet `ibm-test-mcp-client` per iniciar i gestionar la connexió MCP (via stdio).
-- Funcions clau disponibles al client: `connect`, `disconnect`, `setLoggingLevel`, `listTools`, `callTool`.
+### MCP client
+- `runner.js` uses the `ibm-test-mcp-client` package to start and manage the MCP connection (via stdio).
+- Key client functions: `connect`, `disconnect`, `setLoggingLevel`, `listTools`, `callTool`.
 
 ### `helpers.js`
-- **MCPServerManager**: Gestiona l'inici i aturada del servidor MCP
-- **SalesforceOrgManager**: Gestiona el canvi d'orgs de Salesforce
-- **TestHelpers**: Funcions auxiliars per tests
+- **MCPServerManager**: Manages starting and stopping the MCP server
+- **SalesforceOrgManager**: Manages switching Salesforce orgs
+- **TestHelpers**: Test helper utilities
 
 ### `test-config.js`
-- Configuració centralitzada dels tests
-- Constants per colors, timeouts, i configuracions
+- Centralized test configuration
+- Constants for colors, timeouts, and settings
 
 ### `suites/mcp-tools.js`
-- Conté tots els tests de les tools MCP
-- Organitza els tests per funcionalitat
-- Permet executar tests específics o tots
+- Contains all tests for MCP tools
+- Organizes tests by functionality
+- Allows running specific tests or all
 
-## Afegir Nous Tests
+## Adding New Tests
 
-Per afegir nous tests:
+To add new tests:
 
-1. **Tests de tools MCP**: Afegeix-los a `suites/mcp-tools.js`
-2. **Tests unitaris**: Crea `suites/unit.js`
-3. **Tests d'integració**: Crea `suites/integration.js`
+1. **MCP tool tests**: Add them to `suites/mcp-tools.js`
+2. **Unit tests**: Create `suites/unit.js`
+3. **Integration tests**: Create `suites/integration.js`
 
-## Exemple d'Afegir un Test
+## Example: Adding a Test
 
 ```javascript
-// A suites/mcp-tools.js
+// In suites/mcp-tools.js
 {
-  name: 'Nou Test',
+  name: 'New Test',
   run: async () => {
     await this.mcpClient.callTool('toolName', {param: 'value'});
   }
 }
 ```
 
-## Avantatges de la Nova Estructura
+## Advantages of the New Structure
 
-1. **Separació de responsabilitats**: Cada fitxer té una funció específica
-2. **Reutilització**: El client MCP i helpers es comparteixen entre tests
-3. **Mantenibilitat**: Fàcil trobar i modificar tests específics
-4. **Escalabilitat**: Fàcil afegir nous tipus de tests
-5. **Configuració centralitzada**: Tots els paràmetres en un sol lloc
+1. **Separation of concerns**: Each file has a specific purpose
+2. **Reuse**: MCP client and helpers are shared across tests
+3. **Maintainability**: Easy to find and modify specific tests
+4. **Scalability**: Easy to add new types of tests
+5. **Centralized configuration**: All parameters in one place
