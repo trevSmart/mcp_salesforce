@@ -1,6 +1,6 @@
 {
-  "name": "@trevsmart/test_research4",
-  "version": "0.3.28",
+  "name": "@trevSmart/test_research4",
+  "version": "0.3.31",
   "description": "Test Research 4",
   "main": "index.js",
   "type": "module",
