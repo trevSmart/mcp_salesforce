@@ -1,5 +1,6 @@
 import {generateMetadata} from '../salesforceServices.js';
-import {log, textFileContent} from '../utils.js';
+import {textFileContent} from '../utils.js';
+import {createModuleLogger} from '../logger.js';
 import {z} from 'zod';
 
 export const createMetadataToolDefinition = {
@@ -39,6 +40,7 @@ export const createMetadataToolDefinition = {
 };
 
 export async function createMetadataToolHandler({type, name, outputDir, triggerSObject, triggerEvent = []}) {
+	const logger = createModuleLogger(import.meta.url);
 	try {
 		const result = await generateMetadata({type, name, outputDir, triggerSObject, triggerEvent});
 
@@ -51,7 +53,7 @@ export async function createMetadataToolHandler({type, name, outputDir, triggerS
 		};
 
 	} catch (error) {
-		log(error, 'error', 'Error creating metadata');
+		logger.error(error, 'Error creating metadata');
 		return {
 			isError: true,
 			content: [{
@@ -62,5 +64,4 @@ export async function createMetadataToolHandler({type, name, outputDir, triggerS
 		};
 	}
 }
-
 

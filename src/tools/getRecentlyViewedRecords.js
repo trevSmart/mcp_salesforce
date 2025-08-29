@@ -1,5 +1,6 @@
 import {executeSoqlQuery} from '../salesforceServices.js';
-import {textFileContent, log} from '../utils.js';
+import {textFileContent} from '../utils.js';
+import {createModuleLogger} from '../logger.js';
 
 export const getRecentlyViewedRecordsToolDefinition = {
 	name: 'getRecentlyViewedRecords',
@@ -15,6 +16,7 @@ export const getRecentlyViewedRecordsToolDefinition = {
 };
 
 export async function getRecentlyViewedRecordsToolHandler() {
+	const logger = createModuleLogger(import.meta.url);
 	try {
 		// Use executeSoqlQuery to get all recently viewed records
 		const query = 'SELECT Id, Name, Type, LastViewedDate, LastReferencedDate FROM RecentlyViewed ORDER BY LastViewedDate DESC';
@@ -36,7 +38,7 @@ export async function getRecentlyViewedRecordsToolHandler() {
 		};
 
 	} catch (error) {
-		log(error, 'error', 'Error getting recently viewed records');
+		logger.error(error, 'Error getting recently viewed records');
 		return {
 			isError: true,
 			content: [{

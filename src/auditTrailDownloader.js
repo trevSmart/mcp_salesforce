@@ -1,8 +1,9 @@
 import {chromium} from 'playwright';
 import fs from 'fs';
 import path from 'path';
-import {log} from './utils.js';
+import {createModuleLogger} from './logger.js';
 import state from './state.js';
+const logger = createModuleLogger(import.meta.url);
 
 // Try clicking the first candidate link found across page and frames
 async function clickDownloadCandidate(page, timeoutPerClick = 1000) {
@@ -75,7 +76,7 @@ async function retrieveFile() {
 		return filePath;
 
 	} catch (error) {
-		log(error, 'error', 'Error during Setup Audit Trail download');
+		logger.error(error, 'Error during Setup Audit Trail download');
 		throw error;
 
 	} finally {
@@ -89,21 +90,21 @@ async function retrieveFileWithRetry(maxRetries = 2) {
 	let lastError;
 	for (let attempt = 1; attempt <= maxRetries; attempt++) {
 		try {
-			log(`Attempt ${attempt}/${maxRetries} to retrieve Setup Audit Trail file`, 'info');
+			logger.info(`Attempt ${attempt}/${maxRetries} to retrieve Setup Audit Trail file`);
 			return await retrieveFile();
 		} catch (error) {
 			lastError = error;
 			const transient = typeof error?.message === 'string'
 				&& (error.message.includes('Frame was detached') || error.message.includes('Target page, context or browser has been closed'));
 			if (transient && attempt < maxRetries) {
-				log(`Transient error on attempt ${attempt}, retrying...`, 'warning');
+				logger.warn(`Transient error on attempt ${attempt}, retrying...`);
 				await new Promise(r => setTimeout(r, 2000));
 				continue;
 			}
 			break;
 		}
 	}
-	log(`All ${maxRetries} attempts failed. Last error: ${lastError?.message}`, 'error');
+	logger.error(`All ${maxRetries} attempts failed. Last error: ${lastError?.message}`);
 	throw lastError;
 }
 
@@ -111,7 +112,7 @@ export async function retrieveSetupAuditTrailFile() {
 	try {
 		return await retrieveFileWithRetry();
 	} catch (error) {
-		log(error, 'error', 'Error retrieving Setup Audit Trail file');
+		logger.error(error, 'Error retrieving Setup Audit Trail file');
 		throw error;
 	}
 }

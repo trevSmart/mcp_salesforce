@@ -1,10 +1,12 @@
 import state from '../state.js';
-import {log, textFileContent} from '../utils.js';
+import {textFileContent} from '../utils.js';
+import {createModuleLogger} from '../logger.js';
 import {getOrgAndUserDetails, callSalesforceApi} from '../salesforceServices.js';
 import crypto from 'crypto';
 import {z} from 'zod';
 
 let currentSessionId = null;
+const logger = createModuleLogger(import.meta.url);
 
 export const chatWithAgentforceToolDefinition = {
 	name: 'chatWithAgentforce',
@@ -25,7 +27,7 @@ export const chatWithAgentforceToolDefinition = {
 
 async function startSession() {
 	try {
-		log('Starting Agentforce session...');
+		logger.info('Starting Agentforce session...');
 
 		await getOrgAndUserDetails();
 
@@ -66,10 +68,10 @@ async function startSession() {
 		}
 
 		currentSessionId = response.sessionId;
-		log('Session started with id:', currentSessionId);
+		logger.info(`Session started with id: ${currentSessionId}`);
 		return response;
 	} catch (error) {
-		log('Error starting session:', error);
+		logger.error(error, 'Error starting session');
 		return {
 			isError: true,
 			content: [{
@@ -107,8 +109,8 @@ async function sendMessage(message) {
 
 		return response;
 	} catch (error) {
-		log('Error sending message:', error);
-		log('Error sending message:', JSON.stringify(error, null, 3));
+		logger.error(error, 'Error sending message');
+		logger.debug(JSON.stringify(error, null, 3), 'Error sending message');
 		return {
 			isError: true,
 			content: [{
@@ -146,7 +148,7 @@ export async function chatWithAgentforceToolHandler({message}) {
 		};
 
 	} catch (error) {
-		log(error, 'error');
+		logger.error(error);
 		return {
 			isError: true,
 			content: [{

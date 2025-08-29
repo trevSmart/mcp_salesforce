@@ -10,8 +10,8 @@ import {
 
 } from '@modelcontextprotocol/sdk/types.js';
 
-import {log, validateUserPermissions} from './utils.js';
-import {createLogger} from './logger.js';
+import {validateUserPermissions} from './utils.js';
+import {createModuleLogger} from './logger.js';
 import config from './config.js';
 import {fileURLToPath} from 'url';
 import client from './client.js';
@@ -38,8 +38,8 @@ import {createMetadataToolDefinition} from './tools/createMetadata.js';
 // import { triggerExecutionOrderToolDefinition } from './tools/triggerExecutionOrder.js';
 //import {generateSoqlQueryToolDefinition} from './tools/generateSoqlQuery.js';
 
+const logger = createModuleLogger(import.meta.url);
 export let resources = {};
-const logger = createLogger('mcp-server');
 
 async function setWorkspacePath(workspacePath) {
 	// Normalize file:// URIs to local filesystem paths
@@ -195,7 +195,7 @@ export async function setupServer() {
 				}
 				return await toolHandler(params);
 			} catch (error) {
-				log(error.message, 'critical', `Error calling tool ${tool}`);
+				logger.error(error.message, `Error calling tool ${tool}`);
 				return {isError: true, content: [{type: 'text', text: error.message}]};
 			}
 		};
@@ -220,7 +220,6 @@ export async function setupServer() {
 
 	mcpServer.server.setRequestHandler(SetLevelRequestSchema, async ({params}) => {
 		state.currentLogLevel = params.level;
-		logger.debug(`Log level set to ${params.level}`);
 		return {};
 	});
 
@@ -258,13 +257,13 @@ export async function setupServer() {
 					targetOrgWatcher.start(updateOrgAndUserDetails);
 					await updateOrgAndUserDetails();
 
-					log(`Server initialized and running. Target org: ${state.org.alias}`, 'debug');
+					logger.debug(`Server initialized and running. Target org: ${state.org.alias}`, 'init');
 					if (typeof resolveOrgReady === 'function') {
 						resolveOrgReady();
 					}
 
 				} catch (error) {
-					log(error, 'error', 'Error during async org setup');
+					logger.error(error, 'Error during async org setup');
 					// Swallow to avoid unhandled rejection; initialization continues and tools will gate on validation
 					if (typeof resolveOrgReady === 'function') {
 						resolveOrgReady();
@@ -276,7 +275,7 @@ export async function setupServer() {
 			return {protocolVersion, serverInfo, capabilities};
 
 		} catch (error) {
-			log(error, 'error', 'Error initializing server');
+			logger.error(error, 'Error initializing server');
 			// Return a structured error via JSON-RPC by throwing a concise Error
 			throw new Error(`Initialization failed: ${error.message}`);
 		}

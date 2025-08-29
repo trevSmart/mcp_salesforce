@@ -1,9 +1,10 @@
 import fs from 'fs';
 import path, {dirname} from 'path';
 import {fileURLToPath} from 'url';
-import {log} from './utils.js';
+import {createModuleLogger} from './logger.js';
 import {getOrgAndUserDetails} from './salesforceServices.js';
 import state from './state.js';
+const logger = createModuleLogger(import.meta.url);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -87,7 +88,7 @@ class GlobalCache {
 				fs.unlinkSync(this.cacheFile);
 			}
 		} catch (err) {
-			log('[CACHE] Error deleting cache file: ' + err, 'error');
+			logger.error('[CACHE] Error deleting cache file: ' + err);
 		}
 		this._saveToFile(deleteFile);
 	}
@@ -160,7 +161,7 @@ class GlobalCache {
 			fs.writeFileSync(this.cacheFile, JSON.stringify(cacheToSave, null, 2), 'utf8');
 
 		} catch (err) {
-			log('[CACHE] Error saving cache: ' + err, 'error');
+			logger.error('[CACHE] Error saving cache: ' + err);
 		}
 	}
 
@@ -188,10 +189,10 @@ class GlobalCache {
 					}
 				}
 			} else {
-				log(`Cache file "${this.cacheFile}" not found`, 'debug');
+				logger.debug(`Cache file "${this.cacheFile}" not found`);
 			}
 		} catch (err) {
-			log('Error loading cache: ' + err, 'error');
+			logger.error('Error loading cache: ' + err);
 		}
 	}
 }

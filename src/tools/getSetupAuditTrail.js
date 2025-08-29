@@ -1,4 +1,5 @@
-import {log, textFileContent} from '../utils.js';
+import {textFileContent} from '../utils.js';
+import {createModuleLogger} from '../logger.js';
 import {newResource} from '../mcp-server.js';
 import {z} from 'zod';
 import {retrieveSetupAuditTrailFile} from '../auditTrailDownloader.js';
@@ -7,6 +8,7 @@ import state from '../state.js';
 import client from '../client.js';
 import fs from 'fs';
 import path from 'path';
+const logger = createModuleLogger(import.meta.url);
 
 export const getSetupAuditTrailToolDefinition = {
 	name: 'getSetupAuditTrail',
@@ -85,7 +87,7 @@ function normalizeMultilineFields(inputPath) {
 		current && out.push(current);
 		return out;
 	} catch (error) {
-		log(`Error normalizing CSV: ${error.message}`, 'error');
+		logger.error(`Error normalizing CSV: ${error.message}`);
 		throw error;
 	}
 }
@@ -202,7 +204,7 @@ function applyAllFilters(lines, lastDays, username, metadataName) {
 			uniqueUsernames: Array.from(usernamesSet)
 		};
 	} catch (error) {
-		log(`Error applying all filters: ${error.message}`, 'error');
+		logger.error(`Error applying all filters: ${error.message}`);
 		throw error;
 	}
 }
@@ -341,10 +343,10 @@ async function getUserNamesFromUsernames(usernames) {
 			}
 		}
 
-		log(`Resolved ${Object.keys(userMap).length} user names (fetched ${toFetch.length})`, 'debug');
+		logger.debug(`Resolved ${Object.keys(userMap).length} user names (fetched ${toFetch.length})`);
 		return userMap;
 	} catch (error) {
-		log(`Error getting user names: ${error.message}`, 'error');
+		logger.error(`Error getting user names: ${error.message}`);
 		// Retornar un map buit en cas d'error, així la tool pot continuar funcionant
 		return {};
 	}
@@ -384,7 +386,7 @@ function getFreshAuditTrailFilePath() {
 			}
 		}
 	} catch (e) {
-		log(`Error checking cached Setup Audit Trail file: ${e.message}`, 'debug');
+		logger.debug(`Error checking cached Setup Audit Trail file: ${e.message}`);
 	}
 	return null;
 }
@@ -415,13 +417,13 @@ export async function getSetupAuditTrailToolHandler({lastDays = 30, user = null,
 				}
 				if (res?.records?.length) {
 					const uname = res.records[0].Username;
-					log(`Resolved user '${u}' to username '${uname}'`, 'info');
+					logger.info(`Resolved user '${u}' to username '${uname}'`);
 					return {usernameForFiltering: uname, resolvedUsername: uname};
 				}
-				log(`No matching User found for name '${u}'. Returning 0 records for user filter.`, 'warning');
+				logger.warn(`No matching User found for name '${u}'. Returning 0 records for user filter.`);
 				return {usernameForFiltering: '__NO_MATCH__', resolvedUsername: null};
 			} catch (e) {
-				log(`Error resolving user '${u}' to username: ${e.message}`, 'error');
+				logger.error(`Error resolving user '${u}' to username: ${e.message}`);
 				return {usernameForFiltering: '__NO_MATCH__', resolvedUsername: null};
 			}
 		};
@@ -437,7 +439,7 @@ export async function getSetupAuditTrailToolHandler({lastDays = 30, user = null,
 			try {
 				filePath = await retrieveSetupAuditTrailFile();
 			} catch (downloadError) {
-				log(`Setup Audit Trail file download error: ${downloadError.message}`, 'error');
+				logger.error(`Setup Audit Trail file download error: ${downloadError.message}`);
 				throw downloadError;
 			}
 			if (!filePath || !fs.existsSync(filePath)) {
@@ -498,7 +500,7 @@ export async function getSetupAuditTrailToolHandler({lastDays = 30, user = null,
 		};
 
 	} catch (error) {
-		log(error, 'error', 'Error getting setup audit trail data');
+		logger.error(error, 'Error getting setup audit trail data');
 		return {
 			isError: true,
 			content: [{

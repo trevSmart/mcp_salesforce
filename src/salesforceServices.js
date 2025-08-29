@@ -1,4 +1,3 @@
-import {log} from './utils.js';
 import config from './config.js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -6,7 +5,9 @@ import state from './state.js';
 import {newResource} from './mcp-server.js';
 import {exec as execCb} from 'child_process';
 import {promisify} from 'node:util';
+import {createModuleLogger} from './logger.js';
 const exec = promisify(execCb);
+const logger = createModuleLogger(import.meta.url);
 
 //Helper function to generate timestamp in YYMMDDHHMMSS format
 function generateTimestamp() {
@@ -66,7 +67,7 @@ export async function runCliCommand(command) {
 	} catch (error) {
 		error.stderr && (error.message += `\nSTDERR: ${error.stderr}`);
 		error.stdout && (error.message += `\nSTDOUT: ${error.stdout}`);
-		log(error, 'error', 'Error running SF CLI command');
+		logger.error(error, 'Error running SF CLI command');
 		throw error;
 	}
 }
@@ -94,7 +95,7 @@ export async function executeSoqlQuery(query, useToolingApi = false) {
 		return response;
 
 	} catch (error) {
-		log(error, 'error', 'Error executing SOQL query');
+		logger.error(error, 'Error executing SOQL query');
 		throw error;
 	}
 }
@@ -102,7 +103,7 @@ export async function executeSoqlQuery(query, useToolingApi = false) {
 export async function getOrgAndUserDetails(skipCache = false) {
 	try {
 		if (state?.org?.alias && !skipCache) {
-			log('Org and user details already cached, skipping fetch', 'debug');
+			logger.debug('Org and user details already cached, skipping fetch');
 			return state.org;
 		}
 
@@ -157,7 +158,7 @@ export async function getOrgAndUserDetails(skipCache = false) {
 		return org;
 
 	} catch (error) {
-		log(error, 'error', 'Error getting org and user details');
+		logger.error(error, 'Error getting org and user details');
 		throw error;
 	}
 }
@@ -221,7 +222,7 @@ export async function dmlOperation(operations, options = {}) {
 			const result = await callSalesforceApi('POST', 'TOOLING', '/composite', payload);
 
 			if (!result || typeof result !== 'object') {
-				log(result, 'error', 'Invalid response structure from Salesforce Tooling API');
+				logger.error(result, 'Invalid response structure from Salesforce Tooling API');
 				throw new Error('Invalid response structure from Salesforce Tooling API');
 			}
 
@@ -362,7 +363,7 @@ export async function dmlOperation(operations, options = {}) {
 		}
 
 	} catch (error) {
-		log(error, 'error', 'Error executing batch DML operation');
+		logger.error(error, 'Error executing batch DML operation');
 		throw error;
 	}
 }
@@ -372,7 +373,7 @@ export async function getRecord(sObjectName, recordId) {
 		if (!sObjectName || !recordId) {
 			throw new Error('sObjectName and recordId are required');
 		}
-		log(`Getting record via REST API: ${sObjectName}/${recordId}`, 'debug');
+		logger.debug(`Getting record via REST API: ${sObjectName}/${recordId}`);
 		const response = await callSalesforceApi('GET', 'REST', `/sobjects/${sObjectName}/${recordId}`);
 		if (!response || typeof response !== 'object') {
 			throw new Error('Invalid response structure from Salesforce API');
@@ -385,7 +386,7 @@ export async function getRecord(sObjectName, recordId) {
 		return response;
 
 	} catch (error) {
-		log(error, 'error', `Error getting record ${recordId} from object ${sObjectName}`);
+		logger.error(error, `Error getting record ${recordId} from object ${sObjectName}`);
 		throw error;
 	}
 }
@@ -396,7 +397,7 @@ export async function describeObject(sObjectName) {
 			throw new Error('sObjectName is required and must be a string');
 		}
 		const command = `sf sobject describe --sobject ${sObjectName} --json`;
-		log(`Executing describe object command: ${command}`, 'debug');
+		logger.debug(`Executing describe object command: ${command}`);
 
 		const responseString = await runCliCommand(command);
 		let response;
@@ -409,7 +410,7 @@ export async function describeObject(sObjectName) {
 		return response;
 
 	} catch (error) {
-		log(error, 'error', `Error describing object ${sObjectName}`);
+		logger.error(error, `Error describing object ${sObjectName}`);
 		throw error;
 	}
 }
@@ -449,7 +450,7 @@ export async function runApexTest(classNames = [], methodNames = [], suiteNames 
 		return responseObj.result.testRunId;
 
 	} catch (error) {
-		log(error, 'error', 'Error running Apex tests');
+		logger.error(error, 'Error running Apex tests');
 		throw error;
 	}
 }
@@ -638,7 +639,7 @@ export async function getApexClassCodeCoverage(classNames = []) {
 		return result;
 
 	} catch (error) {
-		log(error, 'error', `Error getting code coverage for classes ${Array.isArray(classNames) ? classNames.join(', ') : classNames}`);
+		logger.error(error, `Error getting code coverage for classes ${Array.isArray(classNames) ? classNames.join(', ') : classNames}`);
 		throw error;
 	}
 }
@@ -663,7 +664,7 @@ export async function executeAnonymousApex(apexCode) {
 		//Escriu el codi Apex al fitxer temporal
 		await fs.writeFile(tmpFile, apexCode, 'utf8');
 		const command = `sf apex run --file "${tmpFile}" --json`;
-		log(`Executing anonymous Apex: ${command}`, 'debug');
+		logger.debug(`Executing anonymous Apex: ${command}`);
 		let cliError = null;
 		let output = null;
 		let response = null;
@@ -693,14 +694,14 @@ export async function executeAnonymousApex(apexCode) {
 			if (response && response.message) {
 				errorMsg += `Salesforce error: ${response.message}`;
 			}
-			log(errorMsg, 'error', 'Error executing anonymous Apex');
+			logger.error(errorMsg, 'Error executing anonymous Apex');
 			throw new Error(errorMsg);
 		}
-		log(response, 'debug');
+		logger.debug(response);
 		return response.result;
 
 	} catch (error) {
-		log(error, 'error', 'Error executing anonymous Apex');
+		logger.error(error, 'Error executing anonymous Apex');
 		throw error;
 
 	} finally {
@@ -722,19 +723,19 @@ export async function deployMetadata(sourceDir) {
 		const command = `sf project deploy start --source-dir "${sourceDir}" --ignore-conflicts --json`;
 
 		const responseString = await runCliCommand(command);
-		log(`responseString: ${responseString}`, 'debug');
+		logger.debug(`responseString: ${responseString}`);
 		let response;
 		try {
 			response = JSON.parse(responseString);
 		} catch (error) {
-			log(error, 'error', 'Error parsing CLI response');
+			logger.error(error, 'Error parsing CLI response');
 			throw new Error(`Error parsing CLI response: ${responseString}`);
 		}
 
 		return response.result;
 
 	} catch (error) {
-		log(error, 'error', `Error deploying metadata file ${sourceDir}`);
+		logger.error(error, `Error deploying metadata file ${sourceDir}`);
 		throw error;
 	}
 }
@@ -826,7 +827,7 @@ public class ${name} {
 				try {
 					await fs.writeFile(classFilePath, testClassContent, 'utf8');
 				} catch {
-					log(`Error writing file ${classFilePath}`, 'error');
+					logger.error(`Error writing file ${classFilePath}`);
 				}
 			}
 
@@ -836,12 +837,12 @@ public class ${name} {
 			try {
 				await fs.access(triggerFilePath); files.push(triggerFilePath);
 			} catch {
-				log(`File not accessible: ${triggerFilePath}`, 'error');
+				logger.error(`File not accessible: ${triggerFilePath}`);
 			}
 			try {
 				await fs.access(metaFilePath); files.push(metaFilePath);
 			} catch {
-				log(`File not accessible: ${metaFilePath}`, 'error');
+				logger.error(`File not accessible: ${metaFilePath}`);
 			}
 
 		} else if (type === 'lwc') {
@@ -850,14 +851,14 @@ public class ${name} {
 				const entries = await fs.readdir(folder);
 				files = entries.map(f => path.join(folder, f));
 			} catch {
-				log(`Error reading directory ${folder}`, 'error');
+				logger.error(`Error reading directory ${folder}`);
 			}
 		}
 
 		return {success: true, type, name, triggerSObject, outputDir: resolvedDir, folder, files, stdout};
 
 	} catch (error) {
-		log(error, 'error', `Error generating metadata ${name} of type ${type}`);
+		logger.error(error, `Error generating metadata ${name} of type ${type}`);
 		throw error;
 	}
 }
@@ -868,14 +869,14 @@ public class ${name} {
  */
 async function refreshAccessToken() {
 	try {
-		log('Access token expired, refreshing...', 'debug');
+		logger.debug('Access token expired, refreshing...');
 		const userDetails = await runCliCommand('sf org display user --json');
 		const newAccessToken = userDetails.result.accessToken;
 		state.org.accessToken = newAccessToken;
 		return true;
 
 	} catch (error) {
-		log(`Failed to refresh access token: ${error.message}`, 'error');
+		logger.error(`Failed to refresh access token: ${error.message}`);
 		return false;
 	}
 }
@@ -989,7 +990,7 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 		if (API_CACHE_ENABLED && API_CACHE_CACHE_GET && isGet && !bypassCache && cacheTtlMs > 0) {
 			const entry = apiCache.get(cacheKey);
 			if (entry && entry.expiresAt > Date.now()) {
-				log(`GET cache hit for ${service}`, 'debug');
+				logger.debug(`GET cache hit for ${service}`);
 				return entry.data;
 			}
 		}
@@ -1011,7 +1012,7 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 			}
 			logMessage += `\n${JSON.stringify(maskedRequestOptions, null, 3)}`;
 		}
-		log(logMessage, 'debug');
+		logger.debug(logMessage);
 
 		if (!response.ok) {
 			let errorDetails = '';
@@ -1044,7 +1045,7 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 			return data;
 
 		} catch (parseError) {
-			log(`Could not parse JSON response: ${parseError.message}`, 'warning');
+			logger.warn(`Could not parse JSON response: ${parseError.message}`);
 			const text = (await response.text());
 			if (API_CACHE_ENABLED && API_CACHE_CACHE_GET && isGet && !bypassCache && cacheTtlMs > 0) {
 				apiCache.set(cacheKey, {data: text, expiresAt: Date.now() + cacheTtlMs});
@@ -1075,7 +1076,7 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 
 				if (refreshSuccess) {
 					// Continue to next iteration to retry with new token
-					log('Token refreshed successfully, retrying API call...', 'debug');
+					logger.debug('Token refreshed successfully, retrying API call...');
 					continue;
 				} else {
 					throw new Error('Failed to refresh access token. Please re-authenticate with Salesforce CLI.');
@@ -1088,7 +1089,7 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 			}
 
 			// Re-throw other errors
-			log(error, 'error', `Error calling Salesforce API: ${operation} ${endpoint}`);
+			logger.error(error, `Error calling Salesforce API: ${operation} ${endpoint}`);
 			throw error;
 		}
 	}

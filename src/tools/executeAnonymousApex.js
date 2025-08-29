@@ -1,9 +1,11 @@
 import state from '../state.js';
-import {log, textFileContent, getTimestamp} from '../utils.js';
+import {textFileContent, getTimestamp} from '../utils.js';
+import {createModuleLogger} from '../logger.js';
 import {executeAnonymousApex} from '../salesforceServices.js';
 import {mcpServer, newResource} from '../mcp-server.js';
 import client from '../client.js';
 import {z} from 'zod';
+const logger = createModuleLogger(import.meta.url);
 
 export const executeAnonymousApexToolDefinition = {
 	name: 'executeAnonymousApex',
@@ -104,7 +106,7 @@ export async function executeAnonymousApexToolHandler({apexCode, mayModify}) {
 		return {content, structuredContent: result};
 
 	} catch (error) {
-		log(error, 'error');
+		logger.error(error);
 		return {
 			isError: true,
 			content: [{

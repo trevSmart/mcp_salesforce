@@ -2,11 +2,13 @@ import {newResource} from '../mcp-server.js';
 import {mcpServer} from '../mcp-server.js';
 import state from '../state.js';
 import client from '../client.js';
-import {log, textFileContent, formatDate} from '../utils.js'; // ensureTmpDir, writeToTmpFile
+import {textFileContent, formatDate} from '../utils.js'; // ensureTmpDir, writeToTmpFile
+import {createModuleLogger} from '../logger.js';
 import {executeSoqlQuery, dmlOperation, runCliCommand} from '../salesforceServices.js';
 import {z} from 'zod';
 // import path from 'path';
 // import {execSync} from 'child_process';
+const logger = createModuleLogger(import.meta.url);
 
 export const apexDebugLogsToolDefinition = {
 	name: 'apexDebugLogs',
@@ -372,13 +374,13 @@ export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOpti
 		}
 
 		const user = state?.org?.user;
-		log(`User data: ${JSON.stringify(user)}`, 'debug') ;
+		logger.debug(`User data: ${JSON.stringify(user)}`) ;
 		if (!user) {
 			throw new Error('User data not found');
 		}
 
 		if (action === 'status') {
-			log('Checking already existing TraceFlag...', 'debug');
+			logger.debug('Checking already existing TraceFlag...');
 
 			const soqlTraceFlagResult = await executeSoqlQuery(
 				`SELECT Id, StartDate, ExpirationDate, DebugLevel.DeveloperName FROM TraceFlag WHERE TracedEntityId = '${user.id}' AND StartDate < ${new Date().toISOString()} AND ExpirationDate > ${new Date().toISOString()} LIMIT 1`,
@@ -418,7 +420,7 @@ export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOpti
 
 		} else if (action === 'on') {
 			//1. Check if there's already an active TraceFlag
-			log('Checking for already active TraceFlag...', 'debug');
+			logger.debug('Checking for already active TraceFlag...');
 			const soqlActiveTraceFlagResult = await executeSoqlQuery(
 				`SELECT Id, StartDate, ExpirationDate, DebugLevel.DeveloperName FROM TraceFlag WHERE TracedEntityId = '${user.id}' AND LogType = 'DEVELOPER_LOG' AND ExpirationDate > ${new Date().toISOString()}`,
 				true
@@ -460,7 +462,7 @@ export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOpti
 			let debugLevelId = soqlDebugLevelResult?.records?.[0]?.Id;
 
 			if (!debugLevelId) {
-				log('DebugLevel not found. Creating new DebugLevel...', 'debug');
+				logger.debug('DebugLevel not found. Creating new DebugLevel...');
 				const debugLevelResult = await dmlOperation({
 					create: [{
 						sObjectName: 'DebugLevel',
@@ -491,7 +493,7 @@ export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOpti
 				}]
 			}, {useToolingApi: true});
 
-			log(traceFlagResult, 'debug', 'Create TraceFlag result');
+			logger.debug(traceFlagResult, 'Create TraceFlag result');
 
 			const newTraceFlagId = traceFlagResult.successes?.[0]?.id;
 
@@ -551,7 +553,7 @@ export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOpti
 				const parsedResponse = JSON.parse(response);
 				logs = parsedResponse?.result || [];
 			} catch (error) {
-				log(`Error parsing JSON response: ${error.message}`, 'error');
+				logger.error(`Error parsing JSON response: ${error.message}`);
 				logs = [];
 			}
 
@@ -605,7 +607,7 @@ export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOpti
 						const parsedResponse = JSON.parse(response);
 						logs = parsedResponse?.result || [];
 					} catch (error) {
-						log(`Error parsing JSON response: ${error.message}`, 'error');
+						logger.error(`Error parsing JSON response: ${error.message}`);
 						logs = [];
 					}
 
@@ -709,7 +711,7 @@ export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOpti
 		}
 
 	} catch (error) {
-		log(error, 'error');
+		logger.error(error);
 		return {
 			isError: true,
 			content: [{

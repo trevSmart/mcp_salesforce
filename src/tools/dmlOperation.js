@@ -1,5 +1,6 @@
 import state from '../state.js';
-import {log, textFileContent} from '../utils.js';
+import {textFileContent} from '../utils.js';
+import {createModuleLogger} from '../logger.js';
 import {dmlOperation} from '../salesforceServices.js';
 import {mcpServer} from '../mcp-server.js';
 import client from '../client.js';
@@ -51,6 +52,7 @@ export const dmlOperationToolDefinition = {
 };
 
 export async function dmlOperationToolHandler({operations, options = {}}) {
+	const logger = createModuleLogger(import.meta.url);
 	try {
 		// Check for destructive operations and require confirmation if needed
 		if (options.bypassUserConfirmation !== true
@@ -118,7 +120,7 @@ export async function dmlOperationToolHandler({operations, options = {}}) {
 		};
 
 	} catch (error) {
-		log(`Error in dmlOperationTool: ${error.message}`, 'error');
+		logger.error(`Error in dmlOperationTool: ${error.message}`);
 
 		return {
 			isError: true,

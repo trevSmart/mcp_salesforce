@@ -231,8 +231,9 @@ export async function triggerExecutionOrder(args) {
 			structuredContent: executionOrder
 		};
 
-	} catch (error) {
-		log(error, 'error');
+    } catch (error) {
+        const logger = createModuleLogger(import.meta.url);
+        logger.error(error);
 		/* return {
 			isError: true,
 			content: [{

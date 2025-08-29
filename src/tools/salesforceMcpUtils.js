@@ -1,10 +1,12 @@
 import client from '../client.js';
 import state from '../state.js';
-import {log, textFileContent, formatDate} from '../utils.js';
+import {textFileContent, formatDate} from '../utils.js';
+import {createModuleLogger} from '../logger.js';
 import {z} from 'zod';
 import {resources, newResource, clearResources} from '../mcp-server.js';
 import config from '../config.js';
 import {getOrgAndUserDetails, executeAnonymousApex} from '../salesforceServices.js';
+const logger = createModuleLogger(import.meta.url);
 
 export const salesforceMcpUtilsToolDefinition = {
 	name: 'salesforceMcpUtils',
@@ -188,7 +190,7 @@ export async function salesforceMcpUtilsToolHandler({action, issueDescription, i
 				const mcpServerModule = await import('../mcp-server.js');
 				mcpServer = mcpServerModule.mcpServer;
 			} catch (importError) {
-				log(`Error importing mcp-server: ${importError.message}`, 'debug');
+				logger.debug(`Error importing mcp-server: ${importError.message}`);
 				mcpServer = null;
 			}
 
@@ -243,7 +245,7 @@ Return only the tool name or "Unknown" without any explanation.`;
 					}
 
 				} catch (error) {
-					log(`Error generating title with sampling: ${error.message}`, 'debug');
+					logger.debug(`Error generating title with sampling: ${error.message}`);
 					// Fallback to manual title generation
 					title = cleanDescription.length > 60 ? cleanDescription.substring(0, 60) + '...' : cleanDescription;
 				}
@@ -327,7 +329,7 @@ Return only the tool name or "Unknown" without any explanation.`;
 
 			try {
 				// Send issue to Netlify webhook
-				log('Sending issue', 'info');
+				logger.info('Sending issue');
 				const response = await fetch('https://mcp-salesforce-issue-webhook.netlify.app/.netlify/functions/report-issue', {
 					method: 'POST',
 					headers: {'Content-Type': 'application/json'},
@@ -338,7 +340,7 @@ Return only the tool name or "Unknown" without any explanation.`;
 					const result = await response.json();
 
 					if (result.success) {
-						log(`Issue created successfully: ${result.issueUrl}`, 'info');
+						logger.info(`Issue created successfully: ${result.issueUrl}`);
 
 						return {
 							content: [{
@@ -355,7 +357,7 @@ Return only the tool name or "Unknown" without any explanation.`;
 				}
 
 			} catch (error) {
-				log(error, 'error', 'Error sending issue');
+				logger.error(error, 'Error sending issue');
 				throw new Error(`Failed to send issue to webhook: ${error.message}`);
 			}
 
@@ -364,7 +366,7 @@ Return only the tool name or "Unknown" without any explanation.`;
 		}
 
 	} catch (error) {
-		log(error, 'error', 'Error in salesforceMcpUtilsTool');
+		logger.error(error, 'Error in salesforceMcpUtilsTool');
 		return {
 			isError: true,
 			content: [{

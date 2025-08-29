@@ -1,7 +1,9 @@
-import {log, textFileContent} from '../utils.js';
+import {textFileContent} from '../utils.js';
+import {createModuleLogger} from '../logger.js';
 import {callSalesforceApi} from '../salesforceServices.js';
 import {z} from 'zod';
 import {newResource, resources} from '../mcp-server.js';
+const logger = createModuleLogger(import.meta.url);
 
 export const describeObjectToolDefinition = {
 	name: 'describeObject',
@@ -34,7 +36,7 @@ export async function describeObjectToolHandler({sObjectName, includeFields = tr
 
 		// Check cache first
 		if (resources[resourceName]) {
-			log('SObject schema already cached, skipping fetch', 'debug');
+			logger.debug('SObject schema already cached, skipping fetch');
 			const cached = JSON.parse(resources[resourceName].text);
 
 			// Apply filtering to cached data
@@ -95,7 +97,7 @@ export async function describeObjectToolHandler({sObjectName, includeFields = tr
 		};
 
 	} catch (error) {
-		log(error, 'error');
+		logger.error(error);
 		const errorContent = {error: true, message: error.message};
 		return {
 			isError: true,
