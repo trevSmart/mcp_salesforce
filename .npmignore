@@ -49,7 +49,11 @@ eslint.config.js
 .github/
 .cursorignore
 .env
-dist/
+/dist
+
+# Git and NPM configuration files that shouldn't be in the published package.
+.npm-cache/
+.npm-tmp/
 
 # Intentionally NOT ignoring dist/ so it is published
 # Intentionally NOT ignoring src/ for now because the current entrypoint imports from ./src
