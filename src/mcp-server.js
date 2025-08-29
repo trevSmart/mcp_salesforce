@@ -172,9 +172,9 @@ export async function setupServer() {
 		}
 	});
 
-	mcpServer.server.setRequestHandler(ListResourcesRequestSchema, async () => ({resources: Object.values(resources)}));
-	mcpServer.server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({resourceTemplates: []}));
-	mcpServer.server.setRequestHandler(ReadResourceRequestSchema, async ({params: {uri}}) => ({contents: [{uri, ...resources[uri]}]}));
+	mcpServer.server.setRequestHandler(ListResourcesRequestSchema, async() => ({resources: Object.values(resources)}));
+	mcpServer.server.setRequestHandler(ListResourceTemplatesRequestSchema, async() => ({resourceTemplates: []}));
+	mcpServer.server.setRequestHandler(ReadResourceRequestSchema, async({params: {uri}}) => ({contents: [{uri, ...resources[uri]}]}));
 
 	// mcpServer.registerPrompt('code-modification', codeModificationPromptDefinition, codeModificationPrompt);
 	mcpServer.registerPrompt('test-tools', testToolsPromptDefinition, testToolsPrompt);
@@ -233,12 +233,12 @@ export async function setupServer() {
 	// mcpServer.registerTool('triggerExecutionOrder', triggerExecutionOrderDefinition, callToolHandler('triggerExecutionOrder'));
 	// mcpServer.registerTool('generateSoqlQuery', generateSoqlQueryDefinition, callToolHandler('generateSoqlQuery'));
 
-	mcpServer.server.setRequestHandler(SetLevelRequestSchema, async ({params}) => {
+	mcpServer.server.setRequestHandler(SetLevelRequestSchema, async({params}) => {
 		state.currentLogLevel = params.level;
 		return {};
 	});
 
-	mcpServer.server.setRequestHandler(InitializeRequestSchema, async ({params}) => {
+	mcpServer.server.setRequestHandler(InitializeRequestSchema, async({params}) => {
 		try {
 			const {clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion} = params;
 			client.initialize({clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion});
@@ -265,7 +265,7 @@ export async function setupServer() {
 			//}
 
 			//Execute org setup and validation after directory change is complete
-			(async () => {
+			(async() => {
 				try {
 					// Start watching target org changes and perform initial fetch
 					// process.env.HOME = process.env.HOME ;

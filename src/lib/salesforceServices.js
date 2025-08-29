@@ -135,7 +135,7 @@ export async function getOrgAndUserDetails(skipCache = false) {
 		};
 		state.org = org;
 
-		const getUserFullName = async () => {
+		const getUserFullName = async() => {
 			// Escape username to avoid SOQL injection in string literal
 			const safeUsername = org.user.username.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 			const soqlUserResult = await executeSoqlQuery(`SELECT Id, Name, Profile.Name FROM User WHERE Username = '${safeUsername}'`);
@@ -968,7 +968,7 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 	};
 
 	// Function to make the actual API call
-	const makeApiCall = async () => {
+	const makeApiCall = async() => {
 		const requestOptions = {
 			method: operation.toUpperCase(),
 			headers: {
@@ -1021,7 +1021,7 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 		logger.debug(logMessage);
 
 		if (!response.ok) {
-			let errorDetails = '';
+			let errorDetails;
 			try {
 				const errorBody = await response.text();
 				errorDetails = `Status: ${response.status} ${response.statusText}\nResponse body: ${errorBody}`;

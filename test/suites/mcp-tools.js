@@ -129,7 +129,7 @@ export class SalesforceMcpTestSuite {
 		return [
 			{
 				name: 'List Available Tools',
-				run: async () => {
+				run: async() => {
 					await this.mcpClient.listTools();
 				},
 				required: true,
@@ -137,7 +137,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'salesforceMcpUtils getOrgAndUserDetails',
-				run: async () => {
+				run: async() => {
 					return await this.mcpClient.callTool('salesforceMcpUtils', {action: 'getOrgAndUserDetails'});
 				},
 				required: true,
@@ -148,7 +148,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'salesforceMcpUtils getState',
-				run: async () => {
+				run: async() => {
 					const result = await this.mcpClient.callTool('salesforceMcpUtils', {action: 'getState'});
 					const sc = result?.structuredContent;
 					if (!sc || !sc.state || sc.client === undefined || sc.resources === undefined) {
@@ -161,7 +161,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'salesforceMcpUtils loadRecordPrefixesResource',
-				run: async () => {
+				run: async() => {
 					const result = await this.mcpClient.callTool('salesforceMcpUtils', {action: 'loadRecordPrefixesResource'});
 					const sc = result?.structuredContent;
 					if (!sc || typeof sc !== 'object' || Array.isArray(sc)) {
@@ -177,7 +177,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'salesforceMcpUtils getCurrentDatetime',
-				run: async () => {
+				run: async() => {
 					return await this.mcpClient.callTool('salesforceMcpUtils', {action: 'getCurrentDatetime'});
 				},
 				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
@@ -185,7 +185,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'salesforceMcpUtils clearCache',
-				run: async () => {
+				run: async() => {
 					return await this.mcpClient.callTool('salesforceMcpUtils', {action: 'clearCache'});
 				},
 				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
@@ -193,7 +193,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'salesforceMcpUtils reportIssue validation',
-				run: async () => {
+				run: async() => {
 					try {
 						return await this.mcpClient.callTool('salesforceMcpUtils', {
 							action: 'reportIssue',
@@ -220,7 +220,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'salesforceMcpUtils reportIssue success (dry-run)',
-				run: async () => {
+				run: async() => {
 					// Server process is started with MCP_REPORT_ISSUE_DRY_RUN=true (see test/helpers.js),
 					// so this will not hit the real webhook and should return a fake success payload.
 					const result = await this.mcpClient.callTool('salesforceMcpUtils', {
@@ -240,7 +240,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'apexDebugLogs status',
-				run: async () => {
+				run: async() => {
 					return await this.mcpClient.callTool('apexDebugLogs', {action: 'status'});
 				},
 				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
@@ -248,7 +248,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'apexDebugLogs on',
-				run: async () => {
+				run: async() => {
 					return await this.mcpClient.callTool('apexDebugLogs', {action: 'on'});
 				},
 				dependencies: ['apexDebugLogs status'],
@@ -257,7 +257,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'apexDebugLogs list',
-				run: async (context) => {
+				run: async(context) => {
 					const result = await this.mcpClient.callTool('apexDebugLogs', {action: 'list'});
 					if (!result?.structuredContent || !Array.isArray(result.structuredContent.logs)) {
 						throw new Error('apexDebugLogs list: structuredContent.logs must be an array');
@@ -280,7 +280,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'apexDebugLogs get',
-				run: async (context) => {
+				run: async(context) => {
 					const logId = context.get('logId');
 					if (!logId) {
 						throw new Error('logId not found in context. Make sure apexDebugLogs list test runs first and sets the logId.');
@@ -326,7 +326,7 @@ export class SalesforceMcpTestSuite {
 			*/
 			{
 				name: 'apexDebugLogs off',
-				run: async () => {
+				run: async() => {
 					return await this.mcpClient.callTool('apexDebugLogs', {action: 'off'});
 				},
 				dependencies: ['apexDebugLogs get'],
@@ -335,7 +335,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'salesforceMcpUtils clearCache (final)',
-				run: async () => {
+				run: async() => {
 					return await this.mcpClient.callTool('salesforceMcpUtils', {action: 'clearCache'});
 				},
 				dependencies: ['apexDebugLogs off', 'describeObject Account (cached, no fields + picklists)'],
@@ -343,7 +343,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'describeObject Account',
-				run: async () => {
+				run: async() => {
 					const result = await this.mcpClient.callTool('describeObject', {
 						sObjectName: 'Account'
 					});
@@ -363,7 +363,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'executeSoqlQuery',
-				run: async () => {
+				run: async() => {
 					const result = await this.mcpClient.callTool('executeSoqlQuery', {
 						query: 'SELECT Id, Name FROM Account LIMIT 3'
 					});
@@ -387,7 +387,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'getRecentlyViewedRecords',
-				run: async () => {
+				run: async() => {
 					const result = await this.mcpClient.callTool('getRecentlyViewedRecords', {});
 					const sc = result?.structuredContent;
 					if (!sc || !Array.isArray(sc.records) || typeof sc.totalSize !== 'number') {
@@ -400,7 +400,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'getApexClassCodeCoverage',
-				run: async () => {
+				run: async() => {
 					return await this.mcpClient.callTool('getApexClassCodeCoverage', {
 						classNames: ['TestMCPTool']
 					});
@@ -410,7 +410,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'describeObject Account (cached, no fields + picklists)',
-				run: async () => {
+				run: async() => {
 					const result = await this.mcpClient.callTool('describeObject', {
 						sObjectName: 'Account',
 						includeFields: false,
@@ -433,7 +433,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'describeObject Account (no fields, no picklists)',
-				run: async () => {
+				run: async() => {
 					const result = await this.mcpClient.callTool('describeObject', {
 						sObjectName: 'Account',
 						includeFields: false,
@@ -453,7 +453,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'describeObject ApexClass (Tooling API)',
-				run: async () => {
+				run: async() => {
 					const result = await this.mcpClient.callTool('describeObject', {
 						sObjectName: 'ApexClass',
 						useToolingApi: true
@@ -472,7 +472,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'executeSoqlQuery (Tooling API)',
-				run: async () => {
+				run: async() => {
 					const result = await this.mcpClient.callTool('executeSoqlQuery', {
 						query: 'SELECT Id, Name FROM ApexClass LIMIT 3',
 						useToolingApi: true
@@ -498,7 +498,7 @@ export class SalesforceMcpTestSuite {
 			// (Removed misplaced cleanup script for duplicate test)
 			{
 				name: 'createMetadata Apex Test Class',
-				run: async () => {
+				run: async() => {
 					return await this.mcpClient.callTool('createMetadata', {
 						type: 'apexTestClass',
 						name: 'TestMCPToolClassTest'
@@ -506,7 +506,7 @@ export class SalesforceMcpTestSuite {
 				},
 				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
 				canRunInParallel: true,
-				scriptAfter: async () => {
+				scriptAfter: async() => {
 					// Clean up only the files created by this test
 					const classDir = 'force-app/main/default/classes';
 					const classFiles = [
@@ -527,7 +527,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'createMetadata Apex Trigger',
-				run: async () => {
+				run: async() => {
 					return await this.mcpClient.callTool('createMetadata', {
 						type: 'apexTrigger',
 						name: 'TestMCPToolTrigger',
@@ -537,7 +537,7 @@ export class SalesforceMcpTestSuite {
 				},
 				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
 				canRunInParallel: true,
-				scriptAfter: async () => {
+				scriptAfter: async() => {
 					// Clean up only the files created by this test
 					const triggerDir = 'force-app/main/default/triggers';
 					const triggerFiles = [
@@ -558,7 +558,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'createMetadata LWC',
-				run: async () => {
+				run: async() => {
 					return await this.mcpClient.callTool('createMetadata', {
 						type: 'lwc',
 						name: 'testMCPToolComponent'
@@ -566,7 +566,7 @@ export class SalesforceMcpTestSuite {
 				},
 				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
 				canRunInParallel: true,
-				scriptAfter: async () => {
+				scriptAfter: async() => {
 					// Clean up only the folder created by this test
 					const lwcFolder = 'force-app/main/default/lwc/testMCPToolComponent';
 					if (fs.existsSync(lwcFolder)) {
@@ -595,7 +595,7 @@ export class SalesforceMcpTestSuite {
 			*/
 			{
 				name: 'createMetadata Apex Class',
-				run: async () => {
+				run: async() => {
 					// Create a plain Apex class (not a test class)
 					return await this.mcpClient.callTool('createMetadata', {
 						type: 'apexClass',
@@ -604,7 +604,7 @@ export class SalesforceMcpTestSuite {
 				},
 				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
 				canRunInParallel: true,
-				scriptAfter: async () => {
+				scriptAfter: async() => {
 					// Clean up only the files created by this test
 					const classDir = 'force-app/main/default/classes';
 					const classFiles = [
@@ -625,7 +625,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'dmlOperation Create',
-				run: async (context) => {
+				run: async(context) => {
 					const result = await this.mcpClient.callTool('dmlOperation', {
 						operations: {
 							create: [{
@@ -654,7 +654,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'getRecord',
-				run: async (context) => {
+				run: async(context) => {
 					const createdAccountId = context.get('createdAccountId');
 					if (!createdAccountId) {
 						throw new Error('createdAccountId not found in context. Make sure dmlOperation Create test runs first and sets the createdAccountId.');
@@ -682,7 +682,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'dmlOperation Update',
-				run: async (context) => {
+				run: async(context) => {
 					const createdAccountId = context.get('createdAccountId');
 					if (!createdAccountId) {
 						throw new Error('createdAccountId not found in context. Make sure dmlOperation Create test runs first and sets the createdAccountId.');
@@ -709,7 +709,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'dmlOperation Update (bypass confirmation)',
-				run: async (context) => {
+				run: async(context) => {
 					const createdAccountId = context.get('createdAccountId');
 					if (!createdAccountId) {
 						throw new Error('createdAccountId not found in context. Make sure dmlOperation Create test runs first and sets the createdAccountId.');
@@ -737,7 +737,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'dmlOperation Delete',
-				run: async (context) => {
+				run: async(context) => {
 					const createdAccountId = context.get('createdAccountId');
 					if (!createdAccountId) {
 						throw new Error('createdAccountId not found in context. Make sure dmlOperation Create test runs first and sets the createdAccountId.');
@@ -761,7 +761,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'dmlOperation allOrNone=true (expect failure)',
-				run: async () => {
+				run: async() => {
 					// Try creating two records with allOrNone=true where one is invalid (missing Name)
 					try {
 						await this.mcpClient.callTool('dmlOperation', {
@@ -788,7 +788,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'executeAnonymousApex',
-				run: async () => {
+				run: async() => {
 					return await this.mcpClient.callTool('executeAnonymousApex', {
 						apexCode: 'System.debug(\'Hello from MCP tool test\');\nSystem.debug(\'Current time: \' + Datetime.now());',
 						mayModify: false
@@ -800,7 +800,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'getSetupAuditTrail',
-				scriptBefore: async () => {
+				scriptBefore: async() => {
 					// Clean up audit trail files
 					const tmpDir = 'tmp';
 					if (fs.existsSync(tmpDir)) {
@@ -826,7 +826,7 @@ export class SalesforceMcpTestSuite {
 						}
 					}
 				},
-				run: async () => {
+				run: async() => {
 					const result = await this.mcpClient.callTool('getSetupAuditTrail', {lastDays: 2});
 					const sc = result?.structuredContent;
 					if (!sc || typeof sc.setupAuditTrailFileTotalRecords !== 'number' || typeof sc.setupAuditTrailFileFilteredTotalRecords !== 'number') {
@@ -853,7 +853,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'runApexTest',
-				run: async () => {
+				run: async() => {
 					const result = await this.mcpClient.callTool('runApexTest', {
 						methodNames: [TEST_CONFIG.salesforce.runApexTestMethodName]
 					});

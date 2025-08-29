@@ -52,11 +52,11 @@ async function retrieveFile() {
 
 		// Attempt clicking candidates while waiting for a download event
 		const download = await Promise.race([
-			(async () => {
+			(async() => {
 				const dl = await page.waitForEvent('download', {timeout: 60000});
 				return dl;
 			})(),
-			(async () => {
+			(async() => {
 				const start = Date.now();
 				const maxWaitMs = 20000;
 				while (Date.now() - start < maxWaitMs) {

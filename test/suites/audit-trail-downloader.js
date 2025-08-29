@@ -15,7 +15,7 @@ export class AuditTrailDownloaderTestSuite {
 		return [
 			{
 				name: 'Module Import Test',
-				run: async () => {
+				run: async() => {
 					console.log('Testing module import...');
 
 					try {
@@ -36,7 +36,7 @@ export class AuditTrailDownloaderTestSuite {
 			},
 			{
 				name: 'Function Signature Validation',
-				run: async () => {
+				run: async() => {
 					console.log('Testing function signature...');
 
 					try {
@@ -69,7 +69,7 @@ export class AuditTrailDownloaderTestSuite {
 			},
 			{
 				name: 'State Validation Test',
-				run: async () => {
+				run: async() => {
 					console.log('Testing state validation logic...');
 
 					try {
@@ -99,7 +99,7 @@ export class AuditTrailDownloaderTestSuite {
 			},
 			{
 				name: 'Playwright Dependencies Test',
-				run: async () => {
+				run: async() => {
 					console.log('Testing Playwright dependencies...');
 
 					try {
@@ -137,7 +137,7 @@ export class AuditTrailDownloaderTestSuite {
 			},
 			{
 				name: 'File System Dependencies Test',
-				run: async () => {
+				run: async() => {
 					console.log('Testing file system dependencies...');
 
 					try {
@@ -183,7 +183,7 @@ export class AuditTrailDownloaderTestSuite {
 			},
 			{
 				name: 'Integration Test (Optional)',
-				run: async () => {
+				run: async() => {
 					console.log('Testing full integration (requires Salesforce session)...');
 					console.log(`${TEST_CONFIG.colors.yellow}⚠ This test requires a valid Salesforce session${TEST_CONFIG.colors.reset}`);
 					console.log(`${TEST_CONFIG.colors.yellow}⚠ It will attempt to download the actual audit trail${TEST_CONFIG.colors.reset}`);

@@ -1,5 +1,4 @@
-import {spawn} from 'child_process';
-import {execSync} from 'child_process';
+import {spawn, execSync} from 'child_process';
 import {fileURLToPath} from 'url';
 import {dirname, resolve} from 'path';
 import {TEST_CONFIG} from './test-config.js';
@@ -138,14 +137,14 @@ export class SalesforceOrgManager {
 export class TestHelpers {
 	static logNotification(level, text) {
 		const color = {
-			'emergency': TEST_CONFIG.colors.red,
-			'alert': TEST_CONFIG.colors.red,
-			'critical': TEST_CONFIG.colors.red,
-			'error': TEST_CONFIG.colors.red,
-			'warning': TEST_CONFIG.colors.yellow,
-			'notice': TEST_CONFIG.colors.green,
-			'info': TEST_CONFIG.colors.cyan,
-			'debug': TEST_CONFIG.colors.pink
+			emergency: TEST_CONFIG.colors.red,
+			alert: TEST_CONFIG.colors.red,
+			critical: TEST_CONFIG.colors.red,
+			error: TEST_CONFIG.colors.red,
+			warning: TEST_CONFIG.colors.yellow,
+			notice: TEST_CONFIG.colors.green,
+			info: TEST_CONFIG.colors.cyan,
+			debug: TEST_CONFIG.colors.pink
 		}[level] || TEST_CONFIG.colors.reset;
 
 		console.log(`${color}[${level.toUpperCase()}]${TEST_CONFIG.colors.reset} ${text}`);
