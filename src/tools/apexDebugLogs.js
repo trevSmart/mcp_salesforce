@@ -3,8 +3,8 @@ import {mcpServer} from '../mcp-server.js';
 import state from '../state.js';
 import client from '../client.js';
 import {textFileContent, formatDate} from '../utils.js'; // ensureTmpDir, writeToTmpFile
-import {createModuleLogger} from '../logger.js';
-import {executeSoqlQuery, dmlOperation, runCliCommand} from '../salesforceServices.js';
+import {createModuleLogger} from '../lib/logger.js';
+import {executeSoqlQuery, dmlOperation, runCliCommand} from '../lib/salesforceServices.js';
 import {z} from 'zod';
 // import path from 'path';
 // import {execSync} from 'child_process';
@@ -13,7 +13,7 @@ const logger = createModuleLogger(import.meta.url);
 export const apexDebugLogsToolDefinition = {
 	name: 'apexDebugLogs',
 	title: 'Manage Apex debug logs',
-	description: textFileContent('apexDebugLogs'),
+	description: textFileContent('tools/apexDebugLogs.md'),
 	inputSchema: {
 		action: z.enum(['status', 'on', 'off', 'list', 'get'])
 			.describe('The action to perform. Possible values: "status", "on", "off", "list", "get".'),

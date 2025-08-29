@@ -1,6 +1,6 @@
-import {getRecord} from '../salesforceServices.js';
+import {getRecord} from '../lib/salesforceServices.js';
 import {textFileContent} from '../utils.js';
-import {createModuleLogger} from '../logger.js';
+import {createModuleLogger} from '../lib/logger.js';
 import {z} from 'zod';
 // eslint-disable-next-line no-unused-vars
 import state from '../state.js';
@@ -9,7 +9,7 @@ const logger = createModuleLogger(import.meta.url);
 export const getRecordToolDefinition = {
 	name: 'getRecord',
 	title: 'Get Record',
-	description: textFileContent('getRecord'),
+	description: textFileContent('tools/getRecord.md'),
 	inputSchema: {
 		sObjectName: z
 			.string()

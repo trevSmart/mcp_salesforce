@@ -1,7 +1,7 @@
 import state from '../state.js';
 import {textFileContent} from '../utils.js';
-import {createModuleLogger} from '../logger.js';
-import {dmlOperation} from '../salesforceServices.js';
+import {createModuleLogger} from '../lib/logger.js';
+import {dmlOperation} from '../lib/salesforceServices.js';
 import {mcpServer} from '../mcp-server.js';
 import client from '../client.js';
 import {z} from 'zod';
@@ -9,7 +9,7 @@ import {z} from 'zod';
 export const dmlOperationToolDefinition = {
 	name: 'dmlOperation',
 	title: 'DML Operations (Create, Update or Delete)',
-	description: textFileContent('dmlOperation'),
+	description: textFileContent('tools/dmlOperation.md'),
 	inputSchema: {
 		operations: z.object({
 			create: z.array(z.object({

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import {EventEmitter} from 'events';
-import state from './state.js';
+import state from '../state.js';
 import {createModuleLogger} from './logger.js';
 const logger = createModuleLogger(import.meta.url);
 

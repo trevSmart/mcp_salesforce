@@ -1,12 +1,12 @@
-import {getApexClassCodeCoverage} from '../salesforceServices.js';
+import {getApexClassCodeCoverage} from '../lib/salesforceServices.js';
 import {textFileContent} from '../utils.js';
-import {createModuleLogger} from '../logger.js';
+import {createModuleLogger} from '../lib/logger.js';
 import {z} from 'zod';
 
 export const getApexClassCodeCoverageToolDefinition = {
 	name: 'getApexClassCodeCoverage',
 	title: 'Get Apex Classes Code Coverage',
-	description: textFileContent('getApexClassCodeCoverage'),
+	description: textFileContent('tools/getApexClassCodeCoverage.md'),
 	inputSchema: {
 		classNames: z
 			.array(z.string())
@@ -49,4 +49,3 @@ export async function getApexClassCodeCoverageToolHandler({classNames}) {
 		};
 	}
 }
-

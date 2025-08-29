@@ -128,21 +128,11 @@ export class SalesforceMcpTestSuite {
 	getAvailableTests() {
 		return [
 			{
-				name: 'Initialize MCP Connection',
-				run: async () => {
-					await this.mcpClient.initialize({name: 'IBM Salesforce MCP Test Client', version: '1.0.0'});
-				},
-				required: true,
-				dependencies: [],
-				canRunInParallel: false
-			},
-			{
 				name: 'List Available Tools',
 				run: async () => {
 					await this.mcpClient.listTools();
 				},
 				required: true,
-				dependencies: ['Initialize MCP Connection'],
 				canRunInParallel: false
 			},
 			{
@@ -893,7 +883,7 @@ export class SalesforceMcpTestSuite {
 
 		// Helper function to check if all dependencies are completed
 		const areDependenciesCompleted = (test) => {
-			return test.dependencies.every(dep => completedTests.has(dep));
+			return (test.dependencies || []).every(dep => completedTests.has(dep));
 		};
 
 		// Helper function to get tests that can run in current phase

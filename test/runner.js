@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 
-import {MCPServerManager, SalesforceOrgManager, TestHelpers} from './helpers.js';
-import {MCPClient} from './mcp-client.js';
+import {SalesforceOrgManager, TestHelpers} from './helpers.js';
+// @ts-ignore
+import {TestMcpClient} from 'ibm-test-mcp-client';
+import {fileURLToPath} from 'url';
+import {dirname, resolve} from 'path';
 import {SalesforceMcpTestSuite} from './suites/mcp-tools.js';
 import {TEST_CONFIG} from './test-config.js';
 
 // Test runner class
 class TestRunner {
 	constructor({compact = false, quiet = false} = {}) {
-		this.serverManager = new MCPServerManager(quiet);
 		this.mcpClient = null;
 		this.testResults = [];
 		this.originalOrg = null;
@@ -239,7 +241,7 @@ class TestRunner {
 		// Apply delay if specified (after the test has been fully processed by TestRunner)
 		if ((test.thenWait || 0) > 0) {
 			if (this.quiet) {
-				await new Promise(resolve => setTimeout(resolve, test.thenWait));
+				await new Promise(resolveTimeout => setTimeout(resolveTimeout, test.thenWait));
 			} else {
 				console.log(`\n${TEST_CONFIG.colors.cyan}Wait for ${Math.ceil(test.thenWait / 1000)}s after test "${test.name}"...${TEST_CONFIG.colors.reset}`);
 				const delayStart = Date.now();
@@ -256,7 +258,7 @@ class TestRunner {
 				}, updateInterval);
 
 				// Wait for the delay to complete
-				await new Promise(resolve => setTimeout(resolve, test.thenWait));
+				await new Promise(resolveTimeout => setTimeout(resolveTimeout, test.thenWait));
 
 				// Clear interval and show completion
 				clearInterval(countdownInterval);
@@ -291,7 +293,7 @@ class TestRunner {
 		for (const test of tests) {
 			// Wait if we've reached max concurrency
 			while (runningTests.size >= maxConcurrency) {
-				await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
+				await new Promise(resolveTimeout => setTimeout(resolveTimeout, 100)); // Small delay
 			}
 
 			// Start the test
@@ -301,7 +303,7 @@ class TestRunner {
 
 		// Wait for all remaining tests to complete
 		while (runningTests.size > 0) {
-			await new Promise(resolve => setTimeout(resolve, 100));
+			await new Promise(resolveTimeout => setTimeout(resolveTimeout, 100));
 		}
 
 		// Return results in the same order as input
@@ -322,26 +324,115 @@ class TestRunner {
 			}
 			this.originalOrg = await SalesforceOrgManager.ensureTestOrg(this.quiet);
 
-			// Start server
-			await this.serverManager.start();
+			// Ensure test runs never create real GitHub issues via webhook
+			if (typeof process.env.MCP_REPORT_ISSUE_DRY_RUN === 'undefined') {
+				process.env.MCP_REPORT_ISSUE_DRY_RUN = 'true';
+			}
 
-			// Wait for server to fully start
-			await new Promise(resolveTimeout => setTimeout(resolveTimeout, TEST_CONFIG.mcpServer.startupDelay));
 
-			// Create MCP client and set up communication
-			this.mcpClient = new MCPClient(this.serverManager.getProcess(), {quiet: this.quiet});
+			// Resolve server target to use with TestMcpClient
+			const __filename = fileURLToPath(import.meta.url);
+			const __dirname = dirname(__filename);
+			const defaultServerPath = resolve(__dirname, TEST_CONFIG.mcpServer.serverPath);
 
-			// Set up stdout handling for the client
-			this.serverManager.getProcess().stdout.on('data', (data) => {
-				this.mcpClient.handleServerMessage(data);
-			});
+			// Helper: parse server args from env (JSON array or space-separated)
+			const parseServerArgs = () => {
+				// Allow overriding via CLI: --serverArgs="--stdio --flag value" or JSON array
+				const raw = process.env.MCP_TEST_SERVER_ARGS;
+				if (!raw) {
+					return ['--stdio'];
+				}
+				try {
+					const parsed = JSON.parse(raw);
+					return Array.isArray(parsed) ? parsed : ['--stdio'];
+				} catch {
+					return raw.split(/\s+/).filter(Boolean);
+				}
+			};
 
-			// Set the MCP server logging level (quiet mode forces 'warning')
+			// Helper: parse a spec like "npx:@scope/pkg@ver#bin" or a .js/.py path
+			const parseServerSpec = (raw, serverArgs) => {
+				if (!raw) {
+					return null;
+				}
+				if (raw.startsWith('npx:')) {
+					const spec = raw.slice('npx:'.length);
+					const [pkgAndVer, bin] = spec.split('#');
+					const atIdx = pkgAndVer.lastIndexOf('@');
+					let pkg = pkgAndVer;
+					let version;
+					if (atIdx > 0 && pkgAndVer.slice(atIdx - 1, atIdx) !== '/') {
+						pkg = pkgAndVer.slice(0, atIdx);
+						version = pkgAndVer.slice(atIdx + 1);
+					}
+					return {
+						kind: 'npx',
+						pkg,
+						version,
+						bin: bin || undefined,
+						args: serverArgs,
+						npxArgs: ['-y']
+					};
+				}
+				const isPy = raw.endsWith('.py');
+				const isJs = raw.endsWith('.js');
+				if (!isPy && !isJs) {
+					throw new Error('MCP_TEST_SERVER_SPEC must be npx:... or a .js/.py path');
+				}
+				return {
+					kind: 'script',
+					interpreter: isPy ? 'python' : 'node',
+					path: raw,
+					args: serverArgs
+				};
+			};
+
+			const serverArgs = parseServerArgs();
+
+			// Priority 1: explicit spec via env (e.g., npx:@scope/pkg@ver#bin)
+			let target = null;
+			if (process.env.MCP_TEST_SERVER_SPEC) {
+				target = parseServerSpec(process.env.MCP_TEST_SERVER_SPEC, serverArgs);
+			}
+
+			// Priority 2: explicit NPX env triplet (__MCP_NPX_PKG/VER/BIN)
+			if (!target && process.env.__MCP_NPX_PKG) {
+				target = {
+					kind: 'npx',
+					pkg: process.env.__MCP_NPX_PKG,
+					version: process.env.__MCP_NPX_VER || undefined,
+					bin: process.env.__MCP_NPX_BIN || undefined,
+					args: serverArgs,
+					npxArgs: ['-y']
+				};
+			}
+
+			// Fallback: local script path (default behavior)
+			if (!target) {
+				const path = process.env.MCP_TEST_SERVER_PATH || defaultServerPath;
+				target = {
+					kind: 'script',
+					interpreter: 'node',
+					path,
+					args: serverArgs
+				};
+			}
+
+			// Ensure the spawned server starts at the requested log level
 			const requestedLevel = logLevel || TEST_CONFIG.mcpServer.defaultLogLevel;
 			const effectiveLevel = this.quiet ? 'warning' : requestedLevel;
+			process.env.LOG_LEVEL = effectiveLevel;
+			// Respect existing WORKSPACE_FOLDER_PATHS if provided; otherwise default to repo root
+			if (!process.env.WORKSPACE_FOLDER_PATHS) {
+				process.env.WORKSPACE_FOLDER_PATHS = resolve(__dirname, '..');
+			}
+
+			this.mcpClient = new TestMcpClient();
+			await this.mcpClient.connect(target);
+
+			// Set the MCP server logging level (quiet mode forces 'warning') after init as well
 			if (this.quiet) {
-				// Explicitly indicate quiet-mode log level change
-				console.log(`Setting logging level to "${effectiveLevel}" (quiet mode)`);
+				console.log(`${TEST_CONFIG.colors.gray}Running tests in quiet mode (log level set to "warning")${TEST_CONFIG.colors.reset}\n`);
 			}
 			await this.mcpClient.setLoggingLevel(effectiveLevel);
 
@@ -351,20 +442,14 @@ class TestRunner {
 			// Wait for any pending operations
 			await new Promise(resolveTimeout => setTimeout(resolveTimeout, 1000));
 
-			// Ensure all stdout listeners are removed
-			if (this.serverManager.getProcess() && this.serverManager.getProcess().stdout) {
-				this.serverManager.getProcess().stdout.removeAllListeners('data');
-			}
-
 		} finally {
-			// Stop server
-			if (!this.quiet) {
-				console.log(`${TEST_CONFIG.colors.cyan}Stopping MCP server...${TEST_CONFIG.colors.reset}`);
+			// Disconnect MCP client and stop spawned server
+			if (this.mcpClient) {
+				if (!this.quiet) {
+					console.log(`${TEST_CONFIG.colors.cyan}Stopping MCP server...${TEST_CONFIG.colors.reset}`);
+				}
+				await this.mcpClient.disconnect();
 			}
-			await this.serverManager.stop();
-
-			// Wait a bit for server to fully shut down
-			await new Promise(resolve => setTimeout(resolve, 1000));
 
 			// Restore original org
 			if (this.originalOrg) {
@@ -437,6 +522,18 @@ async function main() {
 	const COMPACT = Boolean(cmdArgs.compact);
 	const QUIET = Boolean(cmdArgs.quiet);
 
+	// Optional: allow specifying server target from CLI (in addition to env vars)
+	// Examples:
+	//   --serverSpec="npx:test_research4@1.2.3#test_research"
+	//   --serverSpec="./dist/index.js"  (node) or "./server.py" (python)
+	//   --serverArgs="--stdio --flag value" or JSON: --serverArgs='["--stdio","--flag","value"]'
+	if (cmdArgs.serverSpec) {
+		process.env.MCP_TEST_SERVER_SPEC = cmdArgs.serverSpec;
+	}
+	if (cmdArgs.serverArgs) {
+		process.env.MCP_TEST_SERVER_ARGS = cmdArgs.serverArgs;
+	}
+
 	// Show tests to run if specified
 	if (!QUIET) {
 		if (TESTS_TO_RUN) {
@@ -472,6 +569,10 @@ ${TEST_CONFIG.colors.cyan}Options:${TEST_CONFIG.colors.reset}
                     Valid values: emergency, alert, critical, error, warning, notice, info, debug
   --tests=<tests>     Comma-separated list of test names to run (partial matching)
                     Example: "apexDebugLogs,getRecord"
+  --serverSpec=<spec> Server target. Examples:
+                     - npx:@scope/pkg@ver#bin
+                     - ./server.js (node) / ./server.py (python)
+  --serverArgs=<args> Server args as space-separated string or JSON array
   --compact           Reduce output by hiding tool outputs
   --quiet             Minimal output; only one-line per test result
   --help              Show this help message
@@ -480,6 +581,8 @@ ${TEST_CONFIG.colors.cyan}Examples:${TEST_CONFIG.colors.reset}
   node test/runner.js --logLevel=debug
   node test/runner.js --tests=apexDebugLogs,getRecord
   node test/runner.js --logLevel=debug --tests=salesforceMcpUtils
+  node test/runner.js --serverSpec='npx:test_research4@1.2.3#test_research'
+  node test/runner.js --serverSpec='./dist/index.js' --serverArgs='--stdio'
   node test/runner.js --compact
   node test/runner.js --quiet --tests=apexDebugLogs
 `);

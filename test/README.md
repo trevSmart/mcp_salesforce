@@ -6,8 +6,7 @@ Aquest directori conté tots els tests del projecte IBM Salesforce MCP.
 
 ```
 test/
-├── runner.js              # Executor principal de tests
-├── mcp-client.js          # Client MCP per comunicar-se amb el servidor
+├── runner.js              # Executor principal de tests (usa `ibm-test-mcp-client`)
 ├── helpers.js             # Funcions auxiliars i gestió d'infraestructura
 ├── test-config.js         # Configuració dels tests
 ├── suites/                # Suites de tests organitzades per funcionalitat
@@ -32,6 +31,15 @@ npm test -- --tests=apexDebugLogs,getRecord
 npm test -- --logLevel=debug
 ```
 
+### Modes de sortida
+```bash
+# Sortida compacta (amaga el detall de les tools)
+npm test -- --compact
+
+# Sortida mínima (una línia per test)
+npm test -- --quiet
+```
+
 ### Veure ajuda
 ```bash
 npm run test:help
@@ -44,10 +52,9 @@ npm run test:help
 - Gestiona el cicle de vida del servidor MCP
 - Mostra resums i resultats dels tests
 
-### `mcp-client.js`
-- Implementa la comunicació amb el servidor MCP
-- Gestiona missatges JSON-RPC
-- Manté l'estat de les tools disponibles
+### Client MCP
+- El `runner.js` utilitza el paquet `ibm-test-mcp-client` per iniciar i gestionar la connexió MCP (via stdio).
+- Funcions clau disponibles al client: `connect`, `disconnect`, `setLoggingLevel`, `listTools`, `callTool`.
 
 ### `helpers.js`
 - **MCPServerManager**: Gestiona l'inici i aturada del servidor MCP

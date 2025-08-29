@@ -1,7 +1,7 @@
 import state from '../state.js';
-import {executeSoqlQuery} from '../salesforceServices.js';
+import {executeSoqlQuery} from '../lib/salesforceServices.js';
 import {textFileContent} from '../utils.js';
-import {createModuleLogger} from '../logger.js';
+import {createModuleLogger} from '../lib/logger.js';
 const logger = createModuleLogger(import.meta.url);
 import {z} from 'zod';
 
@@ -39,7 +39,7 @@ function addUrlToRecord(record) {
 export const executeSoqlQueryToolDefinition = {
 	name: 'executeSoqlQuery',
 	title: 'Execute SOQL Query',
-	description: textFileContent('executeSoqlQuery'),
+	description: textFileContent('tools/executeSoqlQuery.md'),
 	inputSchema: {
 		query: z
 			.string()

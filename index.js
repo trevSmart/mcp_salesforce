@@ -1,4 +1,4 @@
-import {createLogger} from './src/logger.js';
+import {createLogger} from './src/lib/logger.js';
 import {mcpServer, setupServer} from './src/mcp-server.js';
 
 export async function main() {

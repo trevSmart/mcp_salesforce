@@ -1,11 +1,11 @@
-import {executeSoqlQuery} from '../salesforceServices.js';
+import {executeSoqlQuery} from '../lib/salesforceServices.js';
 import {textFileContent} from '../utils.js';
-import {createModuleLogger} from '../logger.js';
+import {createModuleLogger} from '../lib/logger.js';
 
 export const getRecentlyViewedRecordsToolDefinition = {
 	name: 'getRecentlyViewedRecords',
 	title: 'Get Recently Viewed Records',
-	description: textFileContent('getRecentlyViewedRecords'),
+	description: textFileContent('tools/getRecentlyViewedRecords.md'),
 	inputSchema: {},
 	annotations: {
 		readOnlyHint: true,

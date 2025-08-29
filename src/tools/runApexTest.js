@@ -1,14 +1,14 @@
 import {mcpServer, resources, newResource} from '../mcp-server.js';
 import client from '../client.js';
-import {runApexTest, executeSoqlQuery, getApexClassCodeCoverage} from '../salesforceServices.js';
+import {runApexTest, executeSoqlQuery, getApexClassCodeCoverage} from '../lib/salesforceServices.js';
 import {textFileContent} from '../utils.js';
-import {createModuleLogger} from '../logger.js';
+import {createModuleLogger} from '../lib/logger.js';
 import {z} from 'zod';
 
 export const runApexTestToolDefinition = {
 	name: 'runApexTest',
 	title: 'Run Apex Tests',
-	description: textFileContent('runApexTest'),
+	description: textFileContent('tools/runApexTest.md'),
 	inputSchema: {
 		classNames: z
 			.array(z.string())

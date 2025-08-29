@@ -1,8 +1,8 @@
-import config from './config.js';
+import config from '../config.js';
 import fs from 'fs/promises';
 import path from 'path';
-import state from './state.js';
-import {newResource} from './mcp-server.js';
+import state from '../state.js';
+import {newResource} from '../mcp-server.js';
 import {exec as execCb} from 'child_process';
 import {promisify} from 'node:util';
 import {createModuleLogger} from './logger.js';

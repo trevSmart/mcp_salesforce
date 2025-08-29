@@ -1,13 +1,13 @@
 import {z} from 'zod';
-import {describeObject} from '../salesforceServices.js';
+import {describeObject} from '../lib/salesforceServices.js';
 import {textFileContent, getAgentInstructions} from '../utils.js';
-import {createModuleLogger} from '../logger.js';
+import {createModuleLogger} from '../lib/logger.js';
 import {mcpServer} from '../mcp-server.js';
 
 export const generateSoqlQueryToolDefinition = {
 	name: 'generateSoqlQuery',
 	title: 'Generate SOQL Query',
-	description: textFileContent('generateSoqlQuery'),
+	description: textFileContent('tools/generateSoqlQuery.md'),
 	inputSchema: {
 		soqlQueryDescription: z
 			.string()
