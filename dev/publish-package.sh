@@ -3,6 +3,35 @@ set -e
 
 # Script compatible amb sh (POSIX). Treu dependència de bash.
 
+# Processa opcions de línia de comandes
+SKIP_TESTS=false
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --skip-tests)
+      SKIP_TESTS=true
+      shift
+      ;;
+    -h|--help)
+      echo "Ús: $0 [--skip-tests]"
+      echo ""
+      echo "Opcions:"
+      echo "  --skip-tests    Salta l'execució de tots els tests (no recomanat)"
+      echo "  -h, --help      Mostra aquesta ajuda"
+      echo ""
+      echo "Exemples:"
+      echo "  $0              Executa tots els tests (recomanat)"
+      echo "  $0 --skip-tests Salta tots els tests (ús avançat)"
+      exit 0
+      ;;
+    *)
+      echo "Opció desconeguda: $1"
+      echo "Ús: $0 [--skip-tests]"
+      echo "Executa '$0 --help' per veure l'ajuda completa"
+      exit 1
+      ;;
+  esac
+done
+
 # Obté el nom del paquet des de package.json
 package_name=$(node -p "require('./package.json').name")
 # Obté la versió publicada a NPM (si existeix)
@@ -10,6 +39,11 @@ published_version=$(npm view "$package_name" version 2>/dev/null || true)
 
 echo "\033[38;2;255;140;0mScript de publicació a NPM de $package_name\033[0m"
 echo "\033[38;2;255;140;0mTrevor Smart, 2025\033[0m"
+if [ "$SKIP_TESTS" = "true" ]; then
+  echo "\033[38;2;255;165;0m⚠️  Mode --skip-tests activat: es saltaran tots els tests\033[0m"
+  echo "\033[38;2;255;165;0m   Això inclou: tests bàsics, tests contra build ofuscada i validació npx\033[0m"
+  echo "\033[38;2;255;165;0m   Ús només en casos d'emergència o desenvolupament avançat\033[0m"
+fi
 echo
 
 # Gestió de la versió abans dels tests
@@ -132,21 +166,25 @@ echo "$new_version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || {
 
 echo
 
-# Executa els tests utilitzant el framework de test configurat
-echo "\033[95mExecutant tests bàsics de funcionament del servidor...\033[0m"
-TEST_OUTPUT=$(mktemp)
-npm run test -- --quiet | tee "$TEST_OUTPUT"
+# Executa els tests utilitzant el framework de test configurat (si no s'han saltat)
+if [ "$SKIP_TESTS" = "false" ]; then
+  echo "\033[95mExecutant tests bàsics de funcionament del servidor...\033[0m"
+  TEST_OUTPUT=$(mktemp)
+  npm run test -- --quiet | tee "$TEST_OUTPUT"
 
-# Comprova si els tests han passat correctament
-if ! grep -q '🎉 All tests passed!' "$TEST_OUTPUT"; then
-  echo "\033[95mS'han detectat errors als tests. Aturant la build.\033[0m"
+  # Comprova si els tests han passat correctament
+  if ! grep -q '🎉 All tests passed!' "$TEST_OUTPUT"; then
+    echo "\033[95mS'han detectat errors als tests. Aturant la build.\033[0m"
+    rm -f "$TEST_OUTPUT"
+    exit 1
+  fi
+
+  echo
+  echo "\033[92m✓ Tots els tests han passat correctament.\033[0m"
   rm -f "$TEST_OUTPUT"
-  exit 1
+else
+  echo "\033[95m⚠️  Saltant tests bàsics (--skip-tests activat)\033[0m"
 fi
-
-echo
-echo "\033[92m✓ Tots els tests han passat correctament.\033[0m"
-rm -f "$TEST_OUTPUT"
 
 # No facis fallar el script si el paquet encara no existeix a NPM
 npm view "$package_name" version > /dev/null 2>&1 || true
@@ -327,23 +365,27 @@ jq '{
   name, version, description, main, type, browser, bin, keywords, author, dependencies, engines
 } + { files: ["index.js", "src", "bin", "README.md", "LICENSE"] }' package.json > dist/package.json
 
-# Re-executa els tests, ara utilitzant el servidor MCP de la build ofuscada a dist/
-echo "\033[95mExecutant tests contra el servidor ofuscat (dist/)...\033[0m"
-TEST_DIST_OUTPUT=$(mktemp)
-# Indica al runner que arrenqui el servidor des de dist/index.js
-# Usa un camí absolut per evitar resolucions relatives incorrectes
-MCP_TEST_SERVER_PATH="$(pwd)/dist/index.js" npm run test -- --quiet | tee "$TEST_DIST_OUTPUT"
+# Re-executa els tests, ara utilitzant el servidor MCP de la build ofuscada a dist/ (si no s'han saltat)
+if [ "$SKIP_TESTS" = "false" ]; then
+  echo "\033[95mExecutant tests contra el servidor ofuscat (dist/)...\033[0m"
+  TEST_DIST_OUTPUT=$(mktemp)
+  # Indica al runner que arrenqui el servidor des de dist/index.js
+  # Usa un camí absolut per evitar resolucions relatives incorrectes
+  MCP_TEST_SERVER_PATH="$(pwd)/dist/index.js" npm run test -- --quiet | tee "$TEST_DIST_OUTPUT"
 
-if ! grep -q '🎉 All tests passed!' "$TEST_DIST_OUTPUT"; then
-  echo "\033[91m❌ Els tests contra la build ofuscada han fallat.\033[0m"
+  if ! grep -q '🎉 All tests passed!' "$TEST_DIST_OUTPUT"; then
+    echo "\033[91m❌ Els tests contra la build ofuscada han fallat.\033[0m"
+    rm -f "$TEST_DIST_OUTPUT"
+    restore_versions
+    exit 1
+  fi
+
   rm -f "$TEST_DIST_OUTPUT"
-  restore_versions
-  exit 1
+  echo
+  echo "\033[95m✓ Tests amb el paquet ofuscat completats correctament.\033[0m"
+else
+  echo "\033[95m⚠️  Saltant tests contra el servidor ofuscat (--skip-tests activat)\033[0m"
 fi
-
-rm -f "$TEST_DIST_OUTPUT"
-echo
-echo "\033[95m✓ Tests amb el paquet ofuscat completats correctament.\033[0m"
 echo
 echo "\033[95mVols continuar amb la publicació del paquet a NPM? (S/n)\033[0m"
 IFS= read -r resposta
@@ -375,8 +417,13 @@ PUBLISH_OUTPUT=$(mktemp)
 
 # Canvia al directori dist i executa npm publish amb redireccions separades (més robust)
 cd dist
+# 'set -e' would terminate the script immediately on a non-zero exit here,
+# preventing us from showing the captured npm error output. Temporarily disable
+# it so we can handle the error and surface useful diagnostics.
+set +e
 npm publish --access public > "$PUBLISH_OUTPUT" 2>&1
 publish_status=$?
+set -e
 if [ $publish_status -ne 0 ]; then
   echo "\033[91m❌ Error publicant el paquet a NPM:\033[0m"
   cat "$PUBLISH_OUTPUT"
@@ -399,51 +446,63 @@ rm -f "$PUBLISH_OUTPUT"
 
 echo
 
-# Tercer pas de validació: provar el paquet publicat amb npx
-echo "\033[95mIniciant tercera validació amb el paquet publicat via npx...\033[0m"
+# Tercer pas de validació: provar el paquet publicat amb npx (si no s'han saltat els tests)
+if [ "$SKIP_TESTS" = "false" ]; then
+  echo "\033[95mIniciant tercera validació amb el paquet publicat via npx...\033[0m"
 
-# Espera per propagació de registres i neteja cau
-echo "   Esperant 10s per propagació de NPM..."
-sleep 10
-echo "   Netejant cau de NPM..."
-npm cache clean --force >/dev/null 2>&1 || true
+  # Espera per propagació de registres i neteja cau
+  echo "   Esperant 10s per propagació de NPM..."
+  sleep 10
+  echo "   Netejant cau de NPM..."
+  npm cache clean --force >/dev/null 2>&1 || true
 
-# Determina el nom del binari (primer key del camp "bin" de package.json)
-bin_name=$(node -p "(p=>Object.keys(p.bin||{})[0]||'') (require('./package.json'))")
-if [ -z "$bin_name" ]; then
-  echo "\033[91m❌ No s'ha trobat cap entrada 'bin' a package.json. No es pot validar via npx.\033[0m"
-  restore_versions
-  exit 1
-fi
+  # Determina el nom del binari (primer key del camp "bin" de package.json)
+  bin_name=$(node -p "(p=>Object.keys(p.bin||{})[0]||'') (require('./package.json'))")
+  if [ -z "$bin_name" ]; then
+    echo "\033[91m❌ No s'ha trobat cap entrada 'bin' a package.json. No es pot validar via npx.\033[0m"
+    restore_versions
+    exit 1
+  fi
 
-# Pre-check: comproveu que npx pot resoldre i executar el binari
-echo "   Validant resolució del binari amb npx..."
-if ! npx -y -p "$package_name@$new_version" which "$bin_name" >/dev/null 2>&1; then
-  echo "\033[91m❌ El binari '$bin_name' no es pot resoldre via npx per al paquet $package_name@$new_version.\033[0m"
-  echo "   Sugg.: comproveu el camp 'bin' de dist/package.json i que 'bin/cli.js' existeixi al paquet publicat."
-  restore_versions
-  exit 1
-fi
+  # Pre-check: comproveu que npx pot resoldre i executar el binari
+  echo "   Validant resolució del binari amb npx..."
+  if ! npx -y -p "$package_name@$new_version" which "$bin_name" >/dev/null 2>&1; then
+    echo "\033[91m❌ El binari '$bin_name' no es pot resoldre via npx per al paquet $package_name@$new_version.\033[0m"
+    echo "   Sugg.: comproveu el camp 'bin' de dist/package.json i que 'bin/cli.js' existeixi al paquet publicat."
+    restore_versions
+    exit 1
+  fi
 
-echo "   Executant tests amb \033[96mnpx -y -p $package_name@$new_version $bin_name --stdio\033[0m"
-TEST_NPX_OUTPUT=$(mktemp)
-MCP_TEST_SERVER_SPEC="npx:$package_name@$new_version#$bin_name" \
-MCP_TEST_SERVER_ARGS='--stdio' \
-  npm run test -- --quiet | tee "$TEST_NPX_OUTPUT"
+  echo "   Executant tests amb \033[96mnpx -y -p $package_name@$new_version $bin_name --stdio\033[0m"
+  TEST_NPX_OUTPUT=$(mktemp)
+  MCP_TEST_SERVER_SPEC="npx:$package_name@$new_version#$bin_name" \
+  MCP_TEST_SERVER_ARGS='--stdio' \
+    npm run test -- --quiet | tee "$TEST_NPX_OUTPUT"
 
-if ! grep -q '🎉 All tests passed!' "$TEST_NPX_OUTPUT"; then
-  echo "\033[91m❌ Els tests contra el paquet publicat via npx han fallat.\033[0m"
+  if ! grep -q '🎉 All tests passed!' "$TEST_NPX_OUTPUT"; then
+    echo "\033[91m❌ Els tests contra el paquet publicat via npx han fallat.\033[0m"
+    rm -f "$TEST_NPX_OUTPUT"
+    restore_versions
+    exit 1
+  fi
+
   rm -f "$TEST_NPX_OUTPUT"
-  restore_versions
-  exit 1
+
+  echo
+  echo "\033[95m✓ Validació final (npx) completada correctament.\033[0m"
+else
+  echo "\033[95m⚠️  Saltant validació final via npx (--skip-tests activat)\033[0m"
 fi
-
-rm -f "$TEST_NPX_OUTPUT"
-
-echo
-echo "\033[95m✓ Validació final (npx) completada correctament.\033[0m"
 
 echo "\033[95mFinalitzant...\033[0m"
+
+# Advertència final si s'han saltat els tests
+if [ "$SKIP_TESTS" = "true" ]; then
+  echo
+  echo "\033[38;2;255;165;0m⚠️  ATENCIÓ: S'han saltat tots els tests amb --skip-tests\033[0m"
+  echo "\033[38;2;255;165;0m   El paquet s'ha publicat sense validació de qualitat\033[0m"
+  echo "\033[38;2;255;165;0m   Es recomana executar els tests manualment abans d'usar el paquet\033[0m"
+fi
 
 # Neteja backups només quan TOT ha anat bé
 rm -f package.json.bak index.js.bak
