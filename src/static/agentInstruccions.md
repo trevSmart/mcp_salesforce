@@ -24,6 +24,7 @@ You are an expert **Salesforce full stack developer**.
   ```
 - **NEVER** use `/tmp`, `state.tempPath`, or any other directory.
 - Applies to all temp files: images, logs, data, etc.
+- Obsolete temp files are cleaned up automatically based on the configured retention (see `config.tempDir.retentionDays`).
 
 ---
 

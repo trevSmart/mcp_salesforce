@@ -18,6 +18,7 @@ import client from './client.js';
 import {getOrgAndUserDetails} from './lib/salesforceServices.js';
 import state from './state.js';
 import targetOrgWatcher from './lib/OrgWatcher.js';
+import {ensureBaseTmpDir} from './lib/tempManager.js';
 
 // import { codeModificationPromptDefinition, codeModificationPrompt } from './prompts/codeModificationPrompt.js';
 import {testToolsPromptDefinition, testToolsPrompt} from './prompts/test-tools.js';
@@ -71,6 +72,13 @@ async function setWorkspacePath(workspacePath) {
 		}
 
 		logger.debug(`Workspace path set to: "${state.workspacePath}"`);
+
+		// Ensure tmp directory exists (no scheduling; cleanup happens on writes)
+		try {
+			ensureBaseTmpDir(state.workspacePath);
+		} catch (error) {
+			logger.debug(error, 'Temp directory setup failed');
+		}
 	}
 }
 

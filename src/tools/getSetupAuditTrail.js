@@ -61,7 +61,7 @@ const USERNAME_NAME_CACHE = new Map(); // username -> { name, cachedAt }
 const USERNAME_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 /**
- * Normalitza el fitxer CSV convertint registres multi-línia en registres d'una sola línia
+ * Normalize the CSV file by converting multi-line records into single-line records.
  */
 function normalizeMultilineFields(inputPath) {
 	try {
@@ -108,27 +108,27 @@ function parseCSVLine(line) {
 
 		if (char === '"') {
 			if (inQuotes && line[i + 1] === '"') {
-				// Cometes escapades
+				// Escaped quotes
 				currentField += '"';
 				i += 2;
 			} else {
-				// Cometa d'obertura/tancament
+				// Opening/closing quote
 				inQuotes = !inQuotes;
 				i++;
 			}
 		} else if (char === ',' && !inQuotes) {
-			// Separador de camp
+			// Field separator
 			fields.push(currentField.trim());
 			currentField = '';
 			i++;
 		} else {
-			// Caràcter normal
+			// Regular character
 			currentField += char;
 			i++;
 		}
 	}
 
-	// Afegir l'últim camp
+	// Add the last field
 	fields.push(currentField.trim());
 	return fields;
 }
@@ -148,7 +148,7 @@ function containsExactWord(text, word) {
 }
 
 /**
- * Aplica tots els filtres en memòria i crea només el fitxer final
+ * Apply all filters in memory and build only the final file.
  */
 function applyAllFilters(lines, lastDays, username, metadataName) {
 	try {
@@ -210,7 +210,7 @@ function applyAllFilters(lines, lastDays, username, metadataName) {
 }
 
 /**
- * Converteix el contingut CSV en un array d'objectes amb els canvis
+ * Convert CSV content into an array of change records.
  */
 function parseCSVToRecords(csvContent, userNamesMap = {}) {
 	if (!csvContent) {
@@ -220,12 +220,12 @@ function parseCSVToRecords(csvContent, userNamesMap = {}) {
 	const lines = csvContent.split('\n');
 	const records = [];
 
-	// Saltar la primera línia (capçalera)
+	// Skip the first line (header)
 	for (let i = 1; i < lines.length; i++) {
 		const line = lines[i].trim();
 		if (!line) {
-			continue;
-		} // Saltar línies buides
+			continue; // Skip empty lines
+		}
 
 		try {
 			const fields = parseCSVLine(line);
@@ -248,7 +248,7 @@ function parseCSVToRecords(csvContent, userNamesMap = {}) {
 }
 
 /**
- * Converteix una data de Salesforce al format local D/M/YY HH:MI
+ * Convert a Salesforce date to local format D/M/YY HH:MM
  */
 function formatDateToLocal(dateString) {
 	if (!dateString || typeof dateString !== 'string') {
@@ -256,7 +256,7 @@ function formatDateToLocal(dateString) {
 	}
 
 	try {
-		// Parsejar la data de Salesforce (ex: "27/8/2025, 14:06:53 CEST")
+		// Parse Salesforce date (e.g., "27/8/2025, 14:06:53 CEST")
 		const dateMatch = dateString.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}),\s*(\d{1,2}):(\d{1,2}):(\d{1,2})/);
 		if (dateMatch) {
 			const day = parseInt(dateMatch[1]);
@@ -278,14 +278,14 @@ function formatDateToLocal(dateString) {
 			return `${formattedDay}/${formattedMonth}/${formattedYear} ${formattedHours}:${formattedMinutes}`;
 		}
 
-		return dateString; // Retornar original si no es pot parsejar
+		return dateString; // Return original if it cannot be parsed
 	} catch {
 		return dateString;
 	}
 }
 
 /**
- * Parseja una data del format Salesforce (ex: "12/8/2025, 11:54:14 CEST")
+ * Parse a date from Salesforce format (e.g., "12/8/2025, 11:54:14 CEST")
  */
 function parseSalesforceDate(dateString) {
 	if (!dateString || typeof dateString !== 'string') {
@@ -309,7 +309,7 @@ function parseSalesforceDate(dateString) {
 }
 
 /**
- * Obté els noms dels usuaris a partir dels usernames
+ * Get user display names from usernames.
  */
 async function getUserNamesFromUsernames(usernames) {
 	if (!usernames || usernames.length === 0) {
@@ -347,14 +347,14 @@ async function getUserNamesFromUsernames(usernames) {
 		return userMap;
 	} catch (error) {
 		logger.error(`Error getting user names: ${error.message}`);
-		// Retornar un map buit en cas d'error, així la tool pot continuar funcionant
+		// Return an empty map on error so the tool can continue
 		return {};
 	}
 }
 
 /**
- * Comprimeix el camp Action per a registres específics per reduir la mida de la resposta
- * Si el camp Action conté la paraula exacta "Changed" o "Created", el substituïsca per "Changed" o "Created" respectivament
+ * Compress the Action field for specific records to reduce response size.
+ * If the Action field contains the exact word "Changed" or "Created", replace it with that exact word.
  */
 function compressActionField(records) {
 	if (!records || !Array.isArray(records)) {

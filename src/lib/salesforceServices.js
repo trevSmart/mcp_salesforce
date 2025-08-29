@@ -6,6 +6,7 @@ import {newResource} from '../mcp-server.js';
 import {exec as execCb} from 'child_process';
 import {promisify} from 'node:util';
 import {createModuleLogger} from './logger.js';
+import {ensureBaseTmpDir, cleanupObsoleteTempFiles} from './tempManager.js';
 const exec = promisify(execCb);
 const logger = createModuleLogger(import.meta.url);
 
@@ -648,11 +649,16 @@ export async function executeAnonymousApex(apexCode) {
 	if (!apexCode || typeof apexCode !== 'string') {
 		throw new Error('apexCode is required and must be a string');
 	}
-	const tmpDir = state.tempPath;
+	const tmpDir = ensureBaseTmpDir(state.workspacePath);
+	try {
+		cleanupObsoleteTempFiles({baseDir: tmpDir});
+	} catch {
+		logger.warn('Error cleaning up obsolete temp files');
+	}
 
 	let tmpFile;
 	try {
-		//Assegura que la carpeta tmp existeix
+		// Ensure the tmp folder exists
 		await fs.mkdir(tmpDir, {recursive: true});
 
 		//Get username from state or use 'unknown' as fallback
@@ -661,7 +667,7 @@ export async function executeAnonymousApex(apexCode) {
 		const baseFileName = generateApexFileName(username);
 		tmpFile = path.join(tmpDir, `${baseFileName}.apex`);
 
-		//Escriu el codi Apex al fitxer temporal
+		// Write the Apex code to a temporary file
 		await fs.writeFile(tmpFile, apexCode, 'utf8');
 		const command = `sf apex run --file "${tmpFile}" --json`;
 		logger.debug(`Executing anonymous Apex: ${command}`);
@@ -705,13 +711,13 @@ export async function executeAnonymousApex(apexCode) {
 		throw error;
 
 	} finally {
-		//Elimina els fitxers temporals (comentat per mantenir els fitxers)
+		// Delete temporary files (commented out to keep the files)
 		/*
 		if (tmpFile) {
 			try {
 				await fs.unlink(tmpFile);
 			} catch (e) {
-				//No passa res si no es pot eliminar
+				// It's fine if the file cannot be deleted
 			}
 		}
 		*/
