@@ -1,6 +1,6 @@
 {
   "name": "@trevsmart/test_research4",
-  "version": "0.3.24",
+  "version": "0.3.28",
   "description": "Test Research 4",
   "main": "index.js",
   "type": "module",
@@ -12,6 +12,7 @@
   },
   "scripts": {
     "publish-package": "sh dev/publish-package.sh",
+    "publish-package-skip-tests": "sh dev/publish-package.sh --skip-tests",
     "test simple": "node test/runner.js --tests=\"salesforceMcpUtils getState\"",
     "test": "node test/runner.js",
     "test:help": "node test/runner.js --help",
