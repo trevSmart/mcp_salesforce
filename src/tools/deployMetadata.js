@@ -2,7 +2,8 @@ import state from '../state.js';
 import {mcpServer} from '../mcp-server.js';
 import client from '../client.js';
 import {deployMetadata} from '../salesforceServices.js';
-import {log, textFileContent, getFileNameFromPath} from '../utils.js';
+import {textFileContent, getFileNameFromPath} from '../utils.js';
+import {createModuleLogger} from '../logger.js';
 import {z} from 'zod';
 
 export const deployMetadataToolDefinition = {
@@ -22,6 +23,7 @@ export const deployMetadataToolDefinition = {
 };
 
 export async function deployMetadataToolHandler({sourceDir}) {
+	const logger = createModuleLogger(import.meta.url);
 	try {
 		if (client.supportsCapability('elicitation')) {
 			const metadataName = getFileNameFromPath(sourceDir);
@@ -66,7 +68,7 @@ export async function deployMetadataToolHandler({sourceDir}) {
 		};
 
 	} catch (error) {
-		log(error, 'error', 'Error deploying metadata');
+		logger.error(error, 'Error deploying metadata');
 
 		return {
 			isError: true,

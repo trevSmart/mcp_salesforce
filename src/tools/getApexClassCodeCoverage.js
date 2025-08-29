@@ -1,5 +1,6 @@
 import {getApexClassCodeCoverage} from '../salesforceServices.js';
-import {log, textFileContent} from '../utils.js';
+import {textFileContent} from '../utils.js';
+import {createModuleLogger} from '../logger.js';
 import {z} from 'zod';
 
 export const getApexClassCodeCoverageToolDefinition = {
@@ -20,6 +21,7 @@ export const getApexClassCodeCoverageToolDefinition = {
 };
 
 export async function getApexClassCodeCoverageToolHandler({classNames}) {
+	const logger = createModuleLogger(import.meta.url);
 	try {
 		if (!classNames || !classNames.length) {
 			throw new Error('classNames is required and must be a non-empty array of Apex class names');
@@ -36,7 +38,7 @@ export async function getApexClassCodeCoverageToolHandler({classNames}) {
 		};
 
 	} catch (error) {
-		log(error, 'error', `Error getting code coverage for classes ${Array.isArray(classNames) ? classNames.join(', ') : classNames}`);
+		logger.error(error, `Error getting code coverage for classes ${Array.isArray(classNames) ? classNames.join(', ') : classNames}`);
 		return {
 			isError: true,
 			content: [{
@@ -47,5 +49,4 @@ export async function getApexClassCodeCoverageToolHandler({classNames}) {
 		};
 	}
 }
-
 

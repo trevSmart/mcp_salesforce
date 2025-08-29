@@ -3,7 +3,9 @@ import fs from 'fs';
 import state from './state.js';
 import path from 'path';
 import {fileURLToPath} from 'url';
-import client from './client.js';
+import {createModuleLogger} from './logger.js';
+const logger = createModuleLogger(import.meta.url);
+
 // Avoid static import of salesforceServices to prevent ESM cycles during module init
 let _executeSoqlQuery = null;
 async function __getExecuteSoqlQuery() {
@@ -19,76 +21,7 @@ async function __getExecuteSoqlQuery() {
 }
 import {getAgentInstructions as _getAgentInstructions} from './instructions.js';
 
-/**
- * Logs data with specified level and context
- * @param {any} data - Data to log (string, object, or Error)
- * @param {string} logLevel - Log level (emergency, alert, critical, error, warning, notice, info, debug)
- * @param {string|null} context - Optional context information
- */
-export function log(data, logLevel = 'info', context = null) {
-	try {
-		const LEVEL_PRIORITIES = {emergency: 0, alert: 1, critical: 2, error: 3, warning: 4, notice: 5, info: 6, debug: 7};
-
-		const logPriority = LEVEL_PRIORITIES[logLevel];
-		const noticePriority = LEVEL_PRIORITIES['notice'];
-		const currentPriority = LEVEL_PRIORITIES[state.currentLogLevel];
-		const errorPriority = LEVEL_PRIORITIES['error'];
-		const loggingSupported = client?.supportsCapability('logging');
-		const shouldLog = loggingSupported && logPriority <= currentPriority;
-		const shouldError = logPriority <= errorPriority || !loggingSupported && logPriority >= noticePriority;
-
-		if (!shouldLog && !shouldError) {
-			return;
-		}
-
-		let logData = data;
-
-		// Handle Error objects specially
-		if (data instanceof Error) {
-			const errorMessage = context ? `${context}: ${data.message}` : data.message;
-			logData = `${errorMessage}\nStack: ${data.stack}`;
-		} else {
-			if (typeof data === 'object') {
-				// For other objects, try to get meaningful string representation
-				try {
-					logData = JSON.stringify(data, null, 2);
-				} catch {
-					logData = data.toString();
-				}
-			} else if (typeof data === 'string') {
-				logData = data;
-			}
-
-			// Add context prefix to any type of log if available
-			if (context) {
-				logData = `${context}: ${logData}`;
-			}
-		}
-
-		// Truncate if too long
-		if (typeof logData === 'string' && logData.length > 5000) {
-			logData = logData.slice(0, 4997) + '...';
-		}
-
-		// Add newlines for string data
-		if (typeof logData === 'string') {
-			logData = '\n' + logData + '\n';
-		}
-
-		const logPrefix = getLogPrefix(logLevel);
-		const mcp = globalThis.__mcpServer;
-		if (shouldLog && mcp?.isConnected()) {
-			const logger = `${logPrefix} MCP server`;
-			mcp.server.sendLoggingMessage({level: logLevel, logger, data: logData});
-
-		} else if (shouldError) {
-			console.error(`${logPrefix} | ${logLevel} | ${logData}`);
-		}
-
-	} catch (error) {
-		console.error(getLogPrefix('error') + JSON.stringify(error, null, 3));
-	}
-}
+// Note: `log` is now imported from logger.js (emitLog) and re-exported below for backward compatibility.
 
 /**
  * Validates if the user has the required permissions
@@ -109,11 +42,12 @@ export async function validateUserPermissions(username) {
 			state.userValidated = true;
 		} else {
 			state.userValidated = false;
-			log(`Insufficient permissions in org "${state.org.alias}". Assign Permission Set 'IBM_SalesforceMcpUser' to the user.`, 'emergency');
+			// Keep emergency level for visibility via base sink
+			logger.emergency(`Insufficient permissions in org "${state.org.alias}". Assign Permission Set 'IBM_SalesforceMcpUser' to the user.`);
 		}
 	} catch (error) {
 		state.userValidated = false;
-		log(error, 'error', 'Error validating user permissions');
+		logger.error(error, 'Error validating user permissions');
 	}
 }
 
@@ -201,7 +135,7 @@ export function textFileContent(input) {
 		return tryRead(path.join(toolsDir, toolFile));
 
 	} catch (error) {
-		log(error, 'debug', 'textFileContent error');
+		logger.debug(error, 'textFileContent error');
 		return null;
 	}
 }
@@ -236,7 +170,7 @@ export function writeToFile(file, data, options = {}) {
 			const dir = path.dirname(fullPath);
 			if (!fs.existsSync(dir)) {
 				fs.mkdirSync(dir, {recursive: true});
-				log(`Created directory: ${dir}`, 'debug');
+				logger.debug(`Created directory: ${dir}`);
 			}
 		} else {
 			// File is just a filename, use tmp directory
@@ -264,20 +198,20 @@ export function writeToFile(file, data, options = {}) {
 		// Write file
 		if (async) {
 			return fs.promises.writeFile(fullPath, content, encoding).then(() => {
-				log(`File written to: ${fullPath}`, 'debug');
+				logger.debug(`File written to: ${fullPath}`);
 				return fullPath;
 			}).catch(error => {
-				log(`Error writing to file: ${error.message}`, 'error');
+				logger.error(`Error writing to file: ${error.message}`);
 				throw error;
 			});
 		} else {
 			fs.writeFileSync(fullPath, content, encoding);
-			log(`File written to: ${fullPath}`, 'debug');
+			logger.debug(`File written to: ${fullPath}`);
 			return fullPath;
 		}
 
 	} catch (error) {
-		log(`Error writing to file: ${error.message}`, 'error');
+		logger.error(`Error writing to file: ${error.message}`);
 		throw error;
 	}
 }
@@ -290,7 +224,7 @@ export function writeToFile(file, data, options = {}) {
 export function saveToFile(object, filename) {
 	const filePath = path.join(state.tempPath, `${filename}_${Date.now()}.json`);
 	fs.writeFileSync(filePath, JSON.stringify(object, null, 3), 'utf8');
-	log(`Object written to temporary file: ${filePath}`, 'debug');
+	logger.debug(`Object written to temporary file: ${filePath}`);
 }
 
 /**
@@ -303,7 +237,7 @@ export function ensureTmpDir(workspacePath = null) {
 
 	if (!fs.existsSync(tmpDir)) {
 		fs.mkdirSync(tmpDir, {recursive: true});
-		log(`Created tmp directory: ${tmpDir}`, 'debug');
+		logger.debug(`Created tmp directory: ${tmpDir}`);
 	}
 
 	return tmpDir;
@@ -323,11 +257,11 @@ export function writeToTmpFile(content, filename, encoding = 'utf8', workspacePa
 		const fullPath = path.join(tmpDir, filename);
 
 		fs.writeFileSync(fullPath, content, encoding);
-		log(`File written to tmp directory: ${fullPath}`, 'debug');
+		logger.debug(`File written to tmp directory: ${fullPath}`);
 
 		return fullPath;
 	} catch (error) {
-		log(`Error writing to tmp file: ${error.message}`, 'error');
+		logger.error(`Error writing to tmp file: ${error.message}`);
 		throw error;
 	}
 }
@@ -349,11 +283,11 @@ export async function writeToTmpFileAsync(content, filename, extension = 'txt', 
 		const fullPath = path.join(tmpDir, fullFilename);
 
 		await fs.promises.writeFile(fullPath, content, encoding);
-		log(`File written to tmp directory (async): ${fullPath}`, 'debug');
+		logger.debug(`File written to tmp directory (async): ${fullPath}`);
 
 		return fullPath;
 	} catch (error) {
-		log(`Error writing to tmp file (async): ${error.message}`, 'error');
+		logger.error(`Error writing to tmp file (async): ${error.message}`);
 		throw error;
 	}
 }
@@ -393,19 +327,7 @@ export function getTimestamp(long = false) {
  * @returns {string} Formatted log prefix
  * @private
  */
-function getLogPrefix(logLevel) {
-	const logLevelEmojis = {
-		emergency: '🔥', alert: '⛔️', critical: '❗️', error: '❌', warning: '⚠️', notice: '✉️', info: '💡', debug: '🐞'
-	};
-
-	const emoji = logLevelEmojis[logLevel] || '❓';
-	const logLevelPrefix = emoji.repeat(3);
-
-	if (config.logPrefix) {
-		return `(${config.logPrefix} · ${logLevelPrefix})`;
-	}
-	return `(${logLevelPrefix})`;
-}
+// getLogPrefix removed; handled centrally in logger.js
 
 /**
  * Extracts the file name without extension from a file path

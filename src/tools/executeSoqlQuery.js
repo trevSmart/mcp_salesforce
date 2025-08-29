@@ -1,6 +1,8 @@
 import state from '../state.js';
 import {executeSoqlQuery} from '../salesforceServices.js';
-import {log, textFileContent} from '../utils.js';
+import {textFileContent} from '../utils.js';
+import {createModuleLogger} from '../logger.js';
+const logger = createModuleLogger(import.meta.url);
 import {z} from 'zod';
 
 //Recursive function to add url properties to all records and related records
@@ -97,7 +99,7 @@ export async function executeSoqlQueryToolHandler({query, useToolingApi = false}
 		};
 
 	} catch (error) {
-		log(error, 'error');
+		logger.error(error);
 		return {
 			isError: true,
 			content: [{

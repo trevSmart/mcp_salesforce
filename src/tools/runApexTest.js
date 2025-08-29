@@ -1,7 +1,8 @@
 import {mcpServer, resources, newResource} from '../mcp-server.js';
 import client from '../client.js';
 import {runApexTest, executeSoqlQuery, getApexClassCodeCoverage} from '../salesforceServices.js';
-import {log, textFileContent} from '../utils.js';
+import {textFileContent} from '../utils.js';
+import {createModuleLogger} from '../logger.js';
 import {z} from 'zod';
 
 export const runApexTestToolDefinition = {
@@ -78,6 +79,7 @@ async function classNameElicitation() {
 }
 
 export async function runApexTestToolHandler({classNames = [], methodNames = [], suiteNames = [], options = {}}) {
+	const logger = createModuleLogger(import.meta.url);
 	try {
 		// Validate that only one input array has items
 		const hasClassNames = classNames && classNames.length > 0;
@@ -181,7 +183,7 @@ export async function runApexTestToolHandler({classNames = [], methodNames = [],
 		};
 
 	} catch (error) {
-		log(error, 'error', 'Error running Apex tests');
+		logger.error(error, 'Error running Apex tests');
 		return {
 			isError: true,
 			content: [{

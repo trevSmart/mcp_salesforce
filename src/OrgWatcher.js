@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import {EventEmitter} from 'events';
-import {log} from './utils.js';
 import state from './state.js';
+import {createModuleLogger} from './logger.js';
+const logger = createModuleLogger(import.meta.url);
 
 class TargetOrgWatcher extends EventEmitter {
 	constructor() {
@@ -24,9 +25,9 @@ class TargetOrgWatcher extends EventEmitter {
 				return;
 			}
 
-			this.on('started', orgAlias => log(`Monitoring Salesforce CLI target org changes (current: ${orgAlias})`, 'debug'));
+			this.on('started', orgAlias => logger.debug(`Monitoring Salesforce CLI target org changes (current: ${orgAlias})`));
 			this.on('orgChanged', onChange);
-			this.on('error', error => log(error, 'error', 'Error in Salesforce CLI target org watcher'));
+			this.on('error', error => logger.error(error, 'Error in Salesforce CLI target org watcher'));
 
 			this.fileWatcher = fs.watch(path.dirname(this.configFilePath), (eventType, filename) => {
 				if (filename === 'config.json' && eventType === 'change') {
@@ -38,7 +39,7 @@ class TargetOrgWatcher extends EventEmitter {
 			this.emit('started', this.currentOrgAlias);
 
 		} catch (error) {
-			log(error, 'error', 'Error setting up file watcher');
+			logger.error(error, 'Error setting up file watcher');
 		}
 	}
 
@@ -47,7 +48,7 @@ class TargetOrgWatcher extends EventEmitter {
 			return;
 		}
 
-		log('Stopping Salesforce CLI target org watcher', 'debug');
+		logger.debug('Stopping Salesforce CLI target org watcher');
 		if (this.fileWatcher) {
 			this.fileWatcher.close();
 			this.fileWatcher = null;
@@ -72,19 +73,19 @@ class TargetOrgWatcher extends EventEmitter {
 			const newValue = sfConfig['target-org'] || null;
 
 			if (!newValue) {
-				log('No target org found in Salesforce CLI config file', 'debug');
+				logger.debug('No target org found in Salesforce CLI config file');
 				return;
 			}
 
 			if (newValue !== this.currentOrgAlias) {
 				const oldValue = this.currentOrgAlias;
-				log(`Change detected in Salesforce CLI target org: ${oldValue} -> ${newValue}`, 'info');
+				logger.info(`Change detected in Salesforce CLI target org: ${oldValue} -> ${newValue}`);
 				this.currentOrgAlias = newValue;
 				this.emit('orgChanged', {oldValue, newValue});
 			}
 
 		} catch (error) {
-			log(error, 'error', 'Error reading Salesforce CLI config file');
+			logger.error(error, 'Error reading Salesforce CLI config file');
 		}
 	}
 }

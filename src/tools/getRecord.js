@@ -1,8 +1,10 @@
 import {getRecord} from '../salesforceServices.js';
-import {log, textFileContent} from '../utils.js';
+import {textFileContent} from '../utils.js';
+import {createModuleLogger} from '../logger.js';
 import {z} from 'zod';
 // eslint-disable-next-line no-unused-vars
 import state from '../state.js';
+const logger = createModuleLogger(import.meta.url);
 
 export const getRecordToolDefinition = {
 	name: 'getRecord',
@@ -56,7 +58,7 @@ export async function getRecordToolHandler({sObjectName, recordId}) {
 		};
 
 	} catch (error) {
-		log(error, 'error');
+		logger.error(error);
 		return {
 			isError: true,
 			content: [{

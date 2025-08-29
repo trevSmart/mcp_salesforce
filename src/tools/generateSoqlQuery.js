@@ -1,6 +1,7 @@
 import {z} from 'zod';
 import {describeObject} from '../salesforceServices.js';
-import {log, textFileContent, getAgentInstructions} from '../utils.js';
+import {textFileContent, getAgentInstructions} from '../utils.js';
+import {createModuleLogger} from '../logger.js';
 import {mcpServer} from '../mcp-server.js';
 
 export const generateSoqlQueryToolDefinition = {
@@ -29,6 +30,7 @@ export const generateSoqlQueryToolDefinition = {
 };
 
 export async function generateSoqlQueryToolHandler({soqlQueryDescription, involvedFields}) {
+	const logger = createModuleLogger(import.meta.url);
 
 	try {
 		if (!soqlQueryDescription) {
@@ -170,7 +172,7 @@ export async function generateSoqlQueryToolHandler({soqlQueryDescription, involv
 		};
 
 	} catch (error) {
-		log(error, 'error');
+		logger.error(error);
 		return {
 			isError: true,
 			content: [{
