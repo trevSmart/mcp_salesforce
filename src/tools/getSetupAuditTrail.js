@@ -394,7 +394,7 @@ function getFreshAuditTrailFilePath() {
 export async function getSetupAuditTrailToolHandler({lastDays = 30, user = null, metadataName = null}) {
 	try {
 		// Resolve optional user filter: accepts username or Name
-		const resolveUser = async (u) => {
+		const resolveUser = async(u) => {
 			if (!u) {
 				return {usernameForFiltering: null, resolvedUsername: null};
 			}

@@ -39,7 +39,7 @@ export const runApexTestToolDefinition = {
 };
 
 async function classNameElicitation() {
-	let testClasses = [];
+	let testClasses;
 	if ('mcp://mcp/apex-test-classes-list.txt' in resources) {
 		testClasses = JSON.parse(resources['mcp://mcp/apex-test-classes-list.txt'].text);
 	} else {

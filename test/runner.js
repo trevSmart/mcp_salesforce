@@ -128,7 +128,7 @@ class TestRunner {
 		const ready = () => tests.filter(t => !started.has(t.name) && (depCount.get(t.name) || 0) === 0);
 		const delay = ms => new Promise(r => setTimeout(r, ms));
 
-		const runAndTrack = async (test) => {
+		const runAndTrack = async(test) => {
 			running.add(test.name);
 			try {
 				await this.runSingleTest(test, mcpToolsSuite);
@@ -210,7 +210,7 @@ class TestRunner {
 			}
 		}
 
-		const testResult = await this.runTest(`${test.name}`, async () => {
+		const testResult = await this.runTest(`${test.name}`, async() => {
 			try {
 				result = await test.run(suite.context);
 				return result;
@@ -278,7 +278,7 @@ class TestRunner {
 		const runningTests = new Set();
 
 		// Helper function to run a single test
-		const runTestWithTracking = async (test) => {
+		const runTestWithTracking = async(test) => {
 			try {
 				const result = await this.runSingleTest(test, mcpToolsSuite);
 				testResults.set(test.name, result);

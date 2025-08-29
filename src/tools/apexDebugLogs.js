@@ -1,5 +1,4 @@
-import {newResource} from '../mcp-server.js';
-import {mcpServer} from '../mcp-server.js';
+import {newResource, mcpServer} from '../mcp-server.js';
 import state from '../state.js';
 import client from '../client.js';
 import {textFileContent, formatDate} from '../utils.js'; // ensureTmpDir, writeToTmpFile

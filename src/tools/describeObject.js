@@ -267,23 +267,23 @@ function transformToolingChildRelationships(toolingChildRelationships) {
 function mapToolingDataType(toolingDataType) {
 	// Map Tooling API data types to our standard format
 	const typeMapping = {
-		'string': 'string',
-		'textarea': 'textarea',
-		'email': 'email',
-		'phone': 'phone',
-		'url': 'url',
-		'boolean': 'boolean',
-		'currency': 'currency',
-		'double': 'double',
-		'int': 'double',
-		'percent': 'percent',
-		'date': 'date',
-		'datetime': 'datetime',
-		'time': 'time',
-		'picklist': 'picklist',
-		'multipicklist': 'multipicklist',
-		'reference': 'reference',
-		'id': 'string'
+		string: 'string',
+		textarea: 'textarea',
+		email: 'email',
+		phone: 'phone',
+		url: 'url',
+		boolean: 'boolean',
+		currency: 'currency',
+		double: 'double',
+		int: 'double',
+		percent: 'percent',
+		date: 'date',
+		datetime: 'datetime',
+		time: 'time',
+		picklist: 'picklist',
+		multipicklist: 'multipicklist',
+		reference: 'reference',
+		id: 'string'
 	};
 
 	return typeMapping[toolingDataType] || toolingDataType?.toLowerCase() || 'string';
@@ -357,27 +357,27 @@ function transformChildRelationships(uiChildRelationships) {
 function mapDataType(uiDataType) {
 	// Map UI API data types to describe object format
 	const typeMapping = {
-		'Text': 'string',
-		'TextArea': 'textarea',
-		'LongTextArea': 'textarea',
-		'RichTextArea': 'textarea',
-		'Email': 'email',
-		'Phone': 'phone',
-		'Url': 'url',
-		'Checkbox': 'boolean',
-		'Currency': 'currency',
-		'Number': 'double',
-		'Percent': 'percent',
-		'Date': 'date',
-		'DateTime': 'datetime',
-		'Time': 'time',
-		'Picklist': 'picklist',
-		'MultiselectPicklist': 'multipicklist',
-		'Reference': 'reference',
-		'MasterDetail': 'reference',
-		'Lookup': 'reference',
-		'AutoNumber': 'string',
-		'Formula': 'string'
+		Text: 'string',
+		TextArea: 'textarea',
+		LongTextArea: 'textarea',
+		RichTextArea: 'textarea',
+		Email: 'email',
+		Phone: 'phone',
+		Url: 'url',
+		Checkbox: 'boolean',
+		Currency: 'currency',
+		Number: 'double',
+		Percent: 'percent',
+		Date: 'date',
+		DateTime: 'datetime',
+		Time: 'time',
+		Picklist: 'picklist',
+		MultiselectPicklist: 'multipicklist',
+		Reference: 'reference',
+		MasterDetail: 'reference',
+		Lookup: 'reference',
+		AutoNumber: 'string',
+		Formula: 'string'
 	};
 
 	return typeMapping[uiDataType] || uiDataType?.toLowerCase() || 'string';

@@ -41,6 +41,36 @@ export default [
 			'no-extra-boolean-cast': 'error',
 			'no-extra-semi': 'error',
 			'no-unreachable': 'error',
+			// New rules from the provided list
+			'no-dupe-class-members': 'error',
+			'no-empty-character-class': 'error',
+			'no-dupe-else-if': 'error',
+			'no-duplicate-imports': 'error',
+			'no-empty-pattern': 'error',
+			'no-return-assign': 'off',
+			'no-compare-neg-zero': 'error',
+			'no-cond-assign': 'error',
+			'no-constant-binary-expression': 'error',
+			'no-constant-condition': 'error',
+			'no-ex-assign': 'error',
+			'no-func-assign': 'error',
+			'no-misleading-character-class': 'error',
+			'no-obj-calls': 'error',
+			'no-promise-executor-return': 'off',
+			'no-new-native-nonconstructor': 'error',
+			'no-loss-of-precision': 'error',
+			'no-irregular-whitespace': 'error',
+			'no-invalid-regexp': 'error',
+			'no-inner-declarations': 'error',
+			'no-self-assign': 'error',
+			'no-unassigned-vars': 'error',
+			'no-template-curly-in-string': 'error',
+			'no-sparse-arrays': 'warn',
+			'no-unexpected-multiline': 'error',
+			'no-useless-assignment': 'error',
+			'no-multi-spaces': 'error',
+			'no-unused-expressions': ['error', {allowShortCircuit: true}],
+			'quote-props': ['error', 'consistent-as-needed', {unnecessary: false}],
 
 			// Best Practices
 			'curly': ['error', 'all'],
@@ -79,9 +109,9 @@ export default [
 			'semi': ['error', 'always'],
 			'space-before-blocks': ['error', 'always'],
 			'space-before-function-paren': ['error', {
-				'anonymous': 'always',
+				'anonymous': 'never',
 				'named': 'never',
-				'asyncArrow': 'always'
+				'asyncArrow': 'never'
 			}],
 			'space-in-parens': ['error', 'never'],
 			'space-infix-ops': 'error'
