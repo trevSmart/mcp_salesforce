@@ -49,4 +49,4 @@ __pycache__/
 *.pyd
 .Python
 *.so
-.npm-cache/
+.npm-cache/*

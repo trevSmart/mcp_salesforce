@@ -388,7 +388,11 @@ else
 fi
 echo
 echo "\033[95mVols continuar amb la publicació del paquet a NPM? (S/n)\033[0m"
-IFS= read -r resposta
+# Si stdin no està disponible (entorn no interactiu), 'read' fallarà.
+# En aquest cas, assumim Enter per defecte (Sí) per evitar bloquejos.
+if ! IFS= read -r resposta; then
+  resposta=""
+fi
 # Normalitza: elimina CR/espais i passa a minúscules
 resposta_norm=$(printf '%s' "$resposta" \
   | tr -d '\r' \
