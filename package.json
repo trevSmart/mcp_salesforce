@@ -1,5 +1,5 @@
 {
-  "name": "test_research4",
+  "name": "@trevSmart/test_research4",
   "version": "0.3.23",
   "description": "Test Research 4",
   "main": "index.js",
@@ -29,7 +29,7 @@
     "os": "^0.1.2",
     "playwright": "^1.55.0",
     "semver": "^7.5.4",
-    "test_research4": "^0.3.22",
+    "@trevSmart/test_research4": "^0.3.22",
     "zod": "^3.24.2"
   },
   "engines": {
