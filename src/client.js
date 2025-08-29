@@ -33,7 +33,7 @@ class Client {
 			case 'resources':
 			case 'embeddedResources':
 			case 'logging':
-				return this.isVsCode || this.clientInfo.name === 'IBM Salesforce MCP Test Client';
+				return Boolean(this.capabilities?.['logging']) || this.isVsCode || this.clientInfo.name === 'IBM Salesforce MCP Test Client';
 
 			case 'resource_links':
 				return this.isVsCode && semver.gte(this.clientInfo.version, '1.103.0');

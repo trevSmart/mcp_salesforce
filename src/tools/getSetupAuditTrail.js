@@ -1,9 +1,9 @@
 import {textFileContent} from '../utils.js';
-import {createModuleLogger} from '../logger.js';
+import {createModuleLogger} from '../lib/logger.js';
 import {newResource} from '../mcp-server.js';
 import {z} from 'zod';
-import {retrieveSetupAuditTrailFile} from '../auditTrailDownloader.js';
-import {executeSoqlQuery} from '../salesforceServices.js';
+import {retrieveSetupAuditTrailFile} from '../lib/auditTrailDownloader.js';
+import {executeSoqlQuery} from '../lib/salesforceServices.js';
 import state from '../state.js';
 import client from '../client.js';
 import fs from 'fs';
@@ -13,7 +13,7 @@ const logger = createModuleLogger(import.meta.url);
 export const getSetupAuditTrailToolDefinition = {
 	name: 'getSetupAuditTrail',
 	title: 'Get the changes in the Salesforce org metadata performed in the last days from the Salesforce Setup Audit Trail data, filtered by allowed sections',
-	description: textFileContent('getSetupAuditTrail'),
+	description: textFileContent('tools/getSetupAuditTrail.md'),
 	inputSchema: {
 		lastDays: z.number()
 			.int()

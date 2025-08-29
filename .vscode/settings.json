@@ -84,6 +84,13 @@
                 "color": "#bb9955"
             },
             {
+                "name": "$(testing-debug-icon) Test simple",
+                "useVsCodeApi": true,
+                "command": "workbench.action.tasks.runTask",
+                "args": ["npm: test simple"],
+                "color": "#bb9955"
+            },
+            {
                 "name": "$(send) Publish",
                 "useVsCodeApi": true,
                 "command": "workbench.action.tasks.runTask",

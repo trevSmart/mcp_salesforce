@@ -1,8 +1,8 @@
 import path from 'path';
 import {fileURLToPath} from 'url';
-import config from './config.js';
-import client from './client.js';
-import state from './state.js';
+import config from '../config.js';
+import client from '../client.js';
+import state from '../state.js';
 
 // Internal: builds log prefix with emoji and optional config prefix
 function getLogPrefix(logLevel) {
@@ -18,7 +18,7 @@ function getLogPrefix(logLevel) {
 }
 
 // Base sink: sends logs to MCP if available, or stderr fallback
-export function emitLog(data, logLevel = 'info', context = null) {
+function emitLog(data, logLevel = 'info', context = null) {
 	try {
 		const LEVEL_PRIORITIES = {emergency: 0, alert: 1, critical: 2, error: 3, warning: 4, notice: 5, info: 6, debug: 7};
 

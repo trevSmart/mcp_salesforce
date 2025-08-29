@@ -1,7 +1,7 @@
 import state from '../state.js';
 import {textFileContent} from '../utils.js';
-import {createModuleLogger} from '../logger.js';
-import {getOrgAndUserDetails, callSalesforceApi} from '../salesforceServices.js';
+import {createModuleLogger} from '../lib/logger.js';
+import {getOrgAndUserDetails, callSalesforceApi} from '../lib/salesforceServices.js';
 import crypto from 'crypto';
 import {z} from 'zod';
 
@@ -11,7 +11,7 @@ const logger = createModuleLogger(import.meta.url);
 export const chatWithAgentforceToolDefinition = {
 	name: 'chatWithAgentforce',
 	title: 'Chat with Agentforce',
-	description: textFileContent('chatWithAgentforce'),
+	description: textFileContent('tools/chatWithAgentforce.md'),
 	inputSchema: {
 		message: z
 			.string()

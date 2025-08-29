@@ -11,13 +11,13 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 
 import {validateUserPermissions} from './utils.js';
-import {createModuleLogger} from './logger.js';
+import {createModuleLogger} from './lib/logger.js';
 import config from './config.js';
 import {fileURLToPath} from 'url';
 import client from './client.js';
-import {getOrgAndUserDetails} from './salesforceServices.js';
+import {getOrgAndUserDetails} from './lib/salesforceServices.js';
 import state from './state.js';
-import targetOrgWatcher from './OrgWatcher.js';
+import targetOrgWatcher from './lib/OrgWatcher.js';
 
 // import { codeModificationPromptDefinition, codeModificationPrompt } from './prompts/codeModificationPrompt.js';
 import {testToolsPromptDefinition, testToolsPrompt} from './prompts/test-tools.js';
@@ -42,18 +42,25 @@ const logger = createModuleLogger(import.meta.url);
 export let resources = {};
 
 async function setWorkspacePath(workspacePath) {
+	// Handle multiple workspace paths separated by commas
+	let targetPath = workspacePath;
+	if (typeof workspacePath === 'string' && workspacePath.includes(',')) {
+		// Take the first path if multiple paths are provided
+		targetPath = workspacePath.split(',')[0].trim();
+	}
+
 	// Normalize file:// URIs to local filesystem paths
-	if (typeof workspacePath === 'string' && workspacePath.startsWith('file://')) {
+	if (typeof targetPath === 'string' && targetPath.startsWith('file://')) {
 		try {
 			// Robust conversion for any platform
-			state.workspacePath = fileURLToPath(workspacePath);
+			state.workspacePath = fileURLToPath(targetPath);
 
 		} catch { //Fallback: manual URI conversion
-			state.workspacePath = decodeURIComponent(workspacePath.replace(/^file:\/\//, ''));
+			state.workspacePath = decodeURIComponent(targetPath.replace(/^file:\/\//, ''));
 			process.platform === 'win32' && (state.workspacePath = state.workspacePath.replace(/^\/([a-zA-Z]):/, '$1:'));
 		}
 	} else {
-		state.workspacePath = workspacePath;
+		state.workspacePath = targetPath;
 	}
 
 	if (state.workspacePath) {

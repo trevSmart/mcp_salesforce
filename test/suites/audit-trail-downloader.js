@@ -19,7 +19,7 @@ export class AuditTrailDownloaderTestSuite {
 					console.log('Testing module import...');
 
 					try {
-						const {retrieveSetupAuditTrailFile} = await import('../../src/auditTrailDownloader.js');
+						const {retrieveSetupAuditTrailFile} = await import('../../src/lib/auditTrailDownloader.js');
 
 						if (typeof retrieveSetupAuditTrailFile === 'function') {
 							console.log(`${TEST_CONFIG.colors.green}✓ Module imported successfully${TEST_CONFIG.colors.reset}`);
@@ -40,7 +40,7 @@ export class AuditTrailDownloaderTestSuite {
 					console.log('Testing function signature...');
 
 					try {
-						const {retrieveSetupAuditTrailFile} = await import('../../src/auditTrailDownloader.js');
+						const {retrieveSetupAuditTrailFile} = await import('../../src/lib/auditTrailDownloader.js');
 
 						// Check if function is async
 						const functionString = retrieveSetupAuditTrailFile.toString();
@@ -73,7 +73,7 @@ export class AuditTrailDownloaderTestSuite {
 					console.log('Testing state validation logic...');
 
 					try {
-						const {retrieveSetupAuditTrailFile} = await import('../../src/auditTrailDownloader.js');
+						const {retrieveSetupAuditTrailFile} = await import('../../src/lib/auditTrailDownloader.js');
 
 						// Test that the function properly validates state
 						// This should fail gracefully when no Salesforce state is available
@@ -189,7 +189,7 @@ export class AuditTrailDownloaderTestSuite {
 					console.log(`${TEST_CONFIG.colors.yellow}⚠ It will attempt to download the actual audit trail${TEST_CONFIG.colors.reset}`);
 
 					try {
-						const {retrieveSetupAuditTrailFile} = await import('../../src/auditTrailDownloader.js');
+						const {retrieveSetupAuditTrailFile} = await import('../../src/lib/auditTrailDownloader.js');
 
 						// This test is optional and will be skipped if no Salesforce state is available
 						try {

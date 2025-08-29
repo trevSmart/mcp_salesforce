@@ -5,7 +5,7 @@ import {z} from 'zod';
 export const triggerExecutionOrderDefinition = {
 	name: 'triggerExecutionOrder',
 	title: 'Trigger Execution Order',
-	description: textFileContent('triggerExecutionOrder'),
+	description: textFileContent('tools/triggerExecutionOrder.md'),
 	inputSchema: {
 		sObjectName: z
 			.string()

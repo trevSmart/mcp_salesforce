@@ -2,7 +2,7 @@ import {chromium} from 'playwright';
 import fs from 'fs';
 import path from 'path';
 import {createModuleLogger} from './logger.js';
-import state from './state.js';
+import state from '../state.js';
 const logger = createModuleLogger(import.meta.url);
 
 // Try clicking the first candidate link found across page and frames

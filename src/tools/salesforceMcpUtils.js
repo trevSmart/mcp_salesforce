@@ -1,17 +1,17 @@
 import client from '../client.js';
 import state from '../state.js';
 import {textFileContent, formatDate} from '../utils.js';
-import {createModuleLogger} from '../logger.js';
+import {createModuleLogger} from '../lib/logger.js';
 import {z} from 'zod';
 import {resources, newResource, clearResources} from '../mcp-server.js';
 import config from '../config.js';
-import {getOrgAndUserDetails, executeAnonymousApex} from '../salesforceServices.js';
+import {getOrgAndUserDetails, executeAnonymousApex} from '../lib/salesforceServices.js';
 const logger = createModuleLogger(import.meta.url);
 
 export const salesforceMcpUtilsToolDefinition = {
 	name: 'salesforceMcpUtils',
 	title: 'IBM Salesforce MCP Utils',
-	description: textFileContent('salesforceMcpUtils'),
+	description: textFileContent('tools/salesforceMcpUtils.md'),
 	inputSchema: {
 		action: z.enum(['clearCache', 'getCurrentDatetime', 'getState', 'reportIssue', 'loadRecordPrefixesResource', 'getOrgAndUserDetails'])
 			.describe('The action to perform: "clearCache", "getCurrentDatetime", "getState", "reportIssue", "loadRecordPrefixesResource", "getOrgAndUserDetails"'),
@@ -42,9 +42,6 @@ function generateManualTitle(description, toolName) {
 
 	return title;
 }
-
-// Lightweight, deterministic intent → tool recommender to reduce agent reasoning time
-// suggestToolFast removed to avoid extra tool-call overhead
 
 export async function salesforceMcpUtilsToolHandler({action, issueDescription, issueToolName}) {
 	try {

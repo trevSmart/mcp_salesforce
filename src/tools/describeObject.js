@@ -1,6 +1,6 @@
 import {textFileContent} from '../utils.js';
-import {createModuleLogger} from '../logger.js';
-import {callSalesforceApi} from '../salesforceServices.js';
+import {createModuleLogger} from '../lib/logger.js';
+import {callSalesforceApi} from '../lib/salesforceServices.js';
 import {z} from 'zod';
 import {newResource, resources} from '../mcp-server.js';
 const logger = createModuleLogger(import.meta.url);
@@ -8,7 +8,7 @@ const logger = createModuleLogger(import.meta.url);
 export const describeObjectToolDefinition = {
 	name: 'describeObject',
 	title: 'Describe SObject schema',
-	description: textFileContent('describeObject'),
+	description: textFileContent('tools/describeObject.md'),
 	inputSchema: {
 		sObjectName: z.string()
 			.describe('The name of the SObject to describe'),

@@ -34,21 +34,30 @@
 				"close": true,
 				"panel": "new",
 				"focus": true
-			},
-			"runOptions": {
-				"instancePolicy": "terminateOldest"
 			}
 		},
 		{
 			"type": "npm",
 			"script": "test",
 			"group": {
-				"kind": "test",
-				"isDefault": true
+				"kind": "test"
 			},
 			"problemMatcher": [],
 			"label": "npm: test",
 			"detail": "node scripts/test_tools.js",
+			"presentation": {
+				"showReuseMessage": false,
+				"close": false,
+				"panel": "new",
+				"focus": true
+			}
+		},
+		{
+			"type": "npm",
+			"script": "test simple",
+			"group": {
+				"kind": "test"
+			},
 			"presentation": {
 				"showReuseMessage": false,
 				"close": false,
@@ -76,6 +85,13 @@
 				"panel": "new",
 				"focus": true
 			}
+		},
+		{
+			"type": "npm",
+			"script": "mcp:client2",
+			"problemMatcher": [],
+			"label": "npm: mcp:client2",
+			"detail": "node test/run-mcp-client2.js"
 		}
 	]
 }

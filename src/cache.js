@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path, {dirname} from 'path';
 import {fileURLToPath} from 'url';
-import {createModuleLogger} from './logger.js';
-import {getOrgAndUserDetails} from './salesforceServices.js';
+import {createModuleLogger} from './lib/logger.js';
+import {getOrgAndUserDetails} from './lib/salesforceServices.js';
 import state from './state.js';
 const logger = createModuleLogger(import.meta.url);
 

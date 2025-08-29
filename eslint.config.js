@@ -104,7 +104,7 @@ export default [
 
 	// Special rules for test files
 	{
-		files: ['test/**/*.{js,mjs,cjs}'],
+		files: ['test/**/*.{js,mjs,cjs,ts}'],
 		rules: {
 			'no-console': 'off',
 			'max-len': ['warn', {

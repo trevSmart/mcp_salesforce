@@ -1,7 +1,7 @@
 import state from '../state.js';
 import {textFileContent, getTimestamp} from '../utils.js';
-import {createModuleLogger} from '../logger.js';
-import {executeAnonymousApex} from '../salesforceServices.js';
+import {createModuleLogger} from '../lib/logger.js';
+import {executeAnonymousApex} from '../lib/salesforceServices.js';
 import {mcpServer, newResource} from '../mcp-server.js';
 import client from '../client.js';
 import {z} from 'zod';
@@ -10,7 +10,7 @@ const logger = createModuleLogger(import.meta.url);
 export const executeAnonymousApexToolDefinition = {
 	name: 'executeAnonymousApex',
 	title: 'Execute Anonymous Apex',
-	description: textFileContent('executeAnonymousApex'),
+	description: textFileContent('tools/executeAnonymousApex.md'),
 	inputSchema: {
 		apexCode: z
 			.string()

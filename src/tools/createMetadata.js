@@ -1,12 +1,12 @@
-import {generateMetadata} from '../salesforceServices.js';
+import {generateMetadata} from '../lib/salesforceServices.js';
 import {textFileContent} from '../utils.js';
-import {createModuleLogger} from '../logger.js';
+import {createModuleLogger} from '../lib/logger.js';
 import {z} from 'zod';
 
 export const createMetadataToolDefinition = {
 	name: 'createMetadata',
 	title: 'Create Metadata (Apex Class, Apex Test Class, Apex Trigger or LWC)',
-	description: textFileContent('createMetadata'),
+	description: textFileContent('tools/createMetadata.md'),
 	inputSchema: {
 		type: z.enum(['apexClass', 'apexTestClass', 'apexTrigger', 'lwc'])
 			.describe('The metadata type to generate: "apexClass", "apexTestClass", "apexTrigger" or "lwc".'),
@@ -64,4 +64,3 @@ export async function createMetadataToolHandler({type, name, outputDir, triggerS
 		};
 	}
 }
-

@@ -1,15 +1,15 @@
 import state from '../state.js';
 import {mcpServer} from '../mcp-server.js';
 import client from '../client.js';
-import {deployMetadata} from '../salesforceServices.js';
+import {deployMetadata} from '../lib/salesforceServices.js';
 import {textFileContent, getFileNameFromPath} from '../utils.js';
-import {createModuleLogger} from '../logger.js';
+import {createModuleLogger} from '../lib/logger.js';
 import {z} from 'zod';
 
 export const deployMetadataToolDefinition = {
 	name: 'deployMetadata',
 	title: 'Deploy Metadata',
-	description: textFileContent('deployMetadata'),
+	description: textFileContent('tools/deployMetadata.md'),
 	inputSchema: {
 		sourceDir: z.string().describe('The path to the local metadata file to deploy.')
 	},

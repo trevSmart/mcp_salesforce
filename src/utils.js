@@ -3,7 +3,7 @@ import fs from 'fs';
 import state from './state.js';
 import path from 'path';
 import {fileURLToPath} from 'url';
-import {createModuleLogger} from './logger.js';
+import {createModuleLogger} from './lib/logger.js';
 const logger = createModuleLogger(import.meta.url);
 
 // Avoid static import of salesforceServices to prevent ESM cycles during module init
@@ -11,7 +11,7 @@ let _executeSoqlQuery = null;
 async function __getExecuteSoqlQuery() {
 	if (!_executeSoqlQuery) {
 		try {
-			const mod = await import('./salesforceServices.js');
+			const mod = await import('./lib/salesforceServices.js');
 			_executeSoqlQuery = mod.executeSoqlQuery;
 		} catch {
 			_executeSoqlQuery = null;
@@ -20,8 +20,6 @@ async function __getExecuteSoqlQuery() {
 	return _executeSoqlQuery;
 }
 import {getAgentInstructions as _getAgentInstructions} from './instructions.js';
-
-// Note: `log` is now imported from logger.js (emitLog) and re-exported below for backward compatibility.
 
 /**
  * Validates if the user has the required permissions
@@ -128,11 +126,25 @@ export function textFileContent(input) {
 			return null;
 		}
 		const files = fs.readdirSync(toolsDir);
-		const toolFile = files.find(file => file.startsWith(input + '.'));
-		if (!toolFile) {
+		const candidates = files.filter(file => file.startsWith(input + '.'));
+		if (!candidates.length) {
 			return null;
 		}
-		return tryRead(path.join(toolsDir, toolFile));
+
+		// Prefer Markdown descriptions over JS when both exist
+		const preferredOrder = [
+			`${input}.md`,
+			`${input}.md.pam`,
+			`${input}.pam`,
+			`${input}.apex`,
+			`${input}.js`
+		];
+		let chosen = candidates.find(f => preferredOrder.includes(f));
+		if (!chosen) {
+			// Fallback to the first candidate (stable behavior)
+			chosen = candidates[0];
+		}
+		return tryRead(path.join(toolsDir, chosen));
 
 	} catch (error) {
 		logger.debug(error, 'textFileContent error');

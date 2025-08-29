@@ -25,13 +25,99 @@ patch=$(echo $current_version | cut -d. -f3)
 new_patch=$((patch + 1))
 proposed_version="$major.$minor.$new_patch"
 
-# Mostra instrucció clara i demana la nova versió
+# Mostra instrucció clara i demana la nova versió amb compte enrere
 echo "\033[38;5;99mVersió $current_version\033[0m\033[36m --> \033[1m$proposed_version\033[22m.\033[0m\033[95m Accepta (↵) o indica'n una altra:\033[0m"
 
-IFS= read -r new_version
-if [ -z "$new_version" ]; then
-  new_version="$proposed_version"
-fi
+# Funció per mostrar el compte enrere (compatible POSIX, sense 'local')
+# Ús: countdown <segons> "Missatge"
+# Exemple: countdown 15 "Acceptant automàticament $proposed_version"
+countdown() {
+  seconds="$1"
+  [ -n "$2" ] && msg="$2" || msg="Compte enrere"
+  [ -z "$seconds" ] && seconds=5
+
+  while [ "$seconds" -gt 0 ]; do
+    # \r tornar a l'inici de línia; \033[K neteja la línia
+    printf "\r\033[K\033[95m⏰ %s: %ds\033[0m" "$msg" "$seconds"
+    sleep 1
+    seconds=$((seconds - 1))
+  done
+  printf "\r\033[K\033[95m✓ %s\033[0m\n" "$msg"
+}
+
+# Llegeix input amb timeout de 15 segons
+new_version=""
+
+# Implementació manual amb processos en background per aturar el compte
+# enrere en el primer keypress (POSIX, sense 'read -t').
+
+# Fitxers temporals per a senyals d'estat
+temp_timeout_file=$(mktemp)
+temp_input_file=$(mktemp)
+temp_input_done=$(mktemp)
+rm -f "$temp_timeout_file" "$temp_input_done"  # es crearan quan pertoqui
+
+# Procés de compte enrere
+(
+  countdown 5 "Acceptant automàticament $proposed_version"
+  echo "timeout" > "$temp_timeout_file"
+) &
+countdown_pid=$!
+
+# Listener d'entrada: llegeix caràcter a caràcter de /dev/tty.
+# En el primer caràcter deté el compte enrere. Acaba quan rep newline.
+(
+  : > "$temp_input_file"
+  # Guarda i configura TTY en mode no canònic per captar tecles immediatament
+  old_tty=$(stty -g </dev/tty 2>/dev/null || true)
+  trap 'stty "$old_tty" </dev/tty 2>/dev/null || true' EXIT INT TERM
+  stty -icanon min 1 time 1 </dev/tty 2>/dev/null || true
+
+  while :; do
+    # Surt si ja ha expirat el temps
+    if [ -f "$temp_timeout_file" ]; then
+      break
+    fi
+    # dd bloqueja fins que rep 1 byte o expira (time)
+    c=$(dd if=/dev/tty bs=1 count=1 2>/dev/null || true)
+    # Si no hi ha res, torna a comprovar
+    [ -z "$c" ] && continue
+    # Primer keypress: atura compte enrere
+    kill "$countdown_pid" 2>/dev/null || true
+    # Desa el caràcter
+    printf "%s" "$c" >> "$temp_input_file"
+    # Si és newline, marca com finalitzat
+    last_char=$(printf "%s" "$c" | tail -c 1)
+    if [ "x$last_char" = "x\n" ]; then
+      : > "$temp_input_done"
+      break
+    fi
+  done
+) &
+listener_pid=$!
+
+# Espera fins que l'usuari prem Enter (input_done) o expira el compte enrere
+while :; do
+  if [ -f "$temp_input_done" ]; then
+    # L'usuari ha acabat d'escriure; neteja countdown i llegeix la línia
+    kill "$countdown_pid" 2>/dev/null || true
+    wait "$countdown_pid" 2>/dev/null || true
+    # Llegeix tot el que s'ha escrit (eliminant el trailing newline)
+    new_version=$(tr -d '\r' < "$temp_input_file" | sed 's/\n$//')
+    printf "\r\033[K"
+    break
+  fi
+  if [ -f "$temp_timeout_file" ]; then
+    # Timeout: accepta versió proposada
+    wait "$countdown_pid" 2>/dev/null || true
+    new_version="$proposed_version"
+    break
+  fi
+  sleep 0.2
+done
+
+# Neteja fitxers temporals
+rm -f "$temp_timeout_file" "$temp_input_file" "$temp_input_done"
 
 # Si l'usuari no ha introduït res, utilitza la versió proposada
 if [ -z "$new_version" ]; then
@@ -43,6 +129,8 @@ echo "$new_version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || {
   echo "\033[91mError: Format de versió invàlid. El format ha de ser 'major.minor.patch' (ex: 1.2.3)\033[0m"
   exit 1
 }
+
+echo
 
 # Executa els tests utilitzant el framework de test configurat
 echo "\033[95mExecutant tests bàsics de funcionament del servidor...\033[0m"
@@ -57,7 +145,7 @@ if ! grep -q '🎉 All tests passed!' "$TEST_OUTPUT"; then
 fi
 
 echo
-echo "\033[95m✅ Tots els tests han passat correctament.\033[0m"
+echo "\033[92m✓ Tots els tests han passat correctament.\033[0m"
 rm -f "$TEST_OUTPUT"
 
 # No facis fallar el script si el paquet encara no existeix a NPM
@@ -87,6 +175,7 @@ node dev/updateReadmeDeeplinks.js > /dev/null 2>&1 || true
 
 # Clona el codi font a dist (amb exclusions de .npmignore)
 echo "\033[95mGenerant pkg amb el codi ofuscat...\033[0m"
+echo
 rm -rf dist || {
   echo "\033[91m❌ Error eliminant directori dist:\033[0m"
   echo "   Error: $?"
@@ -204,6 +293,9 @@ done
 
 echo
 
+# Assegura que el CLI tingui permisos d'execució (per si rsync els perdés)
+chmod +x dist/bin/cli.js 2>/dev/null || true
+
 echo "\033[96mCodificant els fitxers Markdown...\033[0m"
 # Codifica tots els fitxers .md de totes les carpetes (incloent static)
 find dist -name '*.md' | while read -r file; do
@@ -235,37 +327,12 @@ jq '{
   name, version, description, main, type, browser, bin, keywords, author, dependencies, engines
 } + { files: ["index.js", "src", "bin", "README.md", "LICENSE"] }' package.json > dist/package.json
 
-echo "\033[95mValidant arrencada del paquet ofuscat (smoke test)...\033[0m"
-(
-  cd dist
-  VALIDATE_LOG=$(mktemp)
-  if MCP_PREPUBLISH_VALIDATE=1 node index.js > "$VALIDATE_LOG" 2>&1; then
-    if grep -q 'PREPUBLISH_OK' "$VALIDATE_LOG"; then
-      echo "\033[92m✅ Validació completada amb èxit.\033[0m"
-    else
-      echo "\033[91m❌ Validació fallida: no s'ha confirmat l'arrencada.\033[0m"
-      sed -n '1,200p' "$VALIDATE_LOG"
-      rm -f "$VALIDATE_LOG"
-      restore_versions
-      exit 1
-    fi
-  else
-    echo "\033[91m❌ Validació fallida: error en executar node index.js\033[0m"
-    sed -n '1,200p' "$VALIDATE_LOG"
-    rm -f "$VALIDATE_LOG"
-    restore_versions
-    exit 1
-  fi
-  rm -f "$VALIDATE_LOG"
-)
-
-echo
-
 # Re-executa els tests, ara utilitzant el servidor MCP de la build ofuscada a dist/
 echo "\033[95mExecutant tests contra el servidor ofuscat (dist/)...\033[0m"
 TEST_DIST_OUTPUT=$(mktemp)
 # Indica al runner que arrenqui el servidor des de dist/index.js
-MCP_TEST_SERVER_PATH="../dist/index.js" npm run test -- --quiet | tee "$TEST_DIST_OUTPUT"
+# Usa un camí absolut per evitar resolucions relatives incorrectes
+MCP_TEST_SERVER_PATH="$(pwd)/dist/index.js" npm run test -- --quiet | tee "$TEST_DIST_OUTPUT"
 
 if ! grep -q '🎉 All tests passed!' "$TEST_DIST_OUTPUT"; then
   echo "\033[91m❌ Els tests contra la build ofuscada han fallat.\033[0m"
@@ -276,15 +343,28 @@ fi
 
 rm -f "$TEST_DIST_OUTPUT"
 echo
-echo "\033[95m✅ Tests amb el paquet ofuscat completats correctament.\033[0m"
+echo "\033[95m✓ Tests amb el paquet ofuscat completats correctament.\033[0m"
 echo
 echo "\033[95mVols continuar amb la publicació del paquet a NPM? (S/n)\033[0m"
 IFS= read -r resposta
-case "$resposta" in
-  S|s) : ;;
-  *)
+# Normalitza: elimina CR/espais i passa a minúscules
+resposta_norm=$(printf '%s' "$resposta" \
+  | tr -d '\r' \
+  | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
+  | tr '[:upper:]' '[:lower:]')
+# Accepta valors típics d'acceptació i Enter per defecte (Sí)
+case "$resposta_norm" in
+  ""|s|si|sí|y|yes)
+    :
+    ;;
+  n|no)
     echo
     echo "\033[95mPublicació cancel·lada per l'usuari.\033[0m"
+    exit 1
+    ;;
+  *)
+    echo
+    echo "\033[95mEntrada no reconeguda. Publicació cancel·lada per seguretat.\033[0m"
     exit 1
     ;;
 esac
@@ -319,7 +399,51 @@ rm -f "$PUBLISH_OUTPUT"
 
 echo
 
-echo "\033[95mFinalitzant...\033[0m"
-trap - ERR
-rm -f package.json.bak index.js.bak
+# Tercer pas de validació: provar el paquet publicat amb npx
+echo "\033[95mIniciant tercera validació amb el paquet publicat via npx...\033[0m"
+
+# Espera per propagació de registres i neteja cau
+echo "   Esperant 10s per propagació de NPM..."
+sleep 10
+echo "   Netejant cau de NPM..."
+npm cache clean --force >/dev/null 2>&1 || true
+
+# Determina el nom del binari (primer key del camp "bin" de package.json)
+bin_name=$(node -p "(p=>Object.keys(p.bin||{})[0]||'') (require('./package.json'))")
+if [ -z "$bin_name" ]; then
+  echo "\033[91m❌ No s'ha trobat cap entrada 'bin' a package.json. No es pot validar via npx.\033[0m"
+  restore_versions
+  exit 1
+fi
+
+# Pre-check: comproveu que npx pot resoldre i executar el binari
+echo "   Validant resolució del binari amb npx..."
+if ! npx -y -p "$package_name@$new_version" which "$bin_name" >/dev/null 2>&1; then
+  echo "\033[91m❌ El binari '$bin_name' no es pot resoldre via npx per al paquet $package_name@$new_version.\033[0m"
+  echo "   Sugg.: comproveu el camp 'bin' de dist/package.json i que 'bin/cli.js' existeixi al paquet publicat."
+  restore_versions
+  exit 1
+fi
+
+echo "   Executant tests amb \033[96mnpx -y -p $package_name@$new_version $bin_name --stdio\033[0m"
+TEST_NPX_OUTPUT=$(mktemp)
+MCP_TEST_SERVER_SPEC="npx:$package_name@$new_version#$bin_name" \
+MCP_TEST_SERVER_ARGS='--stdio' \
+  npm run test -- --quiet | tee "$TEST_NPX_OUTPUT"
+
+if ! grep -q '🎉 All tests passed!' "$TEST_NPX_OUTPUT"; then
+  echo "\033[91m❌ Els tests contra el paquet publicat via npx han fallat.\033[0m"
+  rm -f "$TEST_NPX_OUTPUT"
+  restore_versions
+  exit 1
+fi
+
+rm -f "$TEST_NPX_OUTPUT"
+
 echo
+echo "\033[95m✓ Validació final (npx) completada correctament.\033[0m"
+
+echo "\033[95mFinalitzant...\033[0m"
+
+# Neteja backups només quan TOT ha anat bé
+rm -f package.json.bak index.js.bak
