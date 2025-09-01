@@ -13,6 +13,13 @@ Allows you to obtain a Salesforce record by its Id and object type.
 ---
 ## Usage
 
+### Parameters
+- **`sObjectName`** (required): The name of the SObject type of the record to retrieve.
+- **`recordId`** (required): The Id of the record to retrieve.
+
+---
+## Usage Examples
+
 ### Example 1: Get an Account
 ```json
 {
@@ -29,31 +36,42 @@ Allows you to obtain a Salesforce record by its Id and object type.
 }
 ```
 
+### Example 3: Get a custom object record
+```json
 {
-  "name": "getRecord",
-  "title": "Get Salesforce Record",
-  "description": "Gets a Salesforce record by its Id and object type.",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "sObjectName": {
-        "type": "string",
-        "description": "Salesforce object name (e.g. Account, Contact, etc.)"
-      },
-      "recordId": {
-        "type": "string",
-        "description": "Id of the record to retrieve"
-      }
-    },
-    "required": ["sObjectName", "recordId"]
-  },
-  "outputSchema": {
-    "type": "object",
-    "properties": {
-      "id": { "type": "string", "description": "Salesforce record Id" },
-      "sObject": { "type": "string", "description": "SObject type" },
-      "fields": { "type": "object", "description": "Object with all the fields and values of the record" }
-    },
-    "required": ["id", "sObject", "fields"]
+  "sObjectName": "CustomObject__c",
+  "recordId": "a0XXXXXXXXXXXXXXX"
+}
+```
+
+---
+## Response Structure
+
+The tool returns a structured response with the following key information:
+
+### Structured Content
+- `id`: Salesforce record Id
+- `sObject`: SObject type
+- `fields`: Object with all the fields and values of the record
+
+### Example Response Structure
+```json
+{
+  "id": "001XXXXXXXXXXXXXXX",
+  "sObject": "Account",
+  "fields": {
+    "Name": "Acme Corporation",
+    "Industry": "Technology",
+    "Phone": "+1-555-0123",
+    "Website": "www.acme.com",
+    "BillingCity": "San Francisco",
+    "BillingState": "CA"
   }
 }
+```
+
+---
+## Notes
+- The tool automatically handles field relationships and lookups.
+- All field values are returned as they appear in Salesforce.
+- The tool provides direct access to record details without requiring SOQL queries.

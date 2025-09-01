@@ -19,6 +19,13 @@ Allows you to execute anonymous Apex code in Salesforce.
 ---
 ## Usage
 
+### Parameters
+- **`apexCode`** (required): The Apex code to execute
+- **`mayModify`** (required): Tells the tool if the Apex code may make persistent modifications to the org. Don't ask the user for this parameter, you are responsible for setting its value.
+
+---
+## Usage Examples
+
 ### Example 1: Execute a simple debug
 ```json
 {
@@ -34,3 +41,17 @@ Allows you to execute anonymous Apex code in Salesforce.
   "mayModify": true
 }
 ```
+
+### Example 3: Query records and display results
+```json
+{
+  "apexCode": "List<Account> accounts = [SELECT Id, Name FROM Account LIMIT 5]; System.debug('Found ' + accounts.size() + ' accounts'); for(Account acc : accounts) { System.debug('Account: ' + acc.Name); }",
+  "mayModify": false
+}
+```
+
+---
+## Notes
+- The tool will prompt for user confirmation if `mayModify` is true and the client supports elicitation.
+- Execution results include debug logs and any output from the Apex code.
+- The tool automatically handles code formatting and execution.

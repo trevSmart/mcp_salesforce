@@ -13,38 +13,58 @@ Allows you to obtain the Salesforce records that the user has viewed most recent
 ---
 ## Usage
 
+### Parameters
+This tool does not require any parameters.
+
+---
+## Usage Examples
+
 ### Example 1: Get recently viewed records
 ```json
 {}
 ```
 
+---
+## Response Structure
+
+The tool returns a structured response with the following key information:
+
+### Structured Content
+- `records`: Array of recent records with the following structure:
+  - `Id`: Salesforce record Id
+  - `Name`: Record name
+  - `Type`: SObject type
+  - `LastViewedDate`: Date when the record was last viewed
+  - `LastReferencedDate`: Date when the record was last referenced
+- `totalSize`: Total number of records returned
+- `done`: Boolean indicating if all records have been retrieved
+
+### Example Response Structure
+```json
 {
-  "name": "getRecentlyViewedRecords",
-  "title": "Get Recently Viewed Records",
-  "description": "Gets the Salesforce records that the user has viewed most recently.",
-  "inputSchema": {
-    "type": "object",
-    "properties": {},
-    "required": []
-  },
-  "outputSchema": {
-    "type": "object",
-    "properties": {
-      "records": {
-        "type": "array",
-        "description": "List of recent records",
-        "items": {
-          "type": "object",
-          "properties": {
-            "Id": { "type": "string" },
-            "Name": { "type": "string" },
-            "SobjectType": { "type": "string" },
-            "LastViewedDate": { "type": "string", "format": "date-time" }
-          },
-          "required": ["Id", "Name", "SobjectType", "LastViewedDate"]
-        }
-      }
+  "records": [
+    {
+      "Id": "001XXXXXXXXXXXXXXX",
+      "Name": "Acme Corporation",
+      "Type": "Account",
+      "LastViewedDate": "2024-01-15T10:30:00.000+0000",
+      "LastReferencedDate": "2024-01-15T10:30:00.000+0000"
     },
-    "required": ["records"]
-  }
+    {
+      "Id": "003XXXXXXXXXXXXXXX",
+      "Name": "John Doe",
+      "Type": "Contact",
+      "LastViewedDate": "2024-01-15T09:15:00.000+0000",
+      "LastReferencedDate": "2024-01-15T09:15:00.000+0000"
+    }
+  ],
+  "totalSize": 2,
+  "done": true
 }
+```
+
+---
+## Notes
+- The tool queries the RecentlyViewed object to get the most recently accessed records.
+- Records are ordered by LastViewedDate in descending order.
+- The tool automatically includes all necessary fields for display and navigation.

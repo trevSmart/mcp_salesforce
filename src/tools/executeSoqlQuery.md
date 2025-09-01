@@ -3,7 +3,6 @@
 Allows you to run SOQL queries in the Salesforce Org.
 
 ---
-
 ## Agent Instructions
 
 - **MANDATORY**: When executing SOQL queries in Salesforce, you MUST use this tool exclusively. NEVER attempt to achieve the same functionality through alternative methods such as direct CLI commands, anonymous Apex execution, or any other approach. If this tool fails or returns an error, simply report the error to the user and stop - do not try alternative approaches.
@@ -29,18 +28,16 @@ You must query
 ```sql
 SELECT Id, Name, AccountId, Account.Name FROM Contact LIMIT 5
 ```
+
 ---
+## Usage
 
 ### Parameters
-- Pass the SOQL query using the `query` parameter.
-- If you want to use the Tooling API, include this:
-  ```json
-  { "useToolingApi": true }
-  ```
+- **`query`** (required): The SOQL query to execute
+- **`useToolingApi`** (optional, default: false): Whether to use the Tooling API for the query
 
 ---
-
-### Output Format
+## Output Format
 
 - Display results as a **table**, with one row per record.
 - 🔗 The clickable **link must go in the `Name` column**
@@ -52,6 +49,7 @@ SELECT Id, Name, AccountId, Account.Name FROM Contact LIMIT 5
 - ❌ `Id` → raw ID only, **no link**
 
 ---
+## Examples
 
 ### Incorrect Example
 
@@ -66,7 +64,6 @@ SELECT Id, Name, AccountId, Account.Name FROM Contact LIMIT 5
 | 003KN...      | [MARC LAGUNA SANTOS](url)    |
 
 ---
-
 ## Usage Examples
 
 ### Example 1 — `SELECT Id FROM Account`

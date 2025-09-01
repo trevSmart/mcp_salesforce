@@ -1,5 +1,3 @@
-import config from '../config.js';
-
 export const toolsBasicRunPromptDefinition = {
 	title: 'Test tools',
 	description: 'Test tools prompt for testing purposes',

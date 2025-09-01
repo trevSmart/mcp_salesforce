@@ -3,7 +3,6 @@
 Allows you to perform multiple Create, Update, and Delete operations in a single request.
 
 ---
-
 ## Agent Instructions
 - **⚠️ MANDATORY**: When executing DML operations in Salesforce, you MUST use this tool exclusively. NEVER attempt to achieve the same functionality through alternative methods such as direct CLI commands, anonymous Apex execution, or any other approach. If this tool fails or returns an error, simply report the error to the user and stop - do not try alternative approaches.
 
@@ -22,10 +21,9 @@ Allows you to perform multiple Create, Update, and Delete operations in a single
   - **Error message**: The error message if the operation failed
 
 ---
-
 ## Usage
 
-## Parameters
+### Parameters
 
 - **operations**: Required. Object containing an array of records to create, update or delete
 
@@ -44,8 +42,9 @@ Allows you to perform multiple Create, Update, and Delete operations in a single
 
 - **options**: Optional. Object with the following properties:
   - `allOrNone`: If true, all operations must succeed or none will be committed (default: false)
-  - `bypassUserConfirmation`: Whether to require user confirmation for destructive operations (default: true)
+  - `bypassUserConfirmation`: Whether to require user confirmation for destructive operations (default: false)
 
+---
 ## Response Structure
 
 ```json
@@ -81,7 +80,6 @@ Allows you to perform multiple Create, Update, and Delete operations in a single
 - `cancellationReason` is only present when the operation is cancelled.
 
 ---
-
 ## Examples
 
 ### Example 1: Create multiple records
@@ -173,13 +171,11 @@ Allows you to perform multiple Create, Update, and Delete operations in a single
 ```
 
 ---
-
 ## Error Handling
 - When `allOrNone: false`, operations continue even if some fail
 - Detailed error information is returned for failed operations
 
 ---
-
 ## Best Practices
 - Use this tool for related operations that should be processed together
 - Set `allOrNone: true` when operations are dependent on each other

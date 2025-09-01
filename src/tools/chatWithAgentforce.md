@@ -11,9 +11,32 @@ Allows you to chat with Agentforce to get help about Salesforce.
 ---
 ## Usage
 
+### Parameters
+- **`message`** (required): The message to send to Agentforce.
+
 ### Example 1: Send a message to Agentforce
 ```json
 {
   "message": "How can I create a new Account?"
 }
 ```
+
+### Example 2: Ask about Apex development
+```json
+{
+  "message": "What are the best practices for writing Apex triggers?"
+}
+```
+
+### Example 3: Get help with SOQL queries
+```json
+{
+  "message": "How do I write a SOQL query to get all contacts for a specific account?"
+}
+```
+
+---
+## Notes
+- The tool requires the `SF_MCP_AGENTFORCE_AGENT_ID` environment variable to be set.
+- Each conversation starts a new session with Agentforce.
+- The tool automatically handles authentication and session management.

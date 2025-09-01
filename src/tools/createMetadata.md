@@ -1,4 +1,5 @@
 # Create Metadata (Apex Class, Apex Test Class, Apex Trigger or LWC) Tool
+
 Generate a new Apex Class, a new Apex Test Class, a new Apex Trigger or a new LWC.
 
 ## Agent Instructions
@@ -14,6 +15,17 @@ Generate a new Apex Class, a new Apex Test Class, a new Apex Trigger or a new LW
   - apexTrigger → `force-app/main/default/triggers`
   - lwc → `force-app/main/default/lwc`
 
+---
+## Usage
+
+### Parameters
+- **`type`** (required): The metadata type to generate: "apexClass", "apexTestClass", "apexTrigger" or "lwc".
+- **`name`** (required): Name of the metadata to generate. For LWC, this will be the component folder name.
+- **`outputDir`** (optional): Output directory relative to the workspace. Defaults depend on the type.
+- **`triggerSObject`** (optional): Required for apexTrigger. The sObject API name the trigger is defined on.
+- **`triggerEvent`** (optional): Required for apexTrigger. Trigger events. Example: ["before insert", "after update"].
+
+---
 ## Usage Examples
 
 ### Example 1: Create an Apex Class
@@ -38,7 +50,7 @@ Generate a new Apex Class, a new Apex Test Class, a new Apex Trigger or a new LW
   "type": "apexTrigger",
   "name": "AccountAfterInsert",
   "triggerSObject": "Account",
-  "triggerEvent": ["1before insert", "before update", "before delete", "after insert", "after update", "after delete", "after undelete"]
+  "triggerEvent": ["before insert", "before update", "before delete", "after insert", "after update", "after delete", "after undelete"]
 }
 ```
 
@@ -51,4 +63,6 @@ Generate a new Apex Class, a new Apex Test Class, a new Apex Trigger or a new LW
 }
 ```
 
+---
+## Response
 The tool returns a JSON object with details about the generated files (paths and stdout).

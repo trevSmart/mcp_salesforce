@@ -1,4 +1,5 @@
 # Describe Object Tool
+
 Allows you to obtain SObject schema information.
 
 ⚠️ **CRITICAL**: Display the response putting every single reference to an API name between backticks (including all references to the object name), for example:
@@ -51,7 +52,6 @@ The `Account` object is the standard Salesforce object for managing **accounts**
 ```
 
 ---
-
 ## Agent Instructions
 
 ### Output Format Rules (⚠️ MANDATORY)
@@ -70,25 +70,19 @@ Display the response putting all API names between backticks (e.g., `CustomObjec
 Do not hallucinate or make assumptions: every element you mention must be based on the response from this tool.
 
 ---
-
-### Usage
+## Usage
 
 **CRITICAL**: Call this tool ONLY ONCE per SObject. The response contains ALL the information you need about the SObject. DO NOT call this tool multiple times for the same SObject unless the user explicitly requests different information with different parameters.
 
-
-#### Parameters
+### Parameters
 - **`sObjectName`** (required): The name of the SObject to describe
-
 - **`includeFields`** (optional, default: true): If true, includes fields in the response. If false, excludes fields for faster processing and smaller response.
-
 - **`includePicklistValues`** (optional, default: false): If true, includes picklist values for picklist and multipicklist fields. If false, only field metadata is returned.
-
 - **`useToolingApi`** (optional, default: false): If true, uses the Tooling API instead of the UI API. Use this for Tooling API objects like ApexClass, ApexTrigger, etc.
 
 **Note**: The default behavior (`includeFields: true`) is recommended for most use cases where you need field details. Set `includeFields: false` only when you specifically want to exclude fields for better performance. Use `includePicklistValues: true` when you need the actual values available in picklist fields.
 
 ---
-
 ## Examples
 
 ### Get complete SObject schema including fields (default) for `Account` object

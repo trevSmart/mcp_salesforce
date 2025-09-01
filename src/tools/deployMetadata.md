@@ -15,6 +15,12 @@ Allows you to deploy a local metadata file to the Salesforce org.
 ---
 ## Usage
 
+### Parameters
+- **`sourceDir`** (required): The path to the local metadata file to deploy.
+
+---
+## Usage Examples
+
 ### Example 1: Deploy an Apex class
 ```json
 {
@@ -28,3 +34,16 @@ Allows you to deploy a local metadata file to the Salesforce org.
   "sourceDir": "force-app/main/default/lwc/myComponent"
 }
 ```
+
+### Example 3: Deploy a trigger
+```json
+{
+  "sourceDir": "force-app/main/default/triggers/AccountTrigger.trigger"
+}
+```
+
+---
+## Notes
+- The tool will prompt for user confirmation before deployment if the client supports elicitation.
+- Deployment results include success/failure status and detailed error messages if any.
+- The tool supports all standard Salesforce metadata types.

@@ -10,6 +10,94 @@ import {ensureBaseTmpDir, cleanupObsoleteTempFiles} from './tempManager.js';
 const exec = promisify(execCb);
 const logger = createModuleLogger(import.meta.url);
 
+/**
+ * Cache management helper for Salesforce API calls
+ */
+class ApiCacheManager {
+	constructor(cacheConfig) {
+		this.config = cacheConfig || {};
+		this.enabled = this.config.enabled !== false; // default true
+		this.defaultTtlMs = Number.isFinite(this.config.defaultTtlMs) ? this.config.defaultTtlMs : 10_000;
+		this.maxEntries = Number.isFinite(this.config.maxEntries) ? this.config.maxEntries : 200;
+		this.cacheGet = this.config.cacheGet !== false; // default true
+		this.invalidateOnWrite = this.config.invalidateOnWrite !== false; // default true
+
+		// Initialize global cache if not exists
+		if (this.enabled && !globalThis.__SF_API_CACHE__) {
+			globalThis.__SF_API_CACHE__ = new Map();
+		}
+		this.cache = globalThis.__SF_API_CACHE__;
+	}
+
+	/**
+	 * Generate cache key for the request
+	 */
+	generateCacheKey(orgKey, operation, apiType, endpoint, extra = null) {
+		const cacheKeyExtra = extra ? `|${JSON.stringify(extra)}` : '';
+		return `${orgKey}|${String(operation).toUpperCase()}|${String(apiType).toUpperCase()}|${endpoint}${cacheKeyExtra}`;
+	}
+
+	/**
+	 * Prune cache if it grows too large
+	 */
+	pruneCache() {
+		while (this.cache.size > this.maxEntries) {
+			const firstKey = this.cache.keys().next().value;
+			this.cache.delete(firstKey);
+		}
+	}
+
+	/**
+	 * Get cached response if available and valid
+	 */
+	getCachedResponse(cacheKey, isGet, bypassCache, cacheTtlMs) {
+		if (!this.enabled || !this.cacheGet || !isGet || bypassCache || cacheTtlMs <= 0) {
+			return null;
+		}
+
+		const entry = this.cache.get(cacheKey);
+		if (entry && entry.expiresAt > Date.now()) {
+			logger.debug(`GET cache hit for ${cacheKey}`);
+			return entry.data;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Store response in cache
+	 */
+	storeInCache(cacheKey, data, isGet, bypassCache, cacheTtlMs) {
+		if (!this.enabled || !this.cacheGet || !isGet || bypassCache || cacheTtlMs <= 0) {
+			return;
+		}
+
+		this.cache.set(cacheKey, {data, expiresAt: Date.now() + cacheTtlMs});
+		this.pruneCache();
+	}
+
+	/**
+	 * Invalidate cache on write operations
+	 */
+	invalidateCacheOnWrite(operation) {
+		if (!this.enabled || !this.invalidateOnWrite) {
+			return;
+		}
+
+		const isReadOperation = ['GET', 'HEAD'].includes(String(operation).toUpperCase());
+		if (!isReadOperation) {
+			this.cache.clear();
+		}
+	}
+
+	/**
+	 * Get cache TTL for the request
+	 */
+	getCacheTtl(optionsTtlMs) {
+		return typeof optionsTtlMs === 'number' ? Math.max(0, optionsTtlMs) : this.defaultTtlMs;
+	}
+}
+
 //Helper function to generate timestamp in YYMMDDHHMMSS format
 function generateTimestamp() {
 	const now = new Date();
@@ -906,21 +994,12 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 	}
 
 	// Ensure org details are available
-	if (!state?.org?.instanceUrl || !state?.org?.accessToken) {
+	if (!state?.org?.id || !state?.org?.instanceUrl || !state?.org?.accessToken) {
 		throw new Error('Org details not initialized. Please wait for server initialization.');
 	}
 
-	// Simple in-memory cache for GET responses
-	const cacheConfig = config?.apiCache || {};
-	const API_CACHE_ENABLED = cacheConfig.enabled !== false; // default true
-	const API_CACHE_DEFAULT_TTL_MS = Number.isFinite(cacheConfig.defaultTtlMs) ? cacheConfig.defaultTtlMs : 10_000;
-	const API_CACHE_MAX_ENTRIES = Number.isFinite(cacheConfig.maxEntries) ? cacheConfig.maxEntries : 200;
-	const API_CACHE_CACHE_GET = cacheConfig.cacheGet !== false; // default true
-	const API_CACHE_INVALIDATE_ON_WRITE = cacheConfig.invalidateOnWrite !== false; // default true
-	if (API_CACHE_ENABLED && !globalThis.__SF_API_CACHE__) {
-		globalThis.__SF_API_CACHE__ = new Map();
-	}
-	const apiCache = globalThis.__SF_API_CACHE__;
+	// Initialize cache manager
+	const cacheManager = new ApiCacheManager(config?.apiCache);
 
 	// Build the full endpoint based on API type
 	const apiVersion = state.org.apiVersion;
@@ -930,50 +1009,29 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 	if (options.baseUrl) {
 		endpoint = `${options.baseUrl}${service}`;
 	} else {
-		// Use org instance URL for Salesforce APIs
-		switch (apiType.toUpperCase()) {
-			case 'REST':
-				endpoint = `${state.org.instanceUrl}/services/data/v${apiVersion}${service}`;
-				break;
-			case 'TOOLING':
-				endpoint = `${state.org.instanceUrl}/services/data/v${apiVersion}/tooling${service}`;
-				break;
-			case 'UI':
-				endpoint = `${state.org.instanceUrl}/services/data/v${apiVersion}/ui-api${service}`;
-				break;
-			case 'APEX':
-				endpoint = `${state.org.instanceUrl}/services/apexrest/${service}`;
-				break;
-			default:
-				throw new Error(`Unsupported API type: ${apiType}`);
+		const apiEndpoints = {
+			rest: `${state.org.instanceUrl}/services/data/v${apiVersion}${service}`,
+			tooling: `${state.org.instanceUrl}/services/data/v${apiVersion}/tooling${service}`,
+			ui: `${state.org.instanceUrl}/services/data/v${apiVersion}/ui-api${service}`,
+			apex: `${state.org.instanceUrl}/services/apexrest/${service}`
+		};
+		endpoint = apiEndpoints?.[apiType.toLowerCase()];
+		if (!endpoint) {
+			throw new Error(`Unsupported API type: ${apiType}`);
 		}
 	}
 
 	// Handle query parameters if provided
 	if (options.queryParams && typeof options.queryParams === 'object') {
 		const queryString = new URLSearchParams(options.queryParams).toString();
-		if (queryString) {
-			endpoint += `?${queryString}`;
-		}
+		queryString && (endpoint += `?${queryString}`);
 	}
 
 	// Compose cache key (org + op + apiType + endpoint + extra)
-	const orgKey = state?.org?.id || 'noOrg';
-	const cacheKeyExtra = options.cacheKeyExtra ? `|${JSON.stringify(options.cacheKeyExtra)}` : '';
-	const cacheKeyBase = `${orgKey}|${String(operation).toUpperCase()}|${String(apiType).toUpperCase()}|${endpoint}${cacheKeyExtra}`;
-
-	// Helper to prune cache if it grows too much
-	const pruneCache = () => {
-		while (apiCache.size > API_CACHE_MAX_ENTRIES) {
-			const firstKey = apiCache.keys().next().value;
-			apiCache.delete(firstKey);
-		}
-	};
+	const cacheKey = cacheManager.generateCacheKey(state.org.id, operation, apiType, endpoint, options.cacheKeyExtra);
 
 	// Helper function to check if response contains INVALID_SESSION_ID error
-	const isInvalidSessionError = (responseBody) => {
-		return typeof responseBody === 'string' && responseBody.includes('INVALID_SESSION_ID');
-	};
+	const isInvalidSessionError = responseBody => typeof responseBody === 'string' && responseBody.includes('INVALID_SESSION_ID');
 
 	// Helper function to make curl requests for GET with body
 	const makeCurlRequest = async(endpointUrl, requestOptions) => {
@@ -1064,15 +1122,11 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 		// Try cache for GET if not bypassed and globally enabled
 		const isGet = requestOptions.method === 'GET';
 		const bypassCache = options.bypassCache === true;
-		const cacheTtlMs = typeof options.cacheTtlMs === 'number' ? Math.max(0, options.cacheTtlMs) : API_CACHE_DEFAULT_TTL_MS;
-		const cacheKey = `${cacheKeyBase}`; // includes endpoint with query params
+		const cacheTtlMs = cacheManager.getCacheTtl(options.cacheTtlMs);
 
-		if (API_CACHE_ENABLED && API_CACHE_CACHE_GET && isGet && !bypassCache && cacheTtlMs > 0) {
-			const entry = apiCache.get(cacheKey);
-			if (entry && entry.expiresAt > Date.now()) {
-				logger.debug(`GET cache hit for ${service}`);
-				return entry.data;
-			}
+		const cachedResponse = cacheManager.getCachedResponse(cacheKey, isGet, bypassCache, cacheTtlMs);
+		if (cachedResponse) {
+			return cachedResponse;
 		}
 
 		const response = await fetch(endpoint, requestOptions);
@@ -1120,19 +1174,13 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 		try {
 			const data = (await response.json());
 			// Store in cache for GET
-			if (API_CACHE_ENABLED && API_CACHE_CACHE_GET && isGet && !bypassCache && cacheTtlMs > 0) {
-				apiCache.set(cacheKey, {data, expiresAt: Date.now() + cacheTtlMs});
-				pruneCache();
-			}
+			cacheManager.storeInCache(cacheKey, data, isGet, bypassCache, cacheTtlMs);
 			return data;
 
 		} catch (parseError) {
 			logger.warn(`Could not parse JSON response: ${parseError.message}`);
 			const text = (await response.text());
-			if (API_CACHE_ENABLED && API_CACHE_CACHE_GET && isGet && !bypassCache && cacheTtlMs > 0) {
-				apiCache.set(cacheKey, {data: text, expiresAt: Date.now() + cacheTtlMs});
-				pruneCache();
-			}
+			cacheManager.storeInCache(cacheKey, text, isGet, bypassCache, cacheTtlMs);
 			return text;
 		}
 	};
@@ -1146,9 +1194,7 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 		try {
 			const result = await makeApiCall();
 			// Invalidate cache on non-GET successful operations to avoid stale reads
-			if (API_CACHE_ENABLED && API_CACHE_INVALIDATE_ON_WRITE && !['GET', 'HEAD'].includes(String(operation).toUpperCase())) {
-				apiCache.clear();
-			}
+			cacheManager.invalidateCacheOnWrite(operation);
 			return result;
 		} catch (error) {
 			// Check if this is an INVALID_SESSION_ID error

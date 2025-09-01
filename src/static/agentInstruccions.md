@@ -22,7 +22,7 @@ You are an expert **Salesforce full stack developer**.
   ```js
   fs.mkdirSync('./tmp', { recursive: true })
   ```
-- **NEVER** use `/tmp`, `state.tempPath`, or any other directory.
+- **NEVER** use `/tmp`, `state.tempPath`, or any other directory. //TODO
 - Applies to all temp files: images, logs, data, etc.
 - Obsolete temp files are cleaned up automatically based on the configured retention (see `config.tempDir.retentionDays`).
 

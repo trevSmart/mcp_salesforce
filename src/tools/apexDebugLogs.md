@@ -13,41 +13,6 @@ Allows you to manage Apex debug logs in Salesforce.
 
 ### Available Actions
 
-- `action: 'list'`: To list org's last Apex debug logs:
-
-  - **IMPORTANT**: Only use this action when the user explicitly mentions they want to see the org's debug logs -or just asks about "apex logs" or "debug logs"-. If the user asks about **the status** of the logs, use the `action: 'status'` action instead.
-  - Example:
-    ```json
-    {
-      "action": "list"
-    }
-    ```
-  - **MANDATORY**: Show to the user the data returned for this tool action in a table with exactly these columns:
-    - Date: log start date as returned by the tool
-    - Log Id: log Id as returned by the tool
-    - User: log user
-    - Log type: log type
-    - Size: log size as returned by the tool
-    - Duration: duration as returned by the tool
-    - Outcome: log status (🟢 or 🟥) and in case of 🟥, the error message
-
-- `action: 'get'`: Download a specific debug log:
-    - If the user has mentioned a specific logId, pass it as `logId` in the request. Otherwise, the tool will automatically show a selection menu to the user to select from the available logs.
-
-  - Example with specific logId (user has mentioned a specific logId):
-    ```json
-    {
-      "action": "get",
-      "logId": "000000000000000"
-    }
-    ```
-  - Example without logId (triggers automatic log selection):
-    ```json
-    {
-      "action": "get"
-    }
-    ```
-
 - `action: 'status'`: Get status of debug logs:
   - Example:
     ```json
@@ -90,7 +55,43 @@ Allows you to manage Apex debug logs in Salesforce.
     - Expiration date: expiration date as returned by the tool
     - Debug level
 
+- `action: 'list'`: To list org's last Apex debug logs:
+
+  - **IMPORTANT**: Only use this action when the user explicitly mentions they want to see the org's debug logs -or just asks about "apex logs" or "debug logs"-. If the user asks about **the status** of the logs, use the `action: 'status'` action instead.
+  - Example:
+    ```json
+    {
+      "action": "list"
+    }
+    ```
+  - **MANDATORY**: Show to the user the data returned for this tool action in a table with exactly these columns:
+    - Date: log start date as returned by the tool
+    - Log Id: log Id as returned by the tool
+    - User: log user
+    - Log type: log type
+    - Size: log size as returned by the tool
+    - Duration: duration as returned by the tool
+    - Outcome: log status (🟢 or 🟥) and in case of 🟥, the error message
+
+- `action: 'get'`: Download a specific debug log:
+    - If the user has mentioned a specific logId, pass it as `logId` in the request. Otherwise, the tool will automatically show a selection menu to the user to select from the available logs.
+
+  - Example with specific logId (user has mentioned a specific logId):
+    ```json
+    {
+      "action": "get",
+      "logId": "000000000000000"
+    }
+    ```
+  - Example without logId (triggers automatic log selection):
+    ```json
+    {
+      "action": "get"
+    }
+    ```
+
 - `action: 'analyze'`: Temporarily unavailable.
+
 ---
 ## Examples
 
