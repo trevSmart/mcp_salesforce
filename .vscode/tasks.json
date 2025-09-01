@@ -22,11 +22,10 @@
 			"type": "npm",
 			"script": "startMcpInspector",
 			"group": {
-				"kind": "inspect",
-				"isDefault": true
+				"kind": "test",
 			},
 			"problemMatcher": [],
-			"label": "npm: startMcpInspector",
+			"label": "Run MCP Inspector",
 			"detail": "sh dev/startMcpInspector.sh",
 			"presentation": {
 				"showReuseMessage": false,
@@ -43,7 +42,7 @@
 				"kind": "test"
 			},
 			"problemMatcher": [],
-			"label": "npm: test",
+			"label": "Run all tests",
 			"detail": "node scripts/test_tools.js",
 			"presentation": {
 				"showReuseMessage": false,
@@ -53,6 +52,7 @@
 			}
 		},
 		{
+			"label": "Run a simple test",
 			"type": "npm",
 			"script": "test simple",
 			"group": {

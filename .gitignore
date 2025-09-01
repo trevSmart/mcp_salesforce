@@ -27,7 +27,6 @@ Thumbs.db
 .sf/
 
 dist/
-.vscode/
 tmp/
 mcp_salesforce.code-workspace
 *.old*

@@ -21,7 +21,7 @@ import targetOrgWatcher from './lib/OrgWatcher.js';
 import {ensureBaseTmpDir} from './lib/tempManager.js';
 
 // import { codeModificationPromptDefinition, codeModificationPrompt } from './prompts/codeModificationPrompt.js';
-import {testToolsPromptDefinition, testToolsPrompt} from './prompts/test-tools.js';
+import {toolsBasicRunPromptDefinition, toolsBasicRunPromptHandler} from './prompts/call-all-tools.js';
 import {salesforceMcpUtilsToolDefinition, salesforceMcpUtilsToolHandler} from './tools/salesforceMcpUtils.js';
 import {dmlOperationToolDefinition} from './tools/dmlOperation.js';
 import {deployMetadataToolDefinition, deployMetadataToolHandler} from './tools/deployMetadata.js';
@@ -35,6 +35,7 @@ import {runApexTestToolDefinition} from './tools/runApexTest.js';
 import {getApexClassCodeCoverageToolDefinition} from './tools/getApexClassCodeCoverage.js';
 import {apexDebugLogsToolDefinition} from './tools/apexDebugLogs.js';
 import {createMetadataToolDefinition} from './tools/createMetadata.js';
+import {invokeApexRestResourceToolDefinition} from './tools/invokeApexRestResource.js';
 // import { chatWithAgentforceDefinition } from './tools/chatWithAgentforce.js';
 // import { triggerExecutionOrderToolDefinition } from './tools/triggerExecutionOrder.js';
 //import {generateSoqlQueryToolDefinition} from './tools/generateSoqlQuery.js';
@@ -177,7 +178,7 @@ export async function setupServer() {
 	mcpServer.server.setRequestHandler(ReadResourceRequestSchema, async({params: {uri}}) => ({contents: [{uri, ...resources[uri]}]}));
 
 	// mcpServer.registerPrompt('code-modification', codeModificationPromptDefinition, codeModificationPrompt);
-	mcpServer.registerPrompt('test-tools', testToolsPromptDefinition, testToolsPrompt);
+	mcpServer.registerPrompt('tools-basic-run', toolsBasicRunPromptDefinition, toolsBasicRunPromptHandler);
 
 	// Handlers that we want to load statically (frequently used/core)
 	const STATIC_TOOL_HANDLERS = {
@@ -190,7 +191,8 @@ export async function setupServer() {
 	};
 
 	const callToolHandler = tool => {
-		return async params => {
+		// Accept both parsed args and MCP extra context (progress, sendNotification, etc.)
+		return async(params, args) => {
 			try {
 				if (tool !== 'salesforceMcpUtils') {
 					if (!state.org.user.id) {
@@ -208,7 +210,7 @@ export async function setupServer() {
 				if (!toolHandler) {
 					throw new Error(`Tool ${tool} module does not export a tool handler.`);
 				}
-				return await toolHandler(params);
+				return await toolHandler(params, args);
 			} catch (error) {
 				logger.error(error.message, `Error calling tool ${tool}`);
 				return {isError: true, content: [{type: 'text', text: error.message}]};
@@ -229,6 +231,7 @@ export async function setupServer() {
 	mcpServer.registerTool('apexDebugLogs', apexDebugLogsToolDefinition, callToolHandler('apexDebugLogs'));
 	mcpServer.registerTool('getApexClassCodeCoverage', getApexClassCodeCoverageToolDefinition, callToolHandler('getApexClassCodeCoverage'));
 	mcpServer.registerTool('createMetadata', createMetadataToolDefinition, callToolHandler('createMetadata'));
+	mcpServer.registerTool('invokeApexRestResource', invokeApexRestResourceToolDefinition, callToolHandler('invokeApexRestResource'));
 	// mcpServer.registerTool('chatWithAgentforce', chatWithAgentforceDefinition, callToolHandler('chatWithAgentforce'));
 	// mcpServer.registerTool('triggerExecutionOrder', triggerExecutionOrderDefinition, callToolHandler('triggerExecutionOrder'));
 	// mcpServer.registerTool('generateSoqlQuery', generateSoqlQueryDefinition, callToolHandler('generateSoqlQuery'));
@@ -302,6 +305,10 @@ export async function setupServer() {
 	}
 
 	return {protocolVersion, serverInfo, capabilities};
+}
+
+export function sendProgressNotification(progressToken,	progress, total, message) {
+	mcpServer.server.notification({method: 'notifications/progress', params: {progressToken, progress, total, message}});
 }
 
 //Export the ready promise for external use

@@ -3,7 +3,7 @@ import state from '../state.js';
 import {textFileContent, formatDate} from '../utils.js';
 import {createModuleLogger} from '../lib/logger.js';
 import {z} from 'zod';
-import {resources, newResource, clearResources} from '../mcp-server.js';
+import {resources, newResource, clearResources, sendProgressNotification} from '../mcp-server.js';
 import config from '../config.js';
 import {getOrgAndUserDetails, executeAnonymousApex} from '../lib/salesforceServices.js';
 const logger = createModuleLogger(import.meta.url);
@@ -43,7 +43,9 @@ function generateManualTitle(description, toolName) {
 	return title;
 }
 
-export async function salesforceMcpUtilsToolHandler({action, issueDescription, issueToolName}) {
+export async function salesforceMcpUtilsToolHandler({action, issueDescription, issueToolName}, args) {
+	const progressToken = args?._meta?.progressToken;
+
 	try {
 		if (action === 'clearCache') {
 			clearResources();
@@ -57,6 +59,7 @@ export async function salesforceMcpUtilsToolHandler({action, issueDescription, i
 
 		} else if (action === 'getCurrentDatetime') {
 			const now = new Date();
+
 			const result = {
 				now,
 				nowLocaleString: now.toLocaleString(),
@@ -165,6 +168,10 @@ export async function salesforceMcpUtilsToolHandler({action, issueDescription, i
 			};
 
 		} else if (action === 'reportIssue') {
+			if (progressToken) {
+				sendProgressNotification(progressToken, 1, 3, 'Starting reportIssue');
+			}
+
 			// Validate required fields for reportIssue
 			if (!issueDescription || issueDescription.trim().length < 10) {
 				throw new Error('For the reportIssue action, issueDescription is required and must be at least 10 characters long');
@@ -251,6 +258,10 @@ Return only the tool name or "Unknown" without any explanation.`;
 				title = generateManualTitle(cleanDescription, detectedToolName);
 			}
 
+			if (progressToken) {
+				sendProgressNotification(progressToken, 2, 3, 'Generating title');
+			}
+
 			// Check if client supports elicitation and ask for confirmation before sending issue
 			if (client.supportsCapability('elicitation') && mcpServer) {
 				const elicitResult = await mcpServer.server.elicitInput({
@@ -280,6 +291,10 @@ Return only the tool name or "Unknown" without any explanation.`;
 						structuredContent: elicitResult
 					};
 				}
+			}
+
+			if (progressToken) {
+				sendProgressNotification(progressToken, 3, 3, 'Done');
 			}
 
 			// Prepare issue data

@@ -1,6 +1,6 @@
 {
   "name": "@trevSmart/test_research4",
-  "version": "0.3.33",
+  "version": "0.3.32",
   "description": "Test Research 4",
   "main": "index.js",
   "type": "module",
@@ -26,7 +26,6 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.4",
     "env-paths": "^3.0.0",
-    "node-fetch": "^3.3.2",
     "os": "^0.1.2",
     "playwright": "^1.55.0",
     "semver": "^7.5.4",

@@ -1,0 +1,22 @@
+{
+	"servers": {
+		"ibm-salesforce-mcp": {
+			"type": "stdio",
+			"command": "node",
+			"args": [
+				"/Users/marcpla/Documents/Feina/Projectes/mcp/mcp_salesforce/index.js"
+			],
+			"env": {
+				"WORKSPACE_FOLDER_PATHS": "/Users/marcpla/Documents/Feina/Projectes/Caixabank/"
+			}
+		},
+		"test_research4": {
+			"type": "stdio",
+			"command": "npx",
+			"args": [
+				"test_research4"
+			],
+			"env": {}
+		}
+	}
+}

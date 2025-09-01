@@ -900,7 +900,7 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 	}
 
 	// Validate API type
-	const validApiTypes = ['REST', 'TOOLING', 'UI'];
+	const validApiTypes = ['REST', 'TOOLING', 'UI', 'APEX'];
 	if (!validApiTypes.includes(apiType.toUpperCase())) {
 		throw new Error(`Invalid API type: ${apiType}. Must be one of: ${validApiTypes.join(', ')}`);
 	}
@@ -941,6 +941,9 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 			case 'UI':
 				endpoint = `${state.org.instanceUrl}/services/data/v${apiVersion}/ui-api${service}`;
 				break;
+			case 'APEX':
+				endpoint = `${state.org.instanceUrl}/services/apexrest/${service}`;
+				break;
 			default:
 				throw new Error(`Unsupported API type: ${apiType}`);
 		}
@@ -967,6 +970,65 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 		}
 	};
 
+	// Helper function to check if response contains INVALID_SESSION_ID error
+	const isInvalidSessionError = (responseBody) => {
+		return typeof responseBody === 'string' && responseBody.includes('INVALID_SESSION_ID');
+	};
+
+	// Helper function to make curl requests for GET with body
+	const makeCurlRequest = async(endpointUrl, requestOptions) => {
+		// Build curl command
+		let curlCommand = `curl -s -w "HTTPSTATUS:%{http_code}" -X GET "${endpointUrl}"`;
+
+		// Add headers
+		if (requestOptions.headers) {
+			Object.entries(requestOptions.headers).forEach(([key, value]) => {
+				// Use single quotes for Authorization header to avoid issues with special characters
+				if (key.toLowerCase() === 'authorization') {
+					curlCommand += ` -H '${key}: ${value}'`;
+				} else {
+					curlCommand += ` -H "${key}: ${value}"`;
+				}
+			});
+		}
+
+		// Add body - don't double-quote since body is already JSON stringified
+		if (requestOptions.body) {
+			curlCommand += ` -d '${requestOptions.body}'`;
+		}
+
+		logger.debug(`Executing curl command: ${curlCommand}`);
+
+		// Execute curl command
+		const {stdout} = await exec(curlCommand);
+
+		// Parse response
+		const httpStatusMatch = stdout.match(/HTTPSTATUS:(\d+)/);
+		const httpStatus = httpStatusMatch ? parseInt(httpStatusMatch[1]) : 200;
+		const responseBody = stdout.replace(/HTTPSTATUS:\d+/, '').trim();
+
+		// Check for errors
+		if (httpStatus < 200 || httpStatus >= 300) {
+			let errorDetails = `Status: ${httpStatus}\nResponse body: ${responseBody}`;
+
+			// Check if this is an INVALID_SESSION_ID error
+			if (isInvalidSessionError(responseBody)) {
+				throw new Error('INVALID_SESSION_ID');
+			}
+
+			throw new Error(`Salesforce API call failed: GET ${endpointUrl}\n${errorDetails}`);
+		}
+
+		// Try to parse as JSON, fallback to text
+		try {
+			const data = JSON.parse(responseBody);
+			return data;
+		} catch (parseError) {
+			logger.warn(`Could not parse JSON response from curl: ${parseError.message}`);
+			return responseBody;
+		}
+	};
+
 	// Function to make the actual API call
 	const makeApiCall = async() => {
 		const requestOptions = {
@@ -982,10 +1044,22 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 			Object.assign(requestOptions.headers, options.headers);
 		}
 
-		if (body && (operation.toUpperCase() === 'POST' || operation.toUpperCase() === 'PATCH' || operation.toUpperCase() === 'PUT')) {
-			requestOptions.body = JSON.stringify(body);
+		// Add body for all methods (including GET for non-standard APIs)
+		if (body) {
+			// If body is already a string, assume it's JSON and use it directly
+			// Otherwise, stringify the object
+			if (typeof body === 'string') {
+				requestOptions.body = body;
+			} else {
+				requestOptions.body = JSON.stringify(body);
+			}
 		}
 
+		// Special case: GET requests with body need to use curl instead of fetch
+		if (requestOptions.method === 'GET' && body) {
+			logger.debug(`Using curl for GET request with body to ${endpoint}`);
+			return await makeCurlRequest(endpoint, requestOptions);
+		}
 
 		// Try cache for GET if not bypassed and globally enabled
 		const isGet = requestOptions.method === 'GET';
@@ -1004,9 +1078,11 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 		const response = await fetch(endpoint, requestOptions);
 
 		let logMessage = `${operation} request to ${apiType} API service ${service} ended ${response.statusText} (${response.status})`;
+
 		if (Object.keys(options.queryParams || {}).length) {
 			logMessage += `\n${JSON.stringify(options.queryParams, null, 3)}`;
 		}
+
 		if (Object.keys(requestOptions).length) {
 			// Remove sensitive headers before logging
 			const maskedRequestOptions = {...requestOptions, headers: {...(requestOptions.headers || {})}};
@@ -1027,7 +1103,7 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 				errorDetails = `Status: ${response.status} ${response.statusText}\nResponse body: ${errorBody}`;
 
 				// Check if this is an INVALID_SESSION_ID error
-				if (errorBody.includes('INVALID_SESSION_ID')) {
+				if (isInvalidSessionError(errorBody)) {
 					throw new Error('INVALID_SESSION_ID');
 				}
 

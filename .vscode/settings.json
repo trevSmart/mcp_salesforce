@@ -64,6 +64,17 @@
     "actionButtons": {
         "commands": [
             {
+				"name": "$(terminal)",
+				"useVsCodeApi": true,
+				"command": "workbench.action.terminal.toggleTerminal",
+				"color": "#e3e3e3"
+			},
+            {
+				"name": ".",
+				"color": "#00000000",
+				"command": null
+			},
+            {
                 "name": "$(edit) Lint",
                 "useVsCodeApi": true,
                 "command": "workbench.action.tasks.runTask",
@@ -71,23 +82,9 @@
                 "color": "#6D81fA"
             },
             {
-                "name": "$(test-view-icon) Inspect",
-                "useVsCodeApi": true,
-                "command": "workbench.action.tasks.runTask",
-                "args": ["npm: startMcpInspector"],
-                "color": "#8F77c9"
-            },
-            {
                 "name": "$(testing-debug-icon) Test",
                 "useVsCodeApi": true,
                 "command": "workbench.action.tasks.test",
-                "color": "#bb9955"
-            },
-            {
-                "name": "$(testing-debug-icon) Test simple",
-                "useVsCodeApi": true,
-                "command": "workbench.action.tasks.runTask",
-                "args": ["npm: test simple"],
                 "color": "#bb9955"
             },
             {
