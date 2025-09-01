@@ -18,17 +18,16 @@ function getLogPrefix(logLevel) {
 }
 
 // Base sink: sends logs to MCP if available, or stderr fallback
-function emitLog(data, logLevel = 'info', context = null) {
+function emitLog(data, logLevel = config.defaultLogLevel, context = null) {
 	try {
 		const LEVEL_PRIORITIES = {emergency: 0, alert: 1, critical: 2, error: 3, warning: 4, notice: 5, info: 6, debug: 7};
 
 		const logPriority = LEVEL_PRIORITIES[logLevel] ?? LEVEL_PRIORITIES.info;
-		const noticePriority = LEVEL_PRIORITIES['notice'];
 		const currentPriority = LEVEL_PRIORITIES[state.currentLogLevel] ?? LEVEL_PRIORITIES.info;
 		const errorPriority = LEVEL_PRIORITIES['error'];
 		const loggingSupported = client?.supportsCapability('logging');
 		const shouldLog = loggingSupported && logPriority <= currentPriority;
-		const shouldError = logPriority <= errorPriority || (!loggingSupported && logPriority >= noticePriority);
+		const shouldError = logPriority <= errorPriority || (!loggingSupported && logPriority <= currentPriority);
 
 		if (!shouldLog && !shouldError) {
 			return;

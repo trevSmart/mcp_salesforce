@@ -81,8 +81,11 @@ class TestRunner {
 					console.log(`${TEST_CONFIG.colors.cyan}Executing global pre-suite script...${TEST_CONFIG.colors.reset}`);
 				}
 				await suite.scriptBeforeAll(suite.context);
+				if (!this.quiet) {
+					console.log(`  ${TEST_CONFIG.colors.green}✓ Successfully executed global pre-suite script${TEST_CONFIG.colors.reset}`);
+				}
 			} catch (e) {
-				console.log(`${TEST_CONFIG.colors.red}❌ Global pre-suite script failed: ${e.message}${TEST_CONFIG.colors.reset}`);
+				console.log(`${TEST_CONFIG.colors.red}❌ Global pre-suite script failed: ${e.message}\n${TEST_CONFIG.colors.reset}`);
 			}
 		}
 
@@ -99,7 +102,7 @@ class TestRunner {
 				}
 				await suite.scriptAfterAll(suite.context);
 			} catch (e) {
-				console.log(`${TEST_CONFIG.colors.red}❌ Global post-suite script failed: ${e.message}${TEST_CONFIG.colors.reset}`);
+				console.log(`${TEST_CONFIG.colors.red}❌ Global post-suite script failed: ${e.message}\n${TEST_CONFIG.colors.reset}`);
 			}
 		}
 	}
@@ -142,10 +145,6 @@ class TestRunner {
 				running.delete(test.name);
 			}
 		};
-
-		if (!this.quiet) {
-			console.log(`${TEST_CONFIG.colors.cyan}Starting dependency-aware queue: ${tests.length} tests, concurrency ${maxConcurrency}${TEST_CONFIG.colors.reset}`);
-		}
 
 		while (completed.size < tests.length) {
 			let candidates = ready();
@@ -206,7 +205,7 @@ class TestRunner {
 				}
 				await test.scriptBefore(suite.context);
 			} catch (scriptError) {
-				console.log(`${TEST_CONFIG.colors.red}❌ Pre-test script failed for ${test.name}: ${scriptError.message}${TEST_CONFIG.colors.reset}`);
+				console.log(`${TEST_CONFIG.colors.red}❌ Pre-test script failed for ${test.name}: ${scriptError.message}\n${TEST_CONFIG.colors.reset}`);
 			}
 		}
 
@@ -514,6 +513,219 @@ class TestRunner {
 	}
 }
 
+// Show test plan without executing tests
+async function showTestPlan(testsToRun, quiet) {
+	try {
+		// Display test plan
+		if (!quiet) {
+			console.log(`\n${TEST_CONFIG.colors.cyan}${'='.repeat(60)}${TEST_CONFIG.colors.reset}`);
+			console.log(`${TEST_CONFIG.colors.bright}📋 TEST PLAN 📋${TEST_CONFIG.colors.reset}`);
+			console.log(`${TEST_CONFIG.colors.cyan}${'='.repeat(60)}${TEST_CONFIG.colors.reset}`);
+		}
+
+		// Define available tests statically (without connecting to server)
+		const availableTests = [
+			{name: 'List Available Tools', required: true, canRunInParallel: false, priority: null},
+			{name: 'salesforceMcpUtils getOrgAndUserDetails', required: true, canRunInParallel: false, priority: 'high'},
+			{name: 'salesforceMcpUtils getState', required: false, canRunInParallel: true, priority: null},
+			{name: 'salesforceMcpUtils loadRecordPrefixesResource', required: false, canRunInParallel: true, priority: null},
+			{name: 'salesforceMcpUtils getCurrentDatetime', required: false, canRunInParallel: true, priority: null},
+			{name: 'salesforceMcpUtils clearCache', required: false, canRunInParallel: true, priority: null},
+			{name: 'salesforceMcpUtils reportIssue validation', required: false, canRunInParallel: true, priority: null},
+			{name: 'salesforceMcpUtils reportIssue success (dry-run)', required: false, canRunInParallel: true, priority: null},
+			{name: 'apexDebugLogs status', required: false, canRunInParallel: true, priority: null},
+			{name: 'apexDebugLogs on', required: false, canRunInParallel: false, priority: null},
+			{name: 'apexDebugLogs list', required: false, canRunInParallel: false, priority: 'high'},
+			{name: 'apexDebugLogs off', required: false, canRunInParallel: false, priority: null},
+			{name: 'apexDebugLogs get', required: false, canRunInParallel: false, priority: 'high'},
+			{name: 'describeObject Account', required: false, canRunInParallel: true, priority: null},
+			{name: 'describeObject Account (no fields, no picklists)', required: false, canRunInParallel: true, priority: null},
+			{name: 'describeObject Account (cached, no fields + picklists)', required: false, canRunInParallel: false, priority: null},
+			{name: 'describeObject ApexClass (Tooling API)', required: false, canRunInParallel: true, priority: null},
+			{name: 'executeSoqlQuery', required: false, canRunInParallel: true, priority: null},
+			{name: 'executeSoqlQuery (Tooling API)', required: false, canRunInParallel: true, priority: null},
+			{name: 'executeAnonymousApex', required: false, canRunInParallel: true, priority: 'high'},
+			{name: 'getRecentlyViewedRecords', required: false, canRunInParallel: true, priority: null},
+			{name: 'getRecord', required: false, canRunInParallel: false, priority: null},
+			{name: 'getApexClassCodeCoverage', required: false, canRunInParallel: true, priority: null},
+			{name: 'createMetadata Apex Test Class', required: false, canRunInParallel: true, priority: null},
+			{name: 'createMetadata Apex Trigger', required: false, canRunInParallel: true, priority: null},
+			{name: 'createMetadata LWC', required: false, canRunInParallel: true, priority: null},
+			{name: 'createMetadata Apex Class', required: false, canRunInParallel: true, priority: null},
+			{name: 'dmlOperation Create', required: false, canRunInParallel: true, priority: null},
+			{name: 'dmlOperation allOrNone=true (expect failure)', required: false, canRunInParallel: true, priority: null},
+			{name: 'dmlOperation Update', required: false, canRunInParallel: false, priority: null},
+			{name: 'dmlOperation Update (bypass confirmation)', required: false, canRunInParallel: false, priority: null},
+			{name: 'dmlOperation Delete', required: false, canRunInParallel: false, priority: null},
+			{name: 'runApexTest', required: false, canRunInParallel: true, priority: 'high'},
+			{name: 'invokeApexRestResource', required: false, canRunInParallel: true, priority: 'high'},
+			{name: 'getSetupAuditTrail', required: false, canRunInParallel: true, priority: null},
+			{name: 'salesforceMcpUtils clearCache (final)', required: false, canRunInParallel: true, priority: null}
+		];
+
+		// Filter tests to run
+		let testsToExecute = availableTests;
+
+		if (testsToRun?.length) {
+			// Always include required tests (tests with required: true)
+			const requiredTests = availableTests.filter(test => test.required === true);
+
+			// Filter selected tests (tests without required: true)
+			const selectedTests = availableTests.filter(test =>
+				test.required !== true && testsToRun.some(testName =>
+					test.name.toLowerCase().includes(testName.toLowerCase())
+				)
+			);
+
+			testsToExecute = [...requiredTests, ...selectedTests];
+
+			if (selectedTests.length > 0) {
+				if (!quiet) {
+					console.log(`${TEST_CONFIG.colors.cyan}Selected tests: ${selectedTests.map(t => t.name).join(', ')}${TEST_CONFIG.colors.reset}`);
+				}
+			} else {
+				if (!quiet) {
+					console.log(`${TEST_CONFIG.colors.yellow}No tests found matching: ${testsToRun.join(', ')}${TEST_CONFIG.colors.reset}`);
+				}
+			}
+		}
+
+		// Show summary
+		const totalTests = testsToExecute.length;
+		const requiredTests = testsToExecute.filter(t => t.required).length;
+		const optionalTests = totalTests - requiredTests;
+
+		if (!quiet) {
+			console.log(`📊 Total tests: ${TEST_CONFIG.colors.bright}${totalTests}${TEST_CONFIG.colors.reset}`);
+			console.log(`🔒 Required tests: ${TEST_CONFIG.colors.green}${requiredTests}${TEST_CONFIG.colors.reset}`);
+			console.log(`⚙️  Optional tests: ${TEST_CONFIG.colors.cyan}${optionalTests}${TEST_CONFIG.colors.reset}`);
+			console.log('');
+		} else {
+			console.log(`📋 Test plan: ${totalTests} tests (${requiredTests} required, ${optionalTests} optional)`);
+		}
+
+		// Display the same test plan structure as the normal execution
+		if (!quiet) {
+			// Calculate total tests and concurrency
+			const maxConcurrency = 7; // Same as SalesforceMcpTestSuite.MAX_CONCURRENT_TESTS
+
+			console.log(`\n${TEST_CONFIG.colors.cyan}Finished calculating test plan: ${totalTests} tests, concurrency ${maxConcurrency}${TEST_CONFIG.colors.reset}`);
+			console.log(`\n${TEST_CONFIG.colors.pink}  Test Plan${TEST_CONFIG.colors.reset}`);
+			console.log(`${TEST_CONFIG.colors.bright}    │${TEST_CONFIG.colors.reset}`);
+
+			// Group tests into phases (simplified version)
+			const phases = [];
+			const completedTests = new Set();
+
+			// Helper function to check if all dependencies are completed
+			const areDependenciesCompleted = (test) => {
+				return (test.dependencies || []).every(dep => completedTests.has(dep));
+			};
+
+			// Helper function to get tests that can run in current phase
+			const getRunnableTests = (tests) => {
+				return tests.filter(test =>
+					!completedTests.has(test.name) && areDependenciesCompleted(test)
+				);
+			};
+
+			let currentPhase = 0;
+			while (completedTests.size < testsToExecute.length) {
+				const currentTests = getRunnableTests(testsToExecute);
+
+				if (currentTests.length === 0) {
+					// No tests can run, this indicates a circular dependency
+					const remainingTests = testsToExecute.filter(test => !completedTests.has(test.name));
+					throw new Error(`Circular dependency detected. Remaining tests: ${remainingTests.map(t => t.name).join(', ')}`);
+				}
+
+				// Group tests by whether they can run in parallel
+				const sequentialTests = currentTests.filter(test => !test.canRunInParallel);
+				const parallelTests = currentTests.filter(test => test.canRunInParallel);
+
+				// Add sequential tests first (they must run one by one)
+				if (sequentialTests.length > 0) {
+					phases[currentPhase] = {
+						phase: currentPhase,
+						tests: sequentialTests,
+						canRunInParallel: false,
+						phaseNumber: currentPhase + 1
+					};
+					sequentialTests.forEach(test => completedTests.add(test.name));
+					currentPhase++;
+				}
+
+				// For parallel tests, prioritize high-priority tests first
+				if (parallelTests.length > 0) {
+					// Separate high-priority tests from regular ones
+					const highPriorityTests = parallelTests.filter(test => test.priority === 'high');
+					const regularTests = parallelTests.filter(test => test.priority !== 'high');
+
+					// Add each high-priority test in its own phase for immediate execution
+					if (highPriorityTests.length > 0) {
+						for (const highPriorityTest of highPriorityTests) {
+							phases[currentPhase] = {
+								phase: currentPhase,
+								tests: [highPriorityTest],
+								canRunInParallel: true,
+								priority: 'high',
+								phaseNumber: currentPhase + 1
+							};
+							completedTests.add(highPriorityTest.name);
+							currentPhase++;
+						}
+					}
+
+					// Add regular parallel tests
+					if (regularTests.length > 0) {
+						phases[currentPhase] = {
+							phase: currentPhase,
+							tests: regularTests,
+							canRunInParallel: true,
+							priority: 'regular',
+							phaseNumber: currentPhase + 1
+						};
+						regularTests.forEach(test => completedTests.add(test.name));
+						currentPhase++;
+					}
+				}
+			}
+
+			// Display phases in tree format
+			phases.forEach((phase, index) => {
+				const isLast = index === phases.length - 1;
+				const phasePrefix = isLast ? '    └─' : '    ├─';
+				const testPrefix = isLast ? '       ' : '    │  ';
+
+				// Check if phase contains any required tests
+				const hasRequiredTests = phase.tests.some(test => test.required === true);
+
+				// Phase header
+				const phaseType = phase.canRunInParallel ? 'parallel' : 'sequential';
+				const phaseDescription = hasRequiredTests ? 'required tests' : 'selected tests';
+
+				console.log(`${phasePrefix}${TEST_CONFIG.colors.pink} Phase ${phase.phaseNumber}${TEST_CONFIG.colors.reset}`);
+				console.log(`${testPrefix}${TEST_CONFIG.colors.cyan}${phase.tests.length} ${phaseDescription}${TEST_CONFIG.colors.gray} (${phaseType})${TEST_CONFIG.colors.reset}`);
+
+				// Tests in this phase
+				phase.tests.forEach((test, testIndex) => {
+					const isLastTest = testIndex === phase.tests.length - 1;
+					const testPrefixToUse = isLastTest ? `${testPrefix}   └─` : `${testPrefix}   ├─`;
+					const priorityText = test.priority === 'high' ? ` ${TEST_CONFIG.colors.gray}(high priority)${TEST_CONFIG.colors.reset}` : '';
+
+					console.log(`${TEST_CONFIG.colors.bright}${testPrefixToUse}${TEST_CONFIG.colors.reset} ${test.name}${priorityText}`);
+				});
+			});
+
+			console.log(''); // Empty line after test plan
+		}
+
+	} catch (error) {
+		console.error(`${TEST_CONFIG.colors.red}Error showing test plan:${TEST_CONFIG.colors.reset}`, error.message);
+		process.exit(1);
+	}
+}
+
 // Main execution function
 async function main() {
 	const cmdArgs = TestHelpers.parseCommandLineArgs();
@@ -521,6 +733,9 @@ async function main() {
 	const TESTS_TO_RUN = cmdArgs.tests ? cmdArgs.tests.split(',').map(test => test.trim()) : null;
 	const COMPACT = Boolean(cmdArgs.compact);
 	const QUIET = Boolean(cmdArgs.quiet);
+	const SHOW_PLAN = Boolean(cmdArgs['plan-only']);
+
+
 
 	// Optional: allow specifying server target from CLI (in addition to env vars)
 	// Examples:
@@ -541,6 +756,12 @@ async function main() {
 		} else {
 			console.log(`${TEST_CONFIG.colors.cyan}Running all available tests using log level: ${LOG_LEVEL}${TEST_CONFIG.colors.reset}`);
 		}
+	}
+
+	// If --plan is specified, show test plan and exit
+	if (SHOW_PLAN) {
+		await showTestPlan(TESTS_TO_RUN, QUIET);
+		return;
 	}
 
 	// Run tests
@@ -575,6 +796,7 @@ ${TEST_CONFIG.colors.cyan}Options:${TEST_CONFIG.colors.reset}
   --serverArgs=<args> Server args as space-separated string or JSON array
   --compact           Reduce output by hiding tool outputs
   --quiet             Minimal output; only one-line per test result
+  --plan-only         Show test plan without executing tests
   --help              Show this help message
 
 ${TEST_CONFIG.colors.cyan}Examples:${TEST_CONFIG.colors.reset}
@@ -585,6 +807,8 @@ ${TEST_CONFIG.colors.cyan}Examples:${TEST_CONFIG.colors.reset}
   node test/runner.js --serverSpec='./dist/index.js' --serverArgs='--stdio'
   node test/runner.js --compact
   node test/runner.js --quiet --tests=apexDebugLogs
+  node test/runner.js --plan-only
+  node test/runner.js --plan-only --tests=apexDebugLogs
 `);
 }
 

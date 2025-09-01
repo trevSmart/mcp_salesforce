@@ -118,5 +118,9 @@
     "github-actions.workflows.pinned.workflows": [
         ".github/workflows/push-checks.yml"
     ],
-    "chatgpt.openOnStartup": true
+    "chatgpt.openOnStartup": true,
+    "breadcrumbs.filePath": "on",
+    "editor.fontLigatures": true,
+    "editor.fontFamily": "Fira Code",
+    "terminal.integrated.fontLigatures.enabled": true
 }

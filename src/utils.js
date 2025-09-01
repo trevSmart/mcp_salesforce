@@ -20,7 +20,7 @@ async function __getExecuteSoqlQuery() {
 	}
 	return _executeSoqlQuery;
 }
-import {getAgentInstructions as _getAgentInstructions} from './instructions.js';
+
 
 /**
  * Validates if the user has the required permissions
@@ -335,7 +335,19 @@ export async function writeToTmpFileAsync(content, filename, extension = 'txt', 
  * @returns {string} Instructions text
  */
 export function getAgentInstructions(name) {
-	return _getAgentInstructions(name);
+	try {
+		const localFilename = fileURLToPath(import.meta.url);
+		const localDirname = path.dirname(localFilename);
+		const staticPath = path.join(localDirname, 'static', `${name}.md`);
+
+		if (fs.existsSync(staticPath)) {
+			return fs.readFileSync(staticPath, 'utf8');
+		}
+		return '';
+	} catch {
+		// Avoid logging here to keep this module cycle-free
+		return '';
+	}
 }
 
 /**

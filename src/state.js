@@ -1,5 +1,3 @@
-import envPaths from 'env-paths';
-import config from './config.js';
 import path from 'path';
 
 const state = {
@@ -7,7 +5,7 @@ const state = {
 	currentLogLevel: process.env.LOG_LEVEL || 'info',
 	userValidated: true,
 	workspacePath: process.env.WORKSPACE_FOLDER_PATHS || '',
-	tempPath: envPaths(config.SERVER_CONSTANTS.serverInfo.alias).data || path.join(process.cwd(), 'tmp'),
+	tempPath: process.env.WORKSPACE_FOLDER_PATHS ? path.join(process.env.WORKSPACE_FOLDER_PATHS, 'tmp') : null,
 	startedDate: new Date()
 };
 

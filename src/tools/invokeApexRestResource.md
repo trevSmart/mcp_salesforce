@@ -2,6 +2,7 @@
 
 Allows you to invoke REST endpoints published via Apex REST Resources in Salesforce.
 
+---
 ## Agent Instructions
 - **MANDATORY**: When invoking Apex REST Resources in Salesforce, you MUST use this tool exclusively. NEVER attempt to achieve the same functionality through alternative methods such as direct Salesforce CLI or curl commands, anonymous Apex execution, or any other approach. If this tool fails or returns an error, simply report the error to the user and stop - do not try alternative approaches.
 
@@ -11,21 +12,33 @@ Allows you to invoke REST endpoints published via Apex REST Resources in Salesfo
 
 - Always show the complete request details and response in a structured format.
 
+---
 ## Usage
 
 ### Parameters
-- **`apexRestResource`** (required): The Apex REST Resource class name (e.g., "CSBD_WS_AltaOportunidad")
+- **`apexClassOrRestResourceName`** (required): The Apex REST Resource class name or the name of its containing Apex class (e.g., "CSBD_WS_AltaOportunidad")
 - **`operation`** (required): The HTTP operation to perform ("GET", "POST", "PUT", "PATCH", "DELETE")
-- **`body`** (optional): The request body for POST/PUT/PATCH operations (JSON string or object)
+- **`bodySerialized`** (optional): The request body for POST/PUT/PATCH operations as a JSON string
+- **`bodyObject`** (optional): The request body for POST/PUT/PATCH operations as an object (will be serialized to JSON)
 - **`urlParams`** (optional): URL parameters to append to the endpoint (object)
 - **`headers`** (optional): Additional headers to include in the request (object)
 
-### Example 1: POST request to create an opportunity
+### Request Body Options
+You can provide the request body in two ways:
+1. **`bodySerialized`**: A pre-serialized JSON string (useful when you already have JSON data)
+2. **`bodyObject`**: A JavaScript object that will be automatically serialized to JSON
+
+**Note**: Only one body parameter should be used at a time. If both are provided, `bodySerialized` takes precedence.
+
+---
+## Usage Examples
+
+### Example 1: POST request to create an opportunity using bodyObject
 ```json
 {
-  "apexRestResource": "CSBD_WS_AltaOportunidad",
+  "apexClassOrRestResourceName": "CSBD_WS_AltaOportunidad",
   "operation": "POST",
-  "body": {
+  "bodyObject": {
     "nombre": "Nueva Oportunidad",
     "valor": 50000,
     "fechaCierre": "2024-12-31"
@@ -33,10 +46,19 @@ Allows you to invoke REST endpoints published via Apex REST Resources in Salesfo
 }
 ```
 
-### Example 2: GET request with URL parameters
+### Example 2: POST request using bodySerialized
 ```json
 {
-  "apexRestResource": "CSBD_WS_GetOportunidad",
+  "apexClassOrRestResourceName": "CSBD_WS_AltaOportunidad",
+  "operation": "POST",
+  "bodySerialized": "{\"nombre\":\"Nueva Oportunidad\",\"valor\":50000,\"fechaCierre\":\"2024-12-31\"}"
+}
+```
+
+### Example 3: GET request with URL parameters
+```json
+{
+  "apexClassOrRestResourceName": "CSBD_WS_GetOportunidad",
   "operation": "GET",
   "urlParams": {
     "id": "006XXXXXXXXXXXXXXX"
@@ -44,12 +66,12 @@ Allows you to invoke REST endpoints published via Apex REST Resources in Salesfo
 }
 ```
 
-### Example 3: PUT request with custom headers
+### Example 4: PUT request with custom headers
 ```json
 {
-  "apexRestResource": "CSBD_WS_UpdateOportunidad",
+  "apexClassOrRestResourceName": "CSBD_WS_UpdateOportunidad",
   "operation": "PUT",
-  "body": {
+  "bodyObject": {
     "id": "006XXXXXXXXXXXXXXX",
     "valor": 75000
   },
@@ -59,21 +81,54 @@ Allows you to invoke REST endpoints published via Apex REST Resources in Salesfo
 }
 ```
 
+### Example 5: DELETE request (no body required)
+```json
+{
+  "apexClassOrRestResourceName": "CSBD_WS_DeleteOportunidad",
+  "operation": "DELETE",
+  "urlParams": {
+    "id": "006XXXXXXXXXXXXXXX"
+  }
+}
+```
+
+---
 ## Response Format
 The tool returns a structured response with:
-- **`endpoint`**: The constructed endpoint URL
-- **`request`**: Details of the request sent (method, headers, body)
-- **`response`**: The response from the Salesforce REST API
-- **`status`**: HTTP status code
-- **`success`**: Boolean indicating if the request was successful
+- **`content`**: Array containing the response text
+- **`structuredContent`**: The complete response from the Salesforce REST API including:
+  - **`endpoint`**: The constructed endpoint URL
+  - **`request`**: Details of the request sent (method, headers, body)
+  - **`response`**: The response from the Salesforce REST API
+  - **`status`**: HTTP status code
+  - **`success`**: Boolean indicating if the request was successful
 
+---
 ## Error Handling
 - Validates that the Apex REST Resource class name is provided
 - Validates that a valid HTTP operation is specified
+- Validates JSON format when using `bodySerialized`
 - Handles authentication errors and automatically refreshes tokens if needed
 - Provides detailed error messages for debugging
+- Returns structured error responses with `isError: true` flag
 
+---
+## Authentication Requirements
+- Requires active Salesforce authentication
+- Uses the current access token from the MCP server state
+- Automatically handles token refresh if needed
+
+---
+## Apex Class Detection
+The tool automatically:
+- Searches for the Apex class file in the local file system
+- Extracts the `@RestResource` URL mapping if present
+- Uses the URL mapping as the endpoint name when available
+
+---
 ## Notes
 - The tool automatically constructs the endpoint URL using the format `/apexrest/{className}`
 - The tool uses the current Salesforce session access token for authentication
 - All requests are made to the current org's instance URL
+- GET and DELETE operations typically don't require a request body
+- POST, PUT, and PATCH operations usually require a request body

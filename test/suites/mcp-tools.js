@@ -252,8 +252,7 @@ export class SalesforceMcpTestSuite {
 					return await this.mcpClient.callTool('apexDebugLogs', {action: 'on'});
 				},
 				dependencies: ['apexDebugLogs status'],
-				canRunInParallel: false,
-				priority: 'high'
+				canRunInParallel: false
 			},
 			{
 				name: 'apexDebugLogs list',
@@ -329,17 +328,16 @@ export class SalesforceMcpTestSuite {
 				run: async() => {
 					return await this.mcpClient.callTool('apexDebugLogs', {action: 'off'});
 				},
-				dependencies: ['apexDebugLogs get'],
-				canRunInParallel: false,
-				priority: 'high'
+				dependencies: ['apexDebugLogs on'],
+				canRunInParallel: false
 			},
 			{
 				name: 'salesforceMcpUtils clearCache (final)',
 				run: async() => {
 					return await this.mcpClient.callTool('salesforceMcpUtils', {action: 'clearCache'});
 				},
-				dependencies: ['apexDebugLogs off', 'describeObject Account (cached, no fields + picklists)'],
-				canRunInParallel: false
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true
 			},
 			{
 				name: 'describeObject Account',
@@ -872,6 +870,29 @@ export class SalesforceMcpTestSuite {
 				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
 				canRunInParallel: true,
 				priority: 'high' // Marca com a alta prioritat per executar-lo abans
+			},
+			{
+				name: 'invokeApexRestResource',
+				run: async() => {
+					const result = await this.mcpClient.callTool('invokeApexRestResource', {
+						apexClassOrRestResourceName: TEST_CONFIG.salesforce.testApexRestResourceName,
+						operation: 'GET'
+					});
+					const sc = result?.structuredContent;
+					if (!sc || !sc.endpoint || !sc.request || !sc.response) {
+						throw new Error('invokeApexRestResource: missing required structuredContent fields');
+					}
+					if (sc.request.method !== 'GET') {
+						throw new Error('invokeApexRestResource: expected GET method in request');
+					}
+					if (typeof sc.status !== 'number') {
+						throw new Error('invokeApexRestResource: status must be a number');
+					}
+					return result;
+				},
+				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
+				canRunInParallel: true,
+				priority: 'high' // Marca com a alta prioritat per executar-lo abans
 			}
 		];
 	}
@@ -893,6 +914,17 @@ export class SalesforceMcpTestSuite {
 			);
 		};
 
+		// Helper function to get dependencies for a phase
+		const getPhaseDependencies = (phaseTests) => {
+			const dependencies = new Set();
+			phaseTests.forEach(test => {
+				if (test.dependencies) {
+					test.dependencies.forEach(dep => dependencies.add(dep));
+				}
+			});
+			return Array.from(dependencies);
+		};
+
 		let currentPhase = 0;
 		while (completedTests.size < tests.length) {
 			const currentTests = getRunnableTests(tests);
@@ -912,7 +944,8 @@ export class SalesforceMcpTestSuite {
 				phases[currentPhase] = {
 					phase: currentPhase,
 					tests: sequentialTests,
-					canRunInParallel: false
+					canRunInParallel: false,
+					dependencies: getPhaseDependencies(sequentialTests)
 				};
 				sequentialTests.forEach(test => completedTests.add(test.name));
 				currentPhase++;
@@ -931,7 +964,8 @@ export class SalesforceMcpTestSuite {
 							phase: currentPhase,
 							tests: [highPriorityTest], // Un sol test per fase
 							canRunInParallel: true,
-							priority: 'high'
+							priority: 'high',
+							dependencies: getPhaseDependencies([highPriorityTest])
 						};
 						completedTests.add(highPriorityTest.name);
 						currentPhase++;
@@ -944,7 +978,8 @@ export class SalesforceMcpTestSuite {
 						phase: currentPhase,
 						tests: regularTests,
 						canRunInParallel: true,
-						priority: 'regular'
+						priority: 'regular',
+						dependencies: getPhaseDependencies(regularTests)
 					};
 					regularTests.forEach(test => completedTests.add(test.name));
 					currentPhase++;
@@ -955,12 +990,145 @@ export class SalesforceMcpTestSuite {
 		return phases;
 	}
 
+	// Display test plan in a tree-like format
+	displayTestPlan(executionPhases, testsToExecute = null) {
+		if (this.quiet) {
+			return;
+		}
+
+		// Calculate total tests and concurrency
+		const totalTests = testsToExecute ? testsToExecute.length : executionPhases.reduce((sum, phase) => sum + phase.tests.length, 0);
+		const maxConcurrency = SalesforceMcpTestSuite.MAX_CONCURRENT_TESTS;
+
+		console.log(`\n${TEST_CONFIG.colors.cyan}Finished calculating test plan: ${totalTests} tests, concurrency ${maxConcurrency}${TEST_CONFIG.colors.reset}`);
+		console.log(`\n${TEST_CONFIG.colors.pink}  Test Plan${TEST_CONFIG.colors.reset}`);
+		console.log(`${TEST_CONFIG.colors.bright}    │${TEST_CONFIG.colors.reset}`); // Vertical line connecting Test Plan to first phase
+
+		// Get all tests to access their dependencies
+		const allTests = this.getAvailableTests();
+		const testMap = new Map(allTests.map(test => [test.name, test]));
+
+		// Build hierarchical structure based on dependencies
+		const buildPhaseHierarchy = (phases) => {
+			const phaseMap = new Map();
+			const rootPhases = [];
+
+			// Create phase map with test names for dependency checking
+			phases.forEach((phase, index) => {
+				const phaseTestNames = phase.tests.map(test => test.name);
+				phaseMap.set(index, {
+					...phase,
+					phaseNumber: index + 1,
+					testNames: phaseTestNames,
+					children: []
+				});
+			});
+
+			// Build parent-child relationships
+			phases.forEach((phase, index) => {
+				const currentPhase = phaseMap.get(index);
+
+				// Find parent phase by checking if any test in current phase depends on tests in other phases
+				let parentPhaseIndex = -1;
+				for (let i = 0; i < phases.length; i++) {
+					if (i === index) {
+						continue;
+					}
+
+					const otherPhase = phaseMap.get(i);
+					const hasDependency = currentPhase.tests.some(test => {
+						const testInfo = testMap.get(test.name);
+						return testInfo?.dependencies?.some(dep => otherPhase.testNames.includes(dep));
+					});
+
+					if (hasDependency) {
+						// Only set as parent if this phase comes before the current phase
+						// This ensures we don't create circular dependencies
+						if (i < index) {
+							parentPhaseIndex = i;
+							break;
+						}
+					}
+				}
+
+				if (parentPhaseIndex !== -1) {
+					phaseMap.get(parentPhaseIndex).children.push(currentPhase);
+				} else {
+					rootPhases.push(currentPhase);
+				}
+			});
+
+			return rootPhases;
+		};
+
+		// Display phase tree recursively
+		const displayPhaseRecursive = (phase, depth = 0, isLast = false, parentIsLast = false) => {
+			// For depth 0, start with 4 spaces to align with the vertical line from Test Plan
+			const baseIndent = depth === 0 ? '    ' : '    '.repeat(depth + 1);
+			const phasePrefix = isLast ? `${baseIndent}└─` : `${baseIndent}├─`;
+			const testPrefix = isLast ? `${baseIndent}   ` : `${baseIndent}│  `;
+			const lastTestPrefix = isLast ? `${baseIndent}   └─` : `${baseIndent}│  └─`;
+			const otherTestPrefix = isLast ? `${baseIndent}   ├─` : `${baseIndent}│  ├─`;
+
+			// Check if phase contains any required tests
+			const hasRequiredTests = phase.tests.some(test => {
+				const testInfo = testMap.get(test.name);
+				return testInfo?.required === true;
+			});
+
+			// Phase header
+			const phaseType = phase.canRunInParallel ? 'parallel' : 'sequential';
+			const phaseDescription = hasRequiredTests ? 'required tests' : 'selected tests';
+			const dependencyText = phase.dependencies && phase.dependencies.length > 0
+				? ` ${TEST_CONFIG.colors.blue}⟵ depends on: ${phase.dependencies.join(', ')}${TEST_CONFIG.colors.reset}`
+				: '';
+
+			console.log(`${phasePrefix}${TEST_CONFIG.colors.pink} Phase ${phase.phaseNumber}${TEST_CONFIG.colors.reset}${dependencyText}`);
+			console.log(`${testPrefix}${TEST_CONFIG.colors.cyan}${phase.tests.length} ${phaseDescription}${TEST_CONFIG.colors.gray} (${phaseType})${TEST_CONFIG.colors.reset}`);
+
+			// Tests in this phase
+			phase.tests.forEach((test, testIndex) => {
+				const isLastTest = testIndex === phase.tests.length - 1;
+				const testPrefixToUse = isLastTest ? lastTestPrefix : otherTestPrefix;
+				const priorityText = test.priority === 'high' ? ` ${TEST_CONFIG.colors.gray}(high priority)${TEST_CONFIG.colors.reset}` : '';
+
+				console.log(`${TEST_CONFIG.colors.bright}${testPrefixToUse}${TEST_CONFIG.colors.reset} ${test.name}${priorityText}`);
+			});
+
+			// Display children phases
+			if (phase.children.length > 0) {
+				// Add vertical line to connect to children
+				console.log(`${TEST_CONFIG.colors.bright}${testPrefix}${TEST_CONFIG.colors.reset}`);
+
+				phase.children.forEach((childPhase, childIndex) => {
+					const isLastChild = childIndex === phase.children.length - 1;
+					displayPhaseRecursive(childPhase, depth + 1, isLastChild, isLast);
+				});
+			}
+		};
+
+		// Build and display the phase hierarchy
+		const phaseHierarchy = buildPhaseHierarchy(executionPhases);
+		phaseHierarchy.forEach((phase, index) => {
+			const isLastPhase = index === phaseHierarchy.length - 1;
+			displayPhaseRecursive(phase, 0, isLastPhase, false);
+
+			// Add blank line with vertical line between root phases (except for the last one)
+			if (!isLastPhase) {
+				console.log(`${TEST_CONFIG.colors.bright}    │${TEST_CONFIG.colors.reset}`);
+			}
+		});
+
+		console.log(''); // Empty line after test plan
+	}
+
 	// Run specific tests or all tests with parallel execution support
 	async runTests(testsToRun = null) {
 		const availableTests = this.getAvailableTests();
 
 		// Filter tests to run
 		let testsToExecute = availableTests;
+
 		if (testsToRun?.length) {
 			// Always include required tests (tests with required: true)
 			const requiredTests = availableTests.filter(test => test.required === true);
@@ -997,20 +1165,8 @@ export class SalesforceMcpTestSuite {
 		// Group tests for parallel execution
 		const executionPhases = this.groupTestsForParallelExecution(testsToExecute);
 
-		if (!this.quiet) {
-			console.log(`${TEST_CONFIG.colors.cyan}Execution phases:${TEST_CONFIG.colors.reset}`);
-			executionPhases.forEach((phase, index) => {
-				let phaseText = phase.canRunInParallel ? ' (parallel)' : ' (sequential)';
-				if (phase.priority === 'high') {
-					phaseText += ' [HIGH PRIORITY]';
-				}
-				console.log(`  Phase ${index}: ${phase.tests.length} tests${phaseText}`);
-				phase.tests.forEach(test => {
-					const priorityText = test.priority === 'high' ? ' [HIGH PRIORITY]' : '';
-					console.log(`    - ${test.name}${priorityText}`);
-				});
-			});
-		}
+		// Display the new test plan format
+		this.displayTestPlan(executionPhases, testsToExecute);
 
 		// Return both the tests and the execution phases
 		return {

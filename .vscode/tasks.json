@@ -52,9 +52,23 @@
 			}
 		},
 		{
-			"label": "Run a simple test",
+			"label": "Test salesforceMcpUtils getState",
 			"type": "npm",
-			"script": "test simple",
+			"script": "test salesforceMcpUtils getState",
+			"group": {
+				"kind": "test"
+			},
+			"presentation": {
+				"showReuseMessage": false,
+				"close": false,
+				"panel": "new",
+				"focus": true
+			}
+		},
+		{
+			"label": "Test salesforceMcpUtils",
+			"type": "npm",
+			"script": "test salesforceMcpUtils",
 			"group": {
 				"kind": "test"
 			},
@@ -67,13 +81,6 @@
 		},
 		{
 			"type": "npm",
-			"script": "lint",
-			"problemMatcher": [],
-			"label": "npm: lint",
-			"detail": "eslint . --ext .js,.mjs,.cjs,.jsx,.ts,.tsx"
-		},
-		{
-			"type": "npm",
 			"script": "lint:fix",
 			"problemMatcher": [],
 			"label": "npm: lint:fix",
@@ -82,8 +89,9 @@
 				"showReuseMessage": false,
 				"reveal": "silent",
 				"close": false,
-				"panel": "new",
-				"focus": true
+				"panel": "shared",
+				"focus": true,
+				"clear": true
 			}
 		},
 		{

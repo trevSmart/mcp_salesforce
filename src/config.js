@@ -2,7 +2,7 @@ import {createRequire} from 'module';
 const require = createRequire(import.meta.url);
 const pkg = require('../package.json');
 
-import {getAgentInstructions} from './instructions.js';
+import {getAgentInstructions} from './utils.js';
 
 /**
  * Configuration object for the MCP server
@@ -10,6 +10,7 @@ import {getAgentInstructions} from './instructions.js';
  */
 export default {
 	logPrefix: '👁🐝Ⓜ️',
+	defaultLogLevel: 'info',
 	tempDir: {
 		// Subfolder under workspace to store temp artifacts
 		baseSubdir: 'tmp',

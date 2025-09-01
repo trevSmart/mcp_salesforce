@@ -1,5 +1,5 @@
 {
-  "name": "@trevSmart/test_research4",
+  "name": "test_research4",
   "version": "0.3.33",
   "description": "Test Research 4",
   "main": "index.js",
@@ -13,9 +13,11 @@
   "scripts": {
     "publish-package": "sh dev/publish-package.sh",
     "publish-package-skip-tests": "sh dev/publish-package.sh --skip-tests",
-    "test simple": "node test/runner.js --tests=\"salesforceMcpUtils getState\"",
+    "test salesforceMcpUtils getState": "node test/runner.js --tests=\"salesforceMcpUtils getState\"",
+    "test salesforceMcpUtils": "node test/runner.js --tests=\"salesforceMcpUtils\"",
     "test": "node test/runner.js",
-    "lint:fix": "eslint . --fix",
+    "lint:fix": "eslint . --fix --format=stylish --max-warnings=0",
+    "lint:fix:verbose": "eslint . --fix --format=stylish --report-unused-disable-directives --max-warnings=0",
     "startMcpInspector": "sh dev/startMcpInspector.sh"
   },
   "keywords": [

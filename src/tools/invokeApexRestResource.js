@@ -3,6 +3,8 @@ import {createModuleLogger} from '../lib/logger.js';
 import {z} from 'zod';
 import {callSalesforceApi} from '../lib/salesforceServices.js';
 import state from '../state.js';
+import fs from 'fs/promises';
+import path from 'path';
 
 const logger = createModuleLogger(import.meta.url);
 
@@ -11,13 +13,16 @@ export const invokeApexRestResourceToolDefinition = {
 	title: 'Invoke Apex REST Resource',
 	description: textFileContent('tools/invokeApexRestResource.md'),
 	inputSchema: {
-		apexRestResource: z.string()
-			.describe('The Apex REST Resource class name (e.g., "CSBD_WS_AltaOportunidad")'),
+		apexClassOrRestResourceName: z.string()
+			.describe('Name of the Apex REST resource or name of its containing Apex class'),
 		operation: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
 			.describe('The HTTP operation to perform'),
-		body: z.union([z.string(), z.record(z.any())])
+		bodySerialized: z.string()
 			.optional()
-			.describe('The request body for POST/PUT/PATCH operations (JSON string or object)'),
+			.describe('The request body for the HTTP request (serialized as a JSON string)'),
+		bodyObject: z.record(z.any())
+			.optional()
+			.describe('The request body for the HTTP request (object)'),
 		urlParams: z.record(z.any())
 			.optional()
 			.describe('URL parameters to append to the endpoint (object)'),
@@ -34,95 +39,104 @@ export const invokeApexRestResourceToolDefinition = {
 };
 
 
-export async function invokeApexRestResourceToolHandler({apexRestResource, operation, body, urlParams, headers}) {
+export async function invokeApexRestResourceToolHandler({apexClassOrRestResourceName, operation, bodySerialized, bodyObject, urlParams, headers}) {
 	// Process request body first (outside try block so it's available in catch)
-	let processedBody = null;
+	let body;
 
-	if (body) {
-		if (typeof body === 'string') {
-			try {
-				// Validate it's valid JSON, then pass the string directly
-				JSON.parse(body);
-				processedBody = body;
-			} catch (error) {
-				throw new Error(`Invalid JSON in body: ${error.message}`);
-			}
-		} else if (typeof body === 'object') {
-			processedBody = body;
+	if (bodySerialized) {
+		try {
+			// Validate it's valid JSON, then pass the string directly
+			JSON.parse(bodySerialized);
+			body = bodySerialized;
+		} catch (error) {
+			throw new Error(`Invalid JSON in bodySerialized: ${error.message}`);
+		}
+	} else if (bodyObject) {
+		try {
+			// Serialize bodyObject to JSON string
+			body = JSON.stringify(bodyObject);
+		} catch (error) {
+			throw new Error(`Failed to serialize bodyObject to JSON: ${error.message}`);
 		}
 	}
+	// If neither bodySerialized nor bodyObject is provided, body remains undefined
+	// This is valid for operations like GET or DELETE that don't require a body
 
 	try {
 		// Validate required parameters
-		if (!apexRestResource?.trim() || !['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(operation?.trim())) {
-			throw new Error('Missing or invalid Apex REST Resource name or operation');
+		if (!apexClassOrRestResourceName?.trim()) {
+			throw new Error('Missing or invalid Apex REST resource/Apex class name');
+		}
+
+		if (!['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(operation?.trim())) {
+			throw new Error('Invalid operation');
 		}
 
 		// Check if we have authentication
 		if (!state?.org?.instanceUrl || !state?.org?.accessToken) {
-			throw new Error('Not authenticated to Salesforce. Please authenticate first.');
+			throw new Error('Not authenticated to Salesforce. Please authenticate first');
+		}
+
+
+		try {
+			const apexClassFilename = `${apexClassOrRestResourceName}${apexClassOrRestResourceName.endsWith('.cls') ? '' : '.cls'}`;
+			const apexClassFilePath = path.join(state.workspacePath, `force-app/main/default/classes/${apexClassFilename}`);
+			logger.debug(`Apex class file path: ${apexClassFilePath}`);
+
+			const apexClassPath = path.join(state.workspacePath, `force-app/main/default/classes/${apexClassFilename}`);
+			await fs.access(apexClassPath);
+
+			logger.debug(`Apex class exists in local file system: ${apexClassPath}`);
+
+			// Read the Apex class file to find the REST resource annotation
+			const fileContent = await fs.readFile(apexClassPath, 'utf8');
+
+			const pattern = new RegExp('@RestResource\\s*\\(\\s*urlMapping\\s*=\\s*[\'"]/?(.*?)[\'"](\\s*\\))?', 'i');
+			const matcher = pattern.exec(fileContent);
+
+			if (matcher && matcher[1]) {
+				// Extract the path and clean it from wildcards and trailing slashes
+				const extractedPath = matcher[1].replace(/\/\*$|\*$|\/$/, '');
+				logger.debug(`Found Apex REST resource name in Apex class URL mapping: ${extractedPath}`);
+				apexClassOrRestResourceName = extractedPath;
+			} else {
+				throw new Error(`Could not find Apex REST resource in local file system for ${apexClassOrRestResourceName}. Continuing with provided name.`);
+			}
+		} catch {
+			logger.debug(`Could not find Apex REST resource in local file system for ${apexClassOrRestResourceName}. Continuing with provided name.`);
+		}
+
+		if (!apexClassOrRestResourceName?.trim()) {
+			throw new Error('Missing or invalid Apex REST resource/Apex class name');
 		}
 
 		// Prepare request options
 		const requestOptions = {headers: headers || null, queryParams: urlParams || null};
 
-		logger.info(`Invoking Apex REST Resource "${apexRestResource}" (${operation}) and body ${processedBody}`);
+		logger.info(`Invoking Apex REST Resource "${apexClassOrRestResourceName}" (${operation}) and body ${body}`);
 
 		// Make the API call
-		const response = await callSalesforceApi(operation, 'APEX', apexRestResource, processedBody, requestOptions);
+		const response = await callSalesforceApi(operation, 'APEX', apexClassOrRestResourceName, body, requestOptions);
 
-		logger.info(`Invoking Apex REST Resource "${apexRestResource}" (${operation}) and body ${processedBody}`);
+		logger.info(`Apex REST Resource "${apexClassOrRestResourceName}" (${operation}) call completed`);
 
 
 		return {
 			content: [{
 				type: 'text',
-				text: `Successfully called "${apexRestResource}" Apex rest resource`
+				text: `Successfully called "${apexClassOrRestResourceName}" Apex rest resource`
 			}],
 			structuredContent: response
 		};
 
 	} catch (error) {
-		logger.error(error, 'Error invoking Apex REST Resource');
-
-		const errorResult = {
-			endpoint: state?.org?.instanceUrl ? `${state.org.instanceUrl}/apexrest/${apexRestResource}` : 'Unknown',
-			request: {
-				method: operation?.toUpperCase() || 'Unknown',
-				url: `/apexrest/${apexRestResource}`,
-				body: processedBody,
-				urlParams: urlParams || {},
-				headers: headers || {}
-			},
-			error: error.message,
-			status: 'error',
-			success: false
-		};
-
-		const errorText = `## Apex REST Resource Invocation Error
-
-**Endpoint:** ${errorResult.endpoint}
-**Method:** ${errorResult.request.method}
-**Status:** ❌ Error
-
-### Error Details
-\`\`\`
-${error.message}
-\`\`\`
-
-### Request Details
-- **URL:** ${errorResult.request.url}
-- **Body:** ${errorResult.request.body ? '```json\n' + (typeof errorResult.request.body === 'string' ? errorResult.request.body : JSON.stringify(errorResult.request.body, null, 2)) + '\n```' : 'None'}
-- **URL Parameters:** ${Object.keys(errorResult.request.urlParams).length > 0 ? '```json\n' + JSON.stringify(errorResult.request.urlParams, null, 2) + '\n```' : 'None'}
-- **Custom Headers:** ${Object.keys(errorResult.request.headers).length > 0 ? '```json\n' + JSON.stringify(errorResult.request.headers, null, 2) + '\n```' : 'None'}`;
-
 		return {
 			isError: true,
 			content: [{
 				type: 'text',
-				text: errorText
+				text: `Error invoking Apex REST Resource "${apexClassOrRestResourceName}" (${operation}): ${error.message}`
 			}],
-			structuredContent: errorResult
+			structuredContent: error
 		};
 	}
 }

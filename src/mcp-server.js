@@ -65,20 +65,22 @@ async function setWorkspacePath(workspacePath) {
 		state.workspacePath = targetPath;
 	}
 
-	if (state.workspacePath) {
-		try {
-			process.chdir(state.workspacePath);
-		} catch (error) {
-			logger.error(error, 'Failed to change working directory');
-		}
+	logger.info(`Workspace path set to: "${state.workspacePath}"`);
 
-		logger.debug(`Workspace path set to: "${state.workspacePath}"`);
+	if (state.workspacePath) {
+		if (state.workspacePath !== process.cwd()) {
+			try {
+				process.chdir(state.workspacePath);
+			} catch (error) {
+				logger.error(error, 'Failed to change working directory');
+			}
+		}
 
 		// Ensure tmp directory exists (no scheduling; cleanup happens on writes)
 		try {
 			ensureBaseTmpDir(state.workspacePath);
 		} catch (error) {
-			logger.debug(error, 'Temp directory setup failed');
+			logger.error(error, 'Temp directory setup failed');
 		}
 	}
 }
@@ -253,14 +255,8 @@ export async function setupServer() {
 
 			if (process.env.WORKSPACE_FOLDER_PATHS) {
 				setWorkspacePath(process.env.WORKSPACE_FOLDER_PATHS);
-			}
-
-			if (client.supportsCapability('roots')) {
-				try {
-					await mcpServer.server.listRoots();
-				} catch (error) {
-					logger.debug(`Requested roots list but client returned error: ${JSON.stringify(error, null, 3)}`);
-				}
+			} else if (client.supportsCapability('roots')) {
+				await mcpServer.server.listRoots();
 			}
 
 			//if (client.supportsCapability('sampling')) {

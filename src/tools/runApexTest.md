@@ -24,8 +24,9 @@ Allows you to run Apex test classes, specific Apex test methods, or full Apex te
   - If you do not follow this format, the response is considered incorrect.
 
 ---
-## Parameters
+## Usage
 
+### Parameters
 - **`classNames`** (optional): Array of case-sensitive Apex test class names. All test methods in these classes will be executed.
 - **`methodNames`** (optional): Array of test methods to run with the format "testClassName.testMethodName" (only the specified methods will be run).
 - **`suiteNames`** (optional): Array of case-sensitive Apex test suite names. All test classes in these suites will be executed.
@@ -33,7 +34,7 @@ Allows you to run Apex test classes, specific Apex test methods, or full Apex te
   - **`thenGetApexClassesCodeCoverage`**: Array of case-sensitive Apex class names to get code coverage for if the test run is successful.
 
 ---
-## Usage
+## Usage Examples
 
 ### Example 1: Run a test class
 ```json
@@ -100,3 +101,10 @@ The tool returns a structured response with:
   - `message`: Error message if the test failed
   - `stackTrace`: Stack trace if the test failed
 - **`codeCoverage`**: Code coverage information if requested (only present when tests pass and coverage is requested)
+
+---
+## Notes
+- The tool automatically handles test execution and polling for completion.
+- Test results are displayed in a structured table format.
+- Code coverage can be requested as an additional option after successful test runs.
+- The tool supports both individual test methods and full test classes/suites.

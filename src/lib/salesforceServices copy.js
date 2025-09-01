@@ -11,8 +11,8 @@ const exec = promisify(execCb);
 const logger = createModuleLogger(import.meta.url);
 
 /**
-* Cache management helper for Salesforce API calls
-*/
+ * Cache management helper for Salesforce API calls
+ */
 class ApiCacheManager {
 	constructor(cacheConfig) {
 		this.config = cacheConfig || {};
@@ -30,16 +30,16 @@ class ApiCacheManager {
 	}
 
 	/**
-	* Generate cache key for the request
-	*/
+	 * Generate cache key for the request
+	 */
 	generateCacheKey(orgKey, operation, apiType, endpoint, extra = null) {
 		const cacheKeyExtra = extra ? `|${JSON.stringify(extra)}` : '';
 		return `${orgKey}|${String(operation).toUpperCase()}|${String(apiType).toUpperCase()}|${endpoint}${cacheKeyExtra}`;
 	}
 
 	/**
-	* Prune cache if it grows too large
-	*/
+	 * Prune cache if it grows too large
+	 */
 	pruneCache() {
 		while (this.cache.size > this.maxEntries) {
 			const firstKey = this.cache.keys().next().value;
@@ -48,8 +48,8 @@ class ApiCacheManager {
 	}
 
 	/**
-	* Get cached response if available and valid
-	*/
+	 * Get cached response if available and valid
+	 */
 	getCachedResponse(cacheKey, isGet, bypassCache, cacheTtlMs) {
 		if (!this.enabled || !this.cacheGet || !isGet || bypassCache || cacheTtlMs <= 0) {
 			return null;
@@ -65,8 +65,8 @@ class ApiCacheManager {
 	}
 
 	/**
-	* Store response in cache
-	*/
+	 * Store response in cache
+	 */
 	storeInCache(cacheKey, data, isGet, bypassCache, cacheTtlMs) {
 		if (!this.enabled || !this.cacheGet || !isGet || bypassCache || cacheTtlMs <= 0) {
 			return;
@@ -77,8 +77,8 @@ class ApiCacheManager {
 	}
 
 	/**
-	* Invalidate cache on write operations
-	*/
+	 * Invalidate cache on write operations
+	 */
 	invalidateCacheOnWrite(operation) {
 		if (!this.enabled || !this.invalidateOnWrite) {
 			return;
@@ -91,8 +91,8 @@ class ApiCacheManager {
 	}
 
 	/**
-	* Get cache TTL for the request
-	*/
+	 * Get cache TTL for the request
+	 */
 	getCacheTtl(optionsTtlMs) {
 		return typeof optionsTtlMs === 'number' ? Math.max(0, optionsTtlMs) : this.defaultTtlMs;
 	}
@@ -116,12 +116,17 @@ function generateTimestamp() {
 
 //Helper function to convert username to camelCase
 function toCamelCase(username) {
-	return username	.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).map((word, index) => {
-		if (index === 0) {
-			return word; //First word stays lowercase
-		}
-		return word.charAt(0).toUpperCase() + word.slice(1);
-	}).join('');
+	return username
+		.toLowerCase()
+		.replace(/[^a-z0-9\s]/g, '') //Remove special characters
+		.split(/\s+/)
+		.map((word, index) => {
+			if (index === 0) {
+				return word; //First word stays lowercase
+			}
+			return word.charAt(0).toUpperCase() + word.slice(1);
+		})
+		.join('');
 }
 
 //Helper function to generate filename with username and timestamp
@@ -797,11 +802,11 @@ export async function executeAnonymousApex(apexCode) {
 		// Delete temporary files (commented out to keep the files)
 		/*
 		if (tmpFile) {
-		try {
-		await fs.unlink(tmpFile);
-		} catch (e) {
-		// It's fine if the file cannot be deleted
-		}
+			try {
+				await fs.unlink(tmpFile);
+			} catch (e) {
+				// It's fine if the file cannot be deleted
+			}
 		}
 		*/
 	}
@@ -953,9 +958,9 @@ public class ${name} {
 }
 
 /**
-* Refreshes the access token by running any CLI command to trigger token refresh
-* and then updates the state with the new token
-*/
+ * Refreshes the access token by running any CLI command to trigger token refresh
+ * and then updates the state with the new token
+ */
 async function refreshAccessToken() {
 	try {
 		logger.debug('Access token expired, refreshing...');
@@ -1028,16 +1033,16 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 	// Helper function to check if response contains INVALID_SESSION_ID error
 	const isInvalidSessionError = responseBody => typeof responseBody === 'string' && responseBody.includes('INVALID_SESSION_ID');
 
-	// Helper function that performs a curl request but returns a fetch-like response
-	const curlAsFetch = async(endpointUrl, requestOptions) => {
+	// Helper function to make curl requests for GET with body
+	const makeCurlRequest = async(endpointUrl, requestOptions) => {
 		// Build curl command
-		let curlCommand = `curl -s -w "HTTPSTATUS:%{http_code}" -X ${requestOptions.method} "${endpointUrl}"`;
+		let curlCommand = `curl -s -w "HTTPSTATUS:%{http_code}" -X GET "${endpointUrl}"`;
 
 		// Add headers
 		if (requestOptions.headers) {
 			Object.entries(requestOptions.headers).forEach(([key, value]) => {
+				// Use single quotes for Authorization header to avoid issues with special characters
 				if (key.toLowerCase() === 'authorization') {
-					// Use single quotes for Authorization header to avoid issues with special characters
 					curlCommand += ` -H '${key}: ${value}'`;
 				} else {
 					curlCommand += ` -H "${key}: ${value}"`;
@@ -1052,22 +1057,34 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 
 		logger.debug(`Executing curl command: ${curlCommand}`);
 
+		// Execute curl command
 		const {stdout} = await exec(curlCommand);
-		const httpStatusMatch = stdout.match(/HTTPSTATUS:(\d+)/);
-		const status = httpStatusMatch ? parseInt(httpStatusMatch[1]) : 200;
-		const bodyText = stdout.replace(/HTTPSTATUS:\d+/, '').trim();
 
-		return {
-			ok: status >= 200 && status < 300,
-			status,
-			statusText: status >= 200 && status < 300 ? 'OK' : 'Error',
-			async text() {
-				return bodyText;
-			},
-			async json() {
-				return JSON.parse(bodyText);
+		// Parse response
+		const httpStatusMatch = stdout.match(/HTTPSTATUS:(\d+)/);
+		const httpStatus = httpStatusMatch ? parseInt(httpStatusMatch[1]) : 200;
+		const responseBody = stdout.replace(/HTTPSTATUS:\d+/, '').trim();
+
+		// Check for errors
+		if (httpStatus < 200 || httpStatus >= 300) {
+			let errorDetails = `Status: ${httpStatus}\nResponse body: ${responseBody}`;
+
+			// Check if this is an INVALID_SESSION_ID error
+			if (isInvalidSessionError(responseBody)) {
+				throw new Error('INVALID_SESSION_ID');
 			}
-		};
+
+			throw new Error(`Salesforce API call failed: GET ${endpointUrl}\n${errorDetails}`);
+		}
+
+		// Try to parse as JSON, fallback to text
+		try {
+			const data = JSON.parse(responseBody);
+			return data;
+		} catch (parseError) {
+			logger.warn(`Could not parse JSON response from curl: ${parseError.message}`);
+			return responseBody;
+		}
 	};
 
 	// Function to make the actual API call
@@ -1096,9 +1113,10 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 			}
 		}
 
-		const useCurl = requestOptions.method === 'GET' && body;
-		if (useCurl) {
+		// Special case: GET requests with body need to use curl instead of fetch
+		if (requestOptions.method === 'GET' && body) {
 			logger.debug(`Using curl for GET request with body to ${endpoint}`);
+			return await makeCurlRequest(endpoint, requestOptions);
 		}
 
 		// Try cache for GET if not bypassed and globally enabled
@@ -1111,7 +1129,7 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 			return cachedResponse;
 		}
 
-		const response = useCurl ? await curlAsFetch(endpoint, requestOptions) : await fetch(endpoint, requestOptions);
+		const response = await fetch(endpoint, requestOptions);
 
 		let logMessage = `${operation} request to ${apiType} API service ${service} ended ${response.statusText} (${response.status})`;
 

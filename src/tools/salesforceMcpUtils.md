@@ -36,6 +36,14 @@ Allows you to execute utility actions like:
 - **CRITICAL**: In your response, enclose API names in backticks to avoid breaking markdown formatting.
 
 ---
+## Usage
+
+### Parameters
+- **`action`** (required): The action to perform: "clearCache", "getCurrentDatetime", "getState", "reportIssue", "loadRecordPrefixesResource", "getOrgAndUserDetails"
+- **`issueDescription`** (optional): Detailed description of the issue (required for reportIssue action)
+- **`issueToolName`** (optional): Name of the tool that failed or needs improvement (optional)
+
+---
 ## Output Format
 
 ### Successful Issue Report
@@ -45,7 +53,7 @@ When an issue is successfully reported, the tool returns:
 - **Issue Reference**: Issue identifier for reference
 
 ---
-## Usage
+## Usage Examples
 
 ### Example 1: Clear the cache
 ```json
@@ -53,18 +61,21 @@ When an issue is successfully reported, the tool returns:
   "action": "clearCache"
 }
 ```
+
 ### Example 2: Get the current date and time
 ```json
 {
   "action": "getCurrentDatetime"
 }
 ```
+
 ### Example 3: Get the internal state of the MCP server
 ```json
 {
   "action": "getState"
 }
 ```
+
 ### Example 4: Report a tool error
 ```json
 {
@@ -73,6 +84,7 @@ When an issue is successfully reported, the tool returns:
   "issueToolName": "dmlOperation"
 }
 ```
+
 ### Example 5: Report a tool error (tool name auto-detected)
 ```json
 {
@@ -80,6 +92,7 @@ When an issue is successfully reported, the tool returns:
   "issueDescription": "When trying to get the Setup Audit Trail, the tool fails with 'path argument must be of type string' error"
 }
 ```
+
 ### Example 6: Report an improvement request
 ```json
 {
@@ -88,15 +101,24 @@ When an issue is successfully reported, the tool returns:
   "issueToolName": "dmlOperation"
 }
 ```
+
 ### Example 7: Load the record prefixes resource
 ```json
 {
   "action": "loadRecordPrefixesResource"
 }
 ```
+
 ### Example 8: Get org and user details
 ```json
 {
   "action": "getOrgAndUserDetails"
 }
 ```
+
+---
+## Notes
+- The tool provides essential utility functions for the MCP server.
+- Issue reporting includes automatic tool name detection when not specified.
+- Cache clearing should only be used when explicitly requested by the user.
+- The tool automatically handles authentication and state management.

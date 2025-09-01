@@ -12,7 +12,8 @@ export const TEST_CONFIG = {
 	// Salesforce configuration
 	salesforce: {
 		testOrgAlias: 'DEVSERVICE',
-		runApexTestMethodName: 'CSBD_Utils_Test.decToHex'
+		runApexTestMethodName: 'CSBD_Utils_Test.decToHex',
+		testApexRestResourceName: 'CSBD_WS_TestEndpoint'
 	},
 
 	// Test execution configuration

@@ -76,8 +76,17 @@ export async function salesforceMcpUtilsToolHandler({action, issueDescription, i
 			};
 
 		} else if (action === 'getState') {
+			// Create a copy of state without the async tempPath property
+			const stateCopy = {
+				org: state.org,
+				currentLogLevel: state.currentLogLevel,
+				userValidated: state.userValidated,
+				workspacePath: state.workspacePath,
+				startedDate: state.startedDate
+			};
+
 			const output = {
-				state: {...state},
+				state: stateCopy,
 				client,
 				resources
 			};
