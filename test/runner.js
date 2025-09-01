@@ -515,26 +515,26 @@ class TestRunner {
 
 // Show test plan without executing tests
 async function showTestPlan(testsToRun, quiet) {
-        try {
-                const suite = new SalesforceMcpTestSuite(null, quiet);
-                const {tests} = await suite.runTests(testsToRun);
+	try {
+		const suite = new SalesforceMcpTestSuite(null, quiet);
+		const {tests} = await suite.runTests(testsToRun);
 
-                const totalTests = tests.length;
-                const requiredTests = tests.filter(t => t.required).length;
-                const optionalTests = totalTests - requiredTests;
+		const totalTests = tests.length;
+		const requiredTests = tests.filter(t => t.required).length;
+		const optionalTests = totalTests - requiredTests;
 
-                if (!quiet) {
-                        console.log(`📊 Total tests: ${TEST_CONFIG.colors.bright}${totalTests}${TEST_CONFIG.colors.reset}`);
-                        console.log(`🔒 Required tests: ${TEST_CONFIG.colors.green}${requiredTests}${TEST_CONFIG.colors.reset}`);
-                        console.log(`⚙️  Optional tests: ${TEST_CONFIG.colors.cyan}${optionalTests}${TEST_CONFIG.colors.reset}`);
-                        console.log('');
-                } else {
-                        console.log(`📋 Test plan: ${totalTests} tests (${requiredTests} required, ${optionalTests} optional)`);
-                }
-        } catch (error) {
-                console.error(`${TEST_CONFIG.colors.red}Error showing test plan:${TEST_CONFIG.colors.reset}`, error.message);
-                process.exit(1);
-        }
+		if (!quiet) {
+			console.log(`📊 Total tests: ${TEST_CONFIG.colors.bright}${totalTests}${TEST_CONFIG.colors.reset}`);
+			console.log(`🔒 Required tests: ${TEST_CONFIG.colors.green}${requiredTests}${TEST_CONFIG.colors.reset}`);
+			console.log(`⚙️  Optional tests: ${TEST_CONFIG.colors.cyan}${optionalTests}${TEST_CONFIG.colors.reset}`);
+			console.log('');
+		} else {
+			console.log(`📋 Test plan: ${totalTests} tests (${requiredTests} required, ${optionalTests} optional)`);
+		}
+	} catch (error) {
+		console.error(`${TEST_CONFIG.colors.red}Error showing test plan:${TEST_CONFIG.colors.reset}`, error.message);
+		process.exit(1);
+	}
 }
 
 // Main execution function
