@@ -1062,7 +1062,7 @@ export class SalesforceMcpTestSuite {
 		};
 
 		// Display phase tree recursively
-		const displayPhaseRecursive = (phase, depth = 0, isLast = false, parentIsLast = false) => {
+		const displayPhaseRecursive = (phase, depth = 0, isLast = false) => {
 			// For depth 0, start with 4 spaces to align with the vertical line from Test Plan
 			const baseIndent = depth === 0 ? '    ' : '    '.repeat(depth + 1);
 			const phasePrefix = isLast ? `${baseIndent}└─` : `${baseIndent}├─`;
@@ -1102,7 +1102,7 @@ export class SalesforceMcpTestSuite {
 
 				phase.children.forEach((childPhase, childIndex) => {
 					const isLastChild = childIndex === phase.children.length - 1;
-					displayPhaseRecursive(childPhase, depth + 1, isLastChild, isLast);
+					displayPhaseRecursive(childPhase, depth + 1, isLastChild);
 				});
 			}
 		};
@@ -1111,7 +1111,7 @@ export class SalesforceMcpTestSuite {
 		const phaseHierarchy = buildPhaseHierarchy(executionPhases);
 		phaseHierarchy.forEach((phase, index) => {
 			const isLastPhase = index === phaseHierarchy.length - 1;
-			displayPhaseRecursive(phase, 0, isLastPhase, false);
+			displayPhaseRecursive(phase, 0, isLastPhase);
 
 			// Add blank line with vertical line between root phases (except for the last one)
 			if (!isLastPhase) {
