@@ -23,7 +23,7 @@ import {getSetupAuditTrailToolDefinition} from './tools/getSetupAuditTrail.js';
 import {invokeApexRestResourceToolDefinition} from './tools/invokeApexRestResource.js';
 import {runApexTestToolDefinition} from './tools/runApexTest.js';
 import {salesforceMcpUtilsToolDefinition, salesforceMcpUtilsToolHandler} from './tools/salesforceMcpUtils.js';
-import {validateUserPermissions} from './utils.js';
+import {validateUserPermissions, getAgentInstructions} from './utils.js';
 
 // Define state object here instead of importing it
 export const state = {
@@ -41,6 +41,14 @@ const logger = createModuleLogger(import.meta.url, 'app', state.currentLogLevel)
 export let resources = {};
 // Flag to track if workspace path has been set
 let workspacePathSet = false;
+
+// Load agent instructions before creating the server
+let serverInstructions = '';
+try {
+        serverInstructions = await getAgentInstructions('agentInstruccions');
+} catch (error) {
+        logger.warn(error, 'Failed to load agent instructions, using empty instructions');
+}
 
 async function setWorkspacePath(workspacePath) {
 
@@ -106,9 +114,9 @@ async function updateOrgAndUserDetails() {
 //Create the MCP server instance
 const {protocolVersion, serverInfo, capabilities} = config.serverConstants;
 const mcpServer = new McpServer(serverInfo, {
-	capabilities,
-	instructions: 'a', // Will be loaded lazily in setupServer
-	debouncedNotificationMethods: ['notifications/tools/list_changed', 'notifications/resources/list_changed', 'notifications/prompts/list_changed']
+        capabilities,
+        instructions: serverInstructions,
+        debouncedNotificationMethods: ['notifications/tools/list_changed', 'notifications/resources/list_changed', 'notifications/prompts/list_changed']
 });
 
 // Expose server instance to break import cycles in utility logging
@@ -151,17 +159,6 @@ const orgReadyPromise = new Promise((resolve) => (resolveOrgReady = resolve)); /
 
 //Server initialization function
 export async function setupServer() {
-
-	// Load instructions lazily to avoid circular dependencies
-	try {
-		const {getAgentInstructions} = await import('./utils.js');
-		const instructions = await getAgentInstructions('agentInstruccions');
-		// Update the server's instructions
-		mcpServer.server.instructions = instructions;
-	} catch (error) {
-		logger.warn(error, 'Failed to load agent instructions, using empty instructions');
-	}
-
 	mcpServer.server.setNotificationHandler(RootsListChangedNotificationSchema, async (listRootsResult) => {
 		try {
 			if (client.supportsCapability('roots')) {
