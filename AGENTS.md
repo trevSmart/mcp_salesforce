@@ -1,5 +1,11 @@
 # El login a la org de Salesforce via Salesforce CLI el pots fer obtenint el access_token així:
 
+2. Instala Salesforce CLI amb npm:
+
+```
+npm install -g @salesforce/cli
+```
+
 1. Fes aquesta request POST:
 
 ```
