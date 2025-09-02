@@ -28,7 +28,7 @@ Thumbs.db
 
 dist/
 tmp/
-mcp_salesforce.code-workspace
+ibm-salesforce-mcp.code-workspace
 *.old*
 .cursor/
 .nvmrc

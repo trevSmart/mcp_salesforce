@@ -22,7 +22,6 @@ pids/
 .cursor/
 *.swp
 *.swo
-mcp_salesforce.code-workspace
 
 # OS
 .DS_Store
