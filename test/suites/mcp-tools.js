@@ -345,14 +345,6 @@ export class SalesforceMcpTestSuite {
 				canRunInParallel: false
 			},
 			{
-				name: 'salesforceMcpUtils clearCache (final)',
-				run: async () => {
-					return await this.mcpClient.callTool('salesforceMcpUtils', {action: 'clearCache'});
-				},
-				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
-				canRunInParallel: true
-			},
-			{
 				name: 'describeObject Account',
 				run: async () => {
 					const result = await this.mcpClient.callTool('describeObject', {
@@ -809,7 +801,6 @@ export class SalesforceMcpTestSuite {
 				},
 				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
 				canRunInParallel: true,
-				priority: 'high' // Marca com a alta prioritat per executar-lo abans
 			},
 			{
 				name: 'getSetupAuditTrail',

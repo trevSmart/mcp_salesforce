@@ -40,7 +40,7 @@ published_version=$(npm view "$package_name" version 2>/dev/null || true)
 echo "\033[38;2;255;140;0mScript de publicació a NPM de $package_name\033[0m"
 echo "\033[38;2;255;140;0mTrevor Smart, 2025\033[0m"
 if [ "$SKIP_TESTS" = "true" ]; then
-  echo "\033[38;2;255;165;0m⚠️  Mode --skip-tests activat: es saltaran tots els tests\033[0m"
+  echo "\033[38;2;255;165;0m⚠️ Mode --skip-tests activat: es saltaran tots els tests\033[0m"
   echo "\033[38;2;255;165;0m   Això inclou: tests bàsics, tests contra build ofuscada i validació npx\033[0m"
   echo "\033[38;2;255;165;0m   Ús només en casos d'emergència o desenvolupament avançat\033[0m"
 fi
@@ -369,7 +369,7 @@ cd ..
 
 # Re-executa els tests, ara utilitzant el servidor MCP de la build ofuscada a dist/ (si no s'han saltat)
 if [ "$SKIP_TESTS" = "false" ]; then
-  echo "\033[95mExecutant tests contra el servidor ofuscat (dist/)...\033[0m"
+  echo "\n\033[95mExecutant tests contra el servidor ofuscat (dist/)...\033[0m"
   TEST_DIST_OUTPUT=$(mktemp)
   # Indica al runner que arrenqui el servidor des de dist/index.js
   # Usa un camí absolut per evitar resolucions relatives incorrectes
