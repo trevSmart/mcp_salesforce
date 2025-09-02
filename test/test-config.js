@@ -13,7 +13,11 @@ export const TEST_CONFIG = {
 	salesforce: {
 		testOrgAlias: 'DEVSERVICE',
 		runApexTestMethodName: 'CSBD_Utils_Test.decToHex',
-		testApexRestResourceName: 'GetGestorRoutingLlamada'
+		testApexRestResourceData: {
+			operation: 'GET',
+			apexClassOrRestResourceName: 'GetGestorRoutingLlamada',
+			bodyObject: {ani: "666 156 234"}
+		}
 	},
 
 	// Test execution configuration

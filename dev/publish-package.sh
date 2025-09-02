@@ -364,6 +364,8 @@ echo
 jq '{
   name, version, description, main, type, browser, bin, keywords, author, dependencies, engines
 } + { files: ["index.js", "src", "bin", "README.md", "LICENSE"] }' package.json > dist/package.json
+cd dist && npm install
+cd ..
 
 # Re-executa els tests, ara utilitzant el servidor MCP de la build ofuscada a dist/ (si no s'han saltat)
 if [ "$SKIP_TESTS" = "false" ]; then

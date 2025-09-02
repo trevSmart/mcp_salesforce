@@ -265,7 +265,6 @@ export class SalesforceMcpTestSuite {
 				run: async () => {
 					return await this.mcpClient.callTool('apexDebugLogs', {action: 'on'});
 				},
-				dependencies: ['apexDebugLogs status'],
 				canRunInParallel: false
 			},
 			{
@@ -890,9 +889,11 @@ export class SalesforceMcpTestSuite {
 			{
 				name: 'invokeApexRestResource',
 				run: async () => {
+					const { apexClassOrRestResourceName, operation, bodyObject } = TEST_CONFIG.salesforce.testApexRestResourceData;
 					const result = await this.mcpClient.callTool('invokeApexRestResource', {
-						apexClassOrRestResourceName: TEST_CONFIG.salesforce.testApexRestResourceName,
-						operation: 'GET'
+						apexClassOrRestResourceName,
+						operation,
+						bodyObject
 					});
 					const sc = result?.structuredContent;
 					if (!(sc?.endpoint && sc.request && sc.response)) {
