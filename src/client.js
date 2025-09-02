@@ -3,6 +3,7 @@ import semver from 'semver';
 class Client {
 	clientInfo;
 
+
 	capabilities;
 
 	protocolVersion;
