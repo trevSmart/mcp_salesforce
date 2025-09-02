@@ -1083,7 +1083,7 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 			const requestOptions = {
 				method: operation.toUpperCase(),
 				headers: {
-					Authorization: `Bearer ${state.org.accessToken}`,
+					authorization: `Bearer ${state.org.accessToken}`,
 					'Content-Type': 'application/json'
 				}
 			};

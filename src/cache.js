@@ -14,12 +14,12 @@ const PROJECT_ROOT = path.resolve(__dirname, '..');
 const CACHE_ENABLED = false;
 
 class GlobalCache {
-	EXPIRATION_TIME = {
-		TOOLING_API_GET: 300_000, //5 minutes
-		REFRESH_SOBJECT_DEFINITIONS: 172_800_000, //2 days
-		DESCRIBE_SOBJECT_RESULT: 300_000, //5 minutes
-		TOOLING_API_REQUEST: 300_000, //5 minutes
-		UPDATE_SF_CLI: 604_800_000 //1 week
+	expirationTime = {
+		toolingApiGet: 300_000, //5 minutes
+		refreshSobjectDefinitions: 172_800_000, //2 days
+		describeSobjectResult: 300_000, //5 minutes
+		toolingApiRequest: 300_000, //5 minutes
+		updateSfCli: 604_800_000 //1 week
 	};
 
 	constructor() {

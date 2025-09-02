@@ -1,24 +1,18 @@
 import {fileURLToPath} from 'node:url';
 import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-	InitializeRequestSchema,
-	ListResourcesRequestSchema,
-	ListResourceTemplatesRequestSchema,
-	ReadResourceRequestSchema,
-	RootsListChangedNotificationSchema
-} from '@modelcontextprotocol/sdk/types.js';
+import {InitializeRequestSchema, ListResourcesRequestSchema, ListResourceTemplatesRequestSchema, ReadResourceRequestSchema, RootsListChangedNotificationSchema} from '@modelcontextprotocol/sdk/types.js';
 
 import client from './client.js';
 import config from './config.js';
 import {createModuleLogger} from './lib/logger.js';
 import targetOrgWatcher from './lib/OrgWatcher.js';
-import { getOrgAndUserDetails } from './lib/salesforceServices.js';
+import {getOrgAndUserDetails} from './lib/salesforceServices.js';
 
 //Prompts
 //import { codeModificationPromptDefinition, codeModificationPrompt } from './prompts/codeModificationPrompt.js';
-import {apexRunScriptPromptDefinition, apexRunScriptPrompt} from './prompts/apex-run-script.js';
-import { toolsBasicRunPromptDefinition, toolsBasicRunPromptHandler } from './prompts/call-all-tools.js';
+import {apexRunScriptPrompt, apexRunScriptPromptDefinition} from './prompts/apex-run-script.js';
+import {toolsBasicRunPromptDefinition, toolsBasicRunPromptHandler} from './prompts/call-all-tools.js';
 
 //Tools
 import {apexDebugLogsToolDefinition} from './tools/apexDebugLogs.js';
@@ -35,7 +29,7 @@ import {getSetupAuditTrailToolDefinition} from './tools/getSetupAuditTrail.js';
 import {invokeApexRestResourceToolDefinition} from './tools/invokeApexRestResource.js';
 import {runApexTestToolDefinition} from './tools/runApexTest.js';
 import {salesforceMcpUtilsToolDefinition, salesforceMcpUtilsToolHandler} from './tools/salesforceMcpUtils.js';
-import {validateUserPermissions, getAgentInstructions} from './utils.js';
+import {getAgentInstructions, validateUserPermissions} from './utils.js';
 
 // Define state object here instead of importing it
 export const state = {
@@ -59,13 +53,12 @@ let workspacePathSet = false;
 // Load agent instructions before creating the server
 let serverInstructions = '';
 try {
-        serverInstructions = await getAgentInstructions('agentInstruccions');
+	serverInstructions = await getAgentInstructions('agentInstruccions');
 } catch (error) {
-        logger.warn(error, 'Failed to load agent instructions, using empty instructions');
+	logger.warn(error, 'Failed to load agent instructions, using empty instructions');
 }
 
 async function setWorkspacePath(workspacePath) {
-
 	// If workspace path is already set by env var, don't override it
 	if (workspacePathSet) {
 		logger.debug('Workspace path already set, ignoring new path');
@@ -128,9 +121,9 @@ async function updateOrgAndUserDetails() {
 //Create the MCP server instance
 const {protocolVersion, serverInfo, capabilities} = config.serverConstants;
 const mcpServer = new McpServer(serverInfo, {
-        capabilities,
-        instructions: serverInstructions,
-        debouncedNotificationMethods: ['notifications/tools/list_changed', 'notifications/resources/list_changed', 'notifications/prompts/list_changed']
+	capabilities,
+	instructions: serverInstructions,
+	debouncedNotificationMethods: ['notifications/tools/list_changed', 'notifications/resources/list_changed', 'notifications/prompts/list_changed']
 });
 
 // Expose server instance to break import cycles in utility logging

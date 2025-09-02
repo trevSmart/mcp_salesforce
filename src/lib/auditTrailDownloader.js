@@ -1,13 +1,13 @@
-import {exec} from 'node:child_process';
+// import {exec} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import {promisify} from 'node:util';
-import {chromium, devices} from 'playwright';
+// import {promisify} from 'node:util';
+import {chromium} from 'playwright';
 import {state} from '../mcp-server.js';
 import {createModuleLogger} from './logger.js';
 
 const logger = createModuleLogger(import.meta.url);
-const execAsync = promisify(exec);
+// const execAsync = promisify(exec);
 
 // Check if Playwright browsers are installed
 async function checkPlaywrightBrowsers() {
@@ -28,7 +28,7 @@ async function checkPlaywrightBrowsers() {
 async function installPlaywrightBrowsers() {
 	try {
 		logger.info('Installing Playwright browsers...');
-		const {stdout, stderr} = await execAsync('npx playwright install chromium');
+		// const {stdout, stderr} = await execAsync('npx playwright install chromium');
 		logger.info('Playwright browsers installed successfully');
 		return true;
 	} catch (error) {

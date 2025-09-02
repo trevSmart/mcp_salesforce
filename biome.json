@@ -28,6 +28,7 @@
 			"!*.swo",
 			"!*.sublime-*",
 			"!.DS_Store",
+			"!*copy*",
 			"!Thumbs.db",
 			"!.sfdx/",
 			"!.sf/",
@@ -234,7 +235,20 @@
 				"useExponentiationOperator": "error",
 				"useForOf": "error",
 				"useLiteralEnumMembers": "error",
-				"useNamingConvention": "warn",
+				"useNamingConvention": {
+					"level": "warn",
+					"options": {
+						"strictCase": false,
+						"conventions": [
+							{
+								"selector": {
+									"kind": "objectLiteralMember"
+								},
+								"formats": ["camelCase"]
+							}
+						]
+					}
+				},
 				"useNodeAssertStrict": "error",
 				"useNumberNamespace": "error",
 				"useNumericSeparators": "error",
