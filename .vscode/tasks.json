@@ -43,7 +43,6 @@
 			},
 			"problemMatcher": [],
 			"label": "Run all tests",
-			"detail": "node scripts/test_tools.js",
 			"presentation": {
 				"showReuseMessage": false,
 				"close": false,

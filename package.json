@@ -15,7 +15,7 @@
     "publish-package-skip-tests": "sh dev/publish-package.sh --skip-tests",
     "test salesforceMcpUtils getState": "node test/runner.js --tests=\"salesforceMcpUtils getState\"",
     "test salesforceMcpUtils": "node test/runner.js --tests=\"salesforceMcpUtils\"",
-    "test": "node test/runner.js",
+    "test": "node test/runner.js --compact --logLevel=\"info\"",
     "lint:fix": "biome lint --write --reporter=summary .",
     "startMcpInspector": "sh dev/startMcpInspector.sh"
   },
@@ -25,7 +25,7 @@
   ],
   "author": "Trevor Smart",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.17.4",
+    "@modelcontextprotocol/sdk": "^1.17.5",
     "env-paths": "^3.0.0",
     "fs-extra": "^11.3.1",
     "node-fetch": "^3.3.2",

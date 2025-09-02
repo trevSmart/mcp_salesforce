@@ -1,14 +1,26 @@
 import {fileURLToPath} from 'node:url';
 import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
-import {InitializeRequestSchema, ListResourcesRequestSchema, ListResourceTemplatesRequestSchema, ReadResourceRequestSchema, RootsListChangedNotificationSchema, SetLevelRequestSchema} from '@modelcontextprotocol/sdk/types.js';
+import {
+	InitializeRequestSchema,
+	ListResourcesRequestSchema,
+	ListResourceTemplatesRequestSchema,
+	ReadResourceRequestSchema,
+	RootsListChangedNotificationSchema
+} from '@modelcontextprotocol/sdk/types.js';
+
 import client from './client.js';
 import config from './config.js';
 import {createModuleLogger} from './lib/logger.js';
 import targetOrgWatcher from './lib/OrgWatcher.js';
-import {getOrgAndUserDetails} from './lib/salesforceServices.js';
-// import { codeModificationPromptDefinition, codeModificationPrompt } from './prompts/codeModificationPrompt.js';
-import {toolsBasicRunPromptDefinition, toolsBasicRunPromptHandler} from './prompts/call-all-tools.js';
+import { getOrgAndUserDetails } from './lib/salesforceServices.js';
+
+//Prompts
+//import { codeModificationPromptDefinition, codeModificationPrompt } from './prompts/codeModificationPrompt.js';
+import {apexRunScriptPromptDefinition, apexRunScriptPrompt} from './prompts/apex-run-script.js';
+import { toolsBasicRunPromptDefinition, toolsBasicRunPromptHandler } from './prompts/call-all-tools.js';
+
+//Tools
 import {apexDebugLogsToolDefinition} from './tools/apexDebugLogs.js';
 import {createMetadataToolDefinition} from './tools/createMetadata.js';
 import {deployMetadataToolDefinition, deployMetadataToolHandler} from './tools/deployMetadata.js';
@@ -28,7 +40,7 @@ import {validateUserPermissions, getAgentInstructions} from './utils.js';
 // Define state object here instead of importing it
 export const state = {
 	org: {},
-	currentLogLevel: process.env.LOG_LEVEL || 'info',
+	// currentLogLevel is no longer needed as the SDK handles log levels automatically
 	userValidated: true,
 	startedDate: new Date()
 };
@@ -37,7 +49,9 @@ export const state = {
 // import { triggerExecutionOrderToolDefinition } from './tools/triggerExecutionOrder.js';
 //import {generateSoqlQueryToolDefinition} from './tools/generateSoqlQuery.js';
 
-const logger = createModuleLogger(import.meta.url, 'app', state.currentLogLevel);
+//const logger = createModuleLogger(import.meta.url, 'app', state.currentLogLevel); //TODO: Remove this
+const logger = createModuleLogger(import.meta.url, 'app'); //TODO: Remove this
+
 export let resources = {};
 // Flag to track if workspace path has been set
 let workspacePathSet = false;
@@ -179,17 +193,12 @@ export async function setupServer() {
 		}
 	});
 
-	mcpServer.server.setRequestHandler(ListResourcesRequestSchema, async () => ({
-		resources: Object.values(resources)
-	}));
-	mcpServer.server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({
-		resourceTemplates: []
-	}));
-	mcpServer.server.setRequestHandler(ReadResourceRequestSchema, async ({params: {uri}}) => ({
-		contents: [{uri, ...resources[uri]}]
-	}));
+	mcpServer.server.setRequestHandler(ListResourcesRequestSchema, async () => ({resources: Object.values(resources)}));
+	mcpServer.server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({resourceTemplates: []}));
+	mcpServer.server.setRequestHandler(ReadResourceRequestSchema, async ({params: {uri}}) => ({contents: [{uri, ...resources[uri]}]}));
 
 	// mcpServer.registerPrompt('code-modification', codeModificationPromptDefinition, codeModificationPrompt);
+	mcpServer.registerPrompt('apex-run-script', apexRunScriptPromptDefinition, apexRunScriptPrompt);
 	mcpServer.registerPrompt('tools-basic-run', toolsBasicRunPromptDefinition, toolsBasicRunPromptHandler);
 
 	// Handlers that we want to load statically (frequently used/core)
@@ -251,11 +260,6 @@ export async function setupServer() {
 	// mcpServer.registerTool('triggerExecutionOrder', triggerExecutionOrderDefinition, callToolHandler('triggerExecutionOrder'));
 	// mcpServer.registerTool('generateSoqlQuery', generateSoqlQueryDefinition, callToolHandler('generateSoqlQuery'));
 
-	mcpServer.server.setRequestHandler(SetLevelRequestSchema, async ({params}) => {
-		state.currentLogLevel = params.level;
-		return {};
-	});
-
 	mcpServer.server.setRequestHandler(InitializeRequestSchema, async ({params}) => {
 		try {
 			const {clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion} = params;
@@ -268,7 +272,9 @@ export async function setupServer() {
 			logger.info(`IBM Salesforce MCP server (v${config.serverConstants.serverInfo.version})`);
 			const clientCapabilitiesString = `Capabilities: ${JSON.stringify(client.capabilities, null, 3)}`;
 			logger.info(`Connecting with client "${client.clientInfo.name}" (v${client.clientInfo.version}). ${clientCapabilitiesString}`);
-			logger.info(`Current log level: ${state.currentLogLevel}`);
+
+			logger.info(`Current log level: ${state.currentLogLevel}`); //TODO: Remove this
+			logger.info('Log level management is now handled automatically by the SDK'); //TODO: Remove this
 
 			if (process.env.WORKSPACE_FOLDER_PATHS) {
 				setWorkspacePath(process.env.WORKSPACE_FOLDER_PATHS);

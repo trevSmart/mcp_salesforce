@@ -14,7 +14,7 @@ export const salesforceMcpUtilsToolDefinition = {
 	description: await textFileContent('tools/salesforceMcpUtils.md'),
 	inputSchema: {
 		action: z.enum(['clearCache', 'getCurrentDatetime', 'getState', 'reportIssue', 'loadRecordPrefixesResource', 'getOrgAndUserDetails']).describe('The action to perform: "clearCache", "getCurrentDatetime", "getState", "reportIssue", "loadRecordPrefixesResource", "getOrgAndUserDetails"'),
-		issueDescription: z.string().optional().describe('Detailed description of the issue (required for reportIssue action)'),
+		issueDescription: z.string().optional().describe('Detailed description of the issue and context from recent conversation messages (required for reportIssue action)'),
 		issueToolName: z.string().optional().describe('Name of the tool that failed or needs improvement (optional)')
 	},
 	annotations: {
@@ -211,7 +211,9 @@ Analyze this issue description and determine which one of the MCP server's tools
 If you can clearly identify the tool, return only the tool name.
 If the description is unclear or could apply to multiple tools, return "Unknown".
 
-Return only the tool name or "Unknown" without any explanation.`;
+Return only the tool name or "Unknown" without any explanation.
+
+IMPORTANT: Generate your response in English.`;
 
 						const toolDetectionResponse = await mcpServer.server.createMessage({
 							messages: [{role: 'user', content: {type: 'text', text: toolDetectionPrompt}}],
@@ -227,7 +229,23 @@ Return only the tool name or "Unknown" without any explanation.`;
 					}
 
 					// Create sampling prompt for title generation
-					const samplingPrompt = `## Issue Description ##\n${issueDescription}\n\n## Tool Information ##\nTool: ${detectedToolName}\nSeverity: ${issueSeverity || 'medium'}\n\n## Task ##\nGenerate a concise, descriptive title for this issue report. The title should be:\n- Clear and specific\n- Under 60 characters\n- Professional and technical\n- Focus on the main problem\n\nReturn only the title without any explanation or formatting.`;
+					const samplingPrompt = `## Issue Description ##
+${issueDescription}
+
+## Tool Information ##
+Tool: ${detectedToolName}
+Severity: ${issueSeverity || 'medium'}
+
+## Task ##
+Generate a concise, descriptive title for this issue report. The title should be:
+- Clear and specific
+- Under 60 characters
+- Professional and technical
+- Focus on the main problem
+
+Return only the title without any explanation or formatting.
+
+IMPORTANT: Generate your response in English.`;
 
 					// Generate title using sampling capability
 					const samplingResponse = await mcpServer.server.createMessage({
