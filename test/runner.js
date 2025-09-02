@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
-import {SalesforceOrgManager, TestHelpers} from './helpers.js';
-// @ts-ignore
+import {dirname, resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
+// @ts-expect-error
 import {TestMcpClient} from 'ibm-test-mcp-client';
-import {fileURLToPath} from 'url';
-import {dirname, resolve} from 'path';
+import {salesforceOrgManager, testHelpers} from './helpers.js';
 import {SalesforceMcpTestSuite} from './suites/mcp-tools.js';
 import {TEST_CONFIG} from './test-config.js';
 
@@ -40,8 +40,8 @@ class TestRunner {
 			console.error(`${TEST_CONFIG.colors.red}✗ Test failed:${TEST_CONFIG.colors.reset}`, err.message);
 		}
 
-		const duration = TestHelpers.formatDuration(startTime);
-		const status = TestHelpers.getTestStatus(success);
+		const duration = testHelpers.formatDuration(startTime);
+		const status = testHelpers.getTestStatus(success);
 
 		// Return test result info instead of immediately showing it
 		const testResult = {
@@ -120,7 +120,7 @@ class TestRunner {
 		// Build dependency graph
 		for (const test of tests) {
 			depCount.set(test.name, (test.dependencies || []).length);
-			for (const dep of (test.dependencies || [])) {
+			for (const dep of test.dependencies || []) {
 				if (!dependents.has(dep)) {
 					dependents.set(dep, []);
 				}
@@ -128,10 +128,10 @@ class TestRunner {
 			}
 		}
 
-		const ready = () => tests.filter(t => !started.has(t.name) && (depCount.get(t.name) || 0) === 0);
-		const delay = ms => new Promise(r => setTimeout(r, ms));
+		const ready = () => tests.filter((t) => !started.has(t.name) && (depCount.get(t.name) || 0) === 0);
+		const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
-		const runAndTrack = async(test) => {
+		const runAndTrack = async (test) => {
 			running.add(test.name);
 			try {
 				await this.runSingleTest(test, mcpToolsSuite);
@@ -150,17 +150,17 @@ class TestRunner {
 			let candidates = ready();
 
 			if (candidates.length === 0 && running.size === 0) {
-				const remaining = tests.filter(t => !completed.has(t.name));
-				throw new Error(`No runnable tests. Possible circular dependency among: ${remaining.map(t => t.name).join(', ')}`);
+				const remaining = tests.filter((t) => !completed.has(t.name));
+				throw new Error(`No runnable tests. Possible circular dependency among: ${remaining.map((t) => t.name).join(', ')}`);
 			}
 
 			// Prioritize high-priority tests
-			const highPriority = candidates.filter(t => t.priority === 'high');
-			const regular = candidates.filter(t => t.priority !== 'high');
+			const highPriority = candidates.filter((t) => t.priority === 'high');
+			const regular = candidates.filter((t) => t.priority !== 'high');
 			candidates = [...highPriority, ...regular];
 
 			// If any exclusive test is ready, run it alone (prefer high-priority exclusives)
-			const exclusive = candidates.find(t => !t.canRunInParallel);
+			const exclusive = candidates.find((t) => !t.canRunInParallel);
 			if (exclusive) {
 				// Wait for current running tests to finish
 				while (running.size > 0) {
@@ -209,7 +209,7 @@ class TestRunner {
 			}
 		}
 
-		const testResult = await this.runTest(`${test.name}`, async() => {
+		const testResult = await this.runTest(`${test.name}`, async () => {
 			try {
 				result = await test.run(suite.context);
 				return result;
@@ -240,7 +240,7 @@ class TestRunner {
 		// Apply delay if specified (after the test has been fully processed by TestRunner)
 		if ((test.thenWait || 0) > 0) {
 			if (this.quiet) {
-				await new Promise(resolveTimeout => setTimeout(resolveTimeout, test.thenWait));
+				await new Promise((resolveTimeout) => setTimeout(resolveTimeout, test.thenWait));
 			} else {
 				console.log(`\n${TEST_CONFIG.colors.cyan}Wait for ${Math.ceil(test.thenWait / 1000)}s after test "${test.name}"...${TEST_CONFIG.colors.reset}`);
 				const delayStart = Date.now();
@@ -257,11 +257,11 @@ class TestRunner {
 				}, updateInterval);
 
 				// Wait for the delay to complete
-				await new Promise(resolveTimeout => setTimeout(resolveTimeout, test.thenWait));
+				await new Promise((resolveTimeout) => setTimeout(resolveTimeout, test.thenWait));
 
 				// Clear interval and show completion
 				clearInterval(countdownInterval);
-				process.stdout.write('\r' + ' '.repeat(50) + '\r'); // Clear the countdown line
+				process.stdout.write(`\r${' '.repeat(50)}\r`); // Clear the countdown line
 
 				console.log('    Finished waiting.');
 			}
@@ -277,7 +277,7 @@ class TestRunner {
 		const runningTests = new Set();
 
 		// Helper function to run a single test
-		const runTestWithTracking = async(test) => {
+		const runTestWithTracking = async (test) => {
 			try {
 				const result = await this.runSingleTest(test, mcpToolsSuite);
 				testResults.set(test.name, result);
@@ -292,7 +292,7 @@ class TestRunner {
 		for (const test of tests) {
 			// Wait if we've reached max concurrency
 			while (runningTests.size >= maxConcurrency) {
-				await new Promise(resolveTimeout => setTimeout(resolveTimeout, 100)); // Small delay
+				await new Promise((resolveTimeout) => setTimeout(resolveTimeout, 100)); // Small delay
 			}
 
 			// Start the test
@@ -302,11 +302,11 @@ class TestRunner {
 
 		// Wait for all remaining tests to complete
 		while (runningTests.size > 0) {
-			await new Promise(resolveTimeout => setTimeout(resolveTimeout, 100));
+			await new Promise((resolveTimeout) => setTimeout(resolveTimeout, 100));
 		}
 
 		// Return results in the same order as input
-		return tests.map(test => testResults.get(test.name));
+		return tests.map((test) => testResults.get(test.name));
 	}
 
 	// Run all tests
@@ -321,13 +321,12 @@ class TestRunner {
 			if (!this.quiet) {
 				console.log(`\n${TEST_CONFIG.colors.cyan}Managing Salesforce org...${TEST_CONFIG.colors.reset}`);
 			}
-			this.originalOrg = await SalesforceOrgManager.ensureTestOrg(this.quiet);
+			this.originalOrg = await salesforceOrgManager.ensureTestOrg(this.quiet);
 
 			// Ensure test runs never create real GitHub issues via webhook
 			if (typeof process.env.MCP_REPORT_ISSUE_DRY_RUN === 'undefined') {
 				process.env.MCP_REPORT_ISSUE_DRY_RUN = 'true';
 			}
-
 
 			// Resolve server target to use with TestMcpClient
 			const __filename = fileURLToPath(import.meta.url);
@@ -375,7 +374,7 @@ class TestRunner {
 				}
 				const isPy = raw.endsWith('.py');
 				const isJs = raw.endsWith('.js');
-				if (!isPy && !isJs) {
+				if (!(isPy || isJs)) {
 					throw new Error('MCP_TEST_SERVER_SPEC must be npx:... or a .js/.py path');
 				}
 				return {
@@ -439,8 +438,7 @@ class TestRunner {
 			await this.runSuiteTests(tests);
 
 			// Wait for any pending operations
-			await new Promise(resolveTimeout => setTimeout(resolveTimeout, 1000));
-
+			await new Promise((resolveTimeout) => setTimeout(resolveTimeout, 1000));
 		} finally {
 			// Disconnect MCP client and stop spawned server
 			if (this.mcpClient) {
@@ -455,7 +453,7 @@ class TestRunner {
 				if (!this.quiet) {
 					console.log(`${TEST_CONFIG.colors.orange}Restoring Salesforce org...${TEST_CONFIG.colors.reset}`);
 				}
-				SalesforceOrgManager.restoreOriginalOrg(this.originalOrg, this.quiet);
+				salesforceOrgManager.restoreOriginalOrg(this.originalOrg, this.quiet);
 			}
 		}
 
@@ -464,13 +462,13 @@ class TestRunner {
 			this.printSummary();
 		} else {
 			const total = this.testResults.length;
-			const passed = this.testResults.filter(r => r.success).length;
+			const passed = this.testResults.filter((r) => r.success).length;
 			const failed = total - passed;
 			console.log(`${failed === 0 ? '🎉 All tests passed! 🎉' : '💥 Some tests failed! 💥'}`);
 		}
 
 		// Show total execution time
-		const formattedTotalTime = TestHelpers.formatDuration(this.startTime);
+		const formattedTotalTime = testHelpers.formatDuration(this.startTime);
 
 		if (!this.quiet) {
 			console.log(`\n${TEST_CONFIG.colors.cyan}${'─'.repeat(40)}${TEST_CONFIG.colors.reset}`);
@@ -494,7 +492,7 @@ class TestRunner {
 		console.log(`${TEST_CONFIG.colors.cyan}${'='.repeat(60)}${TEST_CONFIG.colors.reset}`);
 
 		const total = this.testResults.length;
-		const passed = this.testResults.filter(r => r.success).length;
+		const passed = this.testResults.filter((r) => r.success).length;
 		const failed = total - passed;
 
 		console.log(`📊 Total tests: ${TEST_CONFIG.colors.bright}${total}${TEST_CONFIG.colors.reset}`);
@@ -503,9 +501,9 @@ class TestRunner {
 
 		if (failed > 0) {
 			console.log(`\n${TEST_CONFIG.colors.red}❌ Failed tests:${TEST_CONFIG.colors.reset}`);
-			this.testResults
-				.filter(r => !r.success)
-				.forEach(r => console.log(`  🔴 ${r.name}: ${r.error}`));
+			for (const r of this.testResults.filter((r) => !r.success)) {
+				console.log(`  🔴 ${r.name}: ${r.error}`);
+			}
 		}
 
 		console.log(`\n${failed === 0 ? TEST_CONFIG.colors.green : TEST_CONFIG.colors.red}${failed === 0 ? '🎉 All tests passed! 🎉' : '💥 Some tests failed! 💥'}${TEST_CONFIG.colors.reset}`);
@@ -520,7 +518,7 @@ async function showTestPlan(testsToRun, quiet) {
 		const {tests} = await suite.runTests(testsToRun);
 
 		const totalTests = tests.length;
-		const requiredTests = tests.filter(t => t.required).length;
+		const requiredTests = tests.filter((t) => t.required).length;
 		const optionalTests = totalTests - requiredTests;
 
 		if (!quiet) {
@@ -539,14 +537,12 @@ async function showTestPlan(testsToRun, quiet) {
 
 // Main execution function
 async function main() {
-	const cmdArgs = TestHelpers.parseCommandLineArgs();
-	const LOG_LEVEL = cmdArgs.logLevel || TEST_CONFIG.mcpServer.defaultLogLevel;
-	const TESTS_TO_RUN = cmdArgs.tests ? cmdArgs.tests.split(',').map(test => test.trim()) : null;
-	const COMPACT = Boolean(cmdArgs.compact);
-	const QUIET = Boolean(cmdArgs.quiet);
-	const SHOW_PLAN = Boolean(cmdArgs['plan-only']);
-
-
+	const cmdArgs = testHelpers.parseCommandLineArgs();
+	const LogLevel = cmdArgs.logLevel || TEST_CONFIG.mcpServer.defaultLogLevel;
+	const TestsToRun = cmdArgs.tests ? cmdArgs.tests.split(',').map((test) => test.trim()) : null;
+	const Compact = Boolean(cmdArgs.compact);
+	const Quiet = Boolean(cmdArgs.quiet);
+	const ShowPlan = Boolean(cmdArgs['plan-only']);
 
 	// Optional: allow specifying server target from CLI (in addition to env vars)
 	// Examples:
@@ -561,26 +557,26 @@ async function main() {
 	}
 
 	// Show tests to run if specified
-	if (!QUIET) {
-		if (TESTS_TO_RUN) {
-			console.log(`${TEST_CONFIG.colors.cyan}Selected tests to run: ${TESTS_TO_RUN.join(', ')} using log level: ${LOG_LEVEL}${TEST_CONFIG.colors.reset}`);
+	if (!Quiet) {
+		if (TestsToRun) {
+			console.log(`${TEST_CONFIG.colors.cyan}Selected tests to run: ${TestsToRun.join(', ')} using log level: ${LogLevel}${TEST_CONFIG.colors.reset}`);
 		} else {
-			console.log(`${TEST_CONFIG.colors.cyan}Running all available tests using log level: ${LOG_LEVEL}${TEST_CONFIG.colors.reset}`);
+			console.log(`${TEST_CONFIG.colors.cyan}Running all available tests using log level: ${LogLevel}${TEST_CONFIG.colors.reset}`);
 		}
 	}
 
 	// If --plan is specified, show test plan and exit
-	if (SHOW_PLAN) {
-		await showTestPlan(TESTS_TO_RUN, QUIET);
+	if (ShowPlan) {
+		await showTestPlan(TestsToRun, Quiet);
 		return;
 	}
 
 	// Run tests
-	const runner = new TestRunner({compact: COMPACT, quiet: QUIET});
+	const runner = new TestRunner({compact: Compact, quiet: Quiet});
 	try {
 		await runner.runAllTests({
-			tests: TESTS_TO_RUN,
-			logLevel: LOG_LEVEL
+			tests: TestsToRun,
+			logLevel: LogLevel
 		});
 	} catch (error) {
 		console.error(`${TEST_CONFIG.colors.red}Fatal error:${TEST_CONFIG.colors.reset}`, error);
@@ -625,7 +621,7 @@ ${TEST_CONFIG.colors.cyan}Examples:${TEST_CONFIG.colors.reset}
 
 // Run if this file is executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-	const cmdArgs = TestHelpers.parseCommandLineArgs();
+	const cmdArgs = testHelpers.parseCommandLineArgs();
 
 	if (cmdArgs.help) {
 		showHelp();

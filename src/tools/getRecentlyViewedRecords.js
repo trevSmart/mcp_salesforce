@@ -1,11 +1,11 @@
+import {createModuleLogger} from '../lib/logger.js';
 import {executeSoqlQuery} from '../lib/salesforceServices.js';
 import {textFileContent} from '../utils.js';
-import {createModuleLogger} from '../lib/logger.js';
 
 export const getRecentlyViewedRecordsToolDefinition = {
 	name: 'getRecentlyViewedRecords',
 	title: 'Get Recently Viewed Records',
-	description: textFileContent('tools/getRecentlyViewedRecords.md'),
+	description: await textFileContent('tools/getRecentlyViewedRecords.md'),
 	inputSchema: {},
 	annotations: {
 		readOnlyHint: true,
@@ -26,25 +26,28 @@ export async function getRecentlyViewedRecordsToolHandler() {
 		const records = response?.records || [];
 
 		return {
-			content: [{
-				type: 'text',
-				text: `Retrieved ${records.length} recently viewed records successfully`
-			}],
+			content: [
+				{
+					type: 'text',
+					text: `Retrieved ${records.length} recently viewed records successfully`
+				}
+			],
 			structuredContent: {
 				records: records,
 				totalSize: response?.totalSize || 0,
-				done: response?.done || true
+				done: true
 			}
 		};
-
 	} catch (error) {
 		logger.error(error, 'Error getting recently viewed records');
 		return {
 			isError: true,
-			content: [{
-				type: 'text',
-				text: error?.message
-			}]
+			content: [
+				{
+					type: 'text',
+					text: error?.message
+				}
+			]
 		};
 	}
 }

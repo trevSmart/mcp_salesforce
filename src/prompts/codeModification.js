@@ -1,5 +1,5 @@
-import {z} from 'zod';
 import {completable} from '@modelcontextprotocol/sdk/server/completable.js';
+import {z} from 'zod';
 
 export const codeModificationPromptDefinition = {
 	title: 'Code modification',
@@ -7,7 +7,7 @@ export const codeModificationPromptDefinition = {
 	argsSchema: {
 		currentBehavior: z.string().describe('Current behavior of the code'),
 		desiredBehavior: z.string().describe('Desired behavior of the code after the modification'),
-		updateTests: completable(z.enum(['Yes', 'No']), value => ['Yes', 'No'].filter(d => d.toLowerCase().startsWith(value.toLowerCase())))
+		updateTests: completable(z.enum(['Yes', 'No']), (value) => ['Yes', 'No'].filter((d) => d.toLowerCase().startsWith(value.toLowerCase())))
 	}
 };
 

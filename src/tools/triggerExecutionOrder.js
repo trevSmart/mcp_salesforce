@@ -1,15 +1,14 @@
 //import {executeSoqlQuery} from '../salesforceServices.js';
-import {textFileContent} from '../utils.js';
+
 import {z} from 'zod';
+import {textFileContent} from '../utils.js';
 
 export const triggerExecutionOrderDefinition = {
 	name: 'triggerExecutionOrder',
 	title: 'Trigger Execution Order',
-	description: textFileContent('tools/triggerExecutionOrder.md'),
+	description: await textFileContent('tools/triggerExecutionOrder.md'),
 	inputSchema: {
-		sObjectName: z
-			.string()
-			.describe('The name of the SObject to retrieve the trigger execution order for.')
+		sObjectName: z.string().describe('The name of the SObject to retrieve the trigger execution order for.')
 	},
 	annotations: {
 		readOnlyHint: true,

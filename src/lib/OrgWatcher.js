@@ -1,8 +1,9 @@
-import fs from 'fs';
-import path from 'path';
-import {EventEmitter} from 'events';
-import state from '../state.js';
+import {EventEmitter} from 'node:events';
+import fs from 'node:fs';
+import path from 'node:path';
+import {state} from '../mcp-server.js';
 import {createModuleLogger} from './logger.js';
+
 const logger = createModuleLogger(import.meta.url);
 
 class TargetOrgWatcher extends EventEmitter {
@@ -18,16 +19,16 @@ class TargetOrgWatcher extends EventEmitter {
 
 	async start(onChange) {
 		try {
-			this.configFilePath = path.join(state.workspacePath, '.sf', 'config.json');
+			this.configFilePath = path.join(process.cwd(), '.sf', 'config.json');
 			this.currentOrgAlias = state.org?.alias || null;
 
 			if (this.isWatching || !this.currentOrgAlias || !fs.existsSync(this.configFilePath)) {
 				return;
 			}
 
-			this.on('started', orgAlias => logger.debug(`Monitoring Salesforce CLI target org changes (current: ${orgAlias})`));
+			this.on('started', (orgAlias) => logger.debug(`Monitoring Salesforce CLI target org changes (current: ${orgAlias})`));
 			this.on('orgChanged', onChange);
-			this.on('error', error => logger.error(error, 'Error in Salesforce CLI target org watcher'));
+			this.on('error', (error) => logger.error(error, 'Error in Salesforce CLI target org watcher'));
 
 			this.fileWatcher = fs.watch(path.dirname(this.configFilePath), (eventType, filename) => {
 				if (filename === 'config.json' && eventType === 'change') {
@@ -37,7 +38,6 @@ class TargetOrgWatcher extends EventEmitter {
 
 			this.isWatching = true;
 			this.emit('started', this.currentOrgAlias);
-
 		} catch (error) {
 			logger.error(error, 'Error setting up file watcher');
 		}
@@ -83,7 +83,6 @@ class TargetOrgWatcher extends EventEmitter {
 				this.currentOrgAlias = newValue;
 				this.emit('orgChanged', {oldValue, newValue});
 			}
-
 		} catch (error) {
 			logger.error(error, 'Error reading Salesforce CLI config file');
 		}

@@ -1,9 +1,10 @@
-import fs from 'fs';
-import path, {dirname} from 'path';
-import {fileURLToPath} from 'url';
+import fs from 'node:fs';
+import path, {dirname} from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {createModuleLogger} from './lib/logger.js';
 import {getOrgAndUserDetails} from './lib/salesforceServices.js';
-import state from './state.js';
+import {state} from './mcp-server.js';
+
 const logger = createModuleLogger(import.meta.url);
 
 const __filename = fileURLToPath(import.meta.url);
@@ -14,11 +15,11 @@ const CACHE_ENABLED = false;
 
 class GlobalCache {
 	EXPIRATION_TIME = {
-		TOOLING_API_GET: 300000, //5 minutes
-		REFRESH_SOBJECT_DEFINITIONS: 172800000, //2 days
-		DESCRIBE_SOBJECT_RESULT: 300000, //5 minutes
-		TOOLING_API_REQUEST: 300000, //5 minutes
-		UPDATE_SF_CLI: 604800000 //1 week
+		TOOLING_API_GET: 300_000, //5 minutes
+		REFRESH_SOBJECT_DEFINITIONS: 172_800_000, //2 days
+		DESCRIBE_SOBJECT_RESULT: 300_000, //5 minutes
+		TOOLING_API_REQUEST: 300_000, //5 minutes
+		UPDATE_SF_CLI: 604_800_000 //1 week
 	};
 
 	constructor() {
@@ -30,10 +31,10 @@ class GlobalCache {
 		setInterval(() => this.cleanup(), 15 * 60 * 1000);
 	}
 
-	async set(tool, key, value, ttl = 300000) {
+	async set(tool, key, value, ttl = 300_000) {
 		const orgAndUserDetails = await getOrgAndUserDetails();
 		const org = orgAndUserDetails?.alias;
-		if (!CACHE_ENABLED || !org) {
+		if (!(CACHE_ENABLED && org)) {
 			return;
 		}
 
@@ -54,7 +55,7 @@ class GlobalCache {
 
 	get(tool, key) {
 		const org = state.org?.alias;
-		if (!CACHE_ENABLED || !org) {
+		if (!(CACHE_ENABLED && org)) {
 			return null;
 		}
 
@@ -88,7 +89,7 @@ class GlobalCache {
 				fs.unlinkSync(this.cacheFile);
 			}
 		} catch (err) {
-			logger.error('[CACHE] Error deleting cache file: ' + err);
+			logger.error(`[CACHE] Error deleting cache file: ${err}`);
 		}
 		this._saveToFile(deleteFile);
 	}
@@ -100,9 +101,7 @@ class GlobalCache {
 				totalEntries += Object.keys(this.cache[org][tool]).length;
 			}
 		}
-		const hitRate = this.stats.hits + this.stats.misses > 0
-			? (this.stats.hits / (this.stats.hits + this.stats.misses) * 100).toFixed(2)
-			: 0;
+		const hitRate = this.stats.hits + this.stats.misses > 0 ? ((this.stats.hits / (this.stats.hits + this.stats.misses)) * 100).toFixed(2) : 0;
 		return {
 			totalEntries,
 			hits: this.stats.hits,
@@ -151,7 +150,7 @@ class GlobalCache {
 				}
 			}
 			//If the cache is completely empty, delete the file if it exists and exit
-			const isEmpty = Object.keys(cacheToSave).length === 0 || Object.values(cacheToSave).every(orgObj => Object.keys(orgObj).length === 0);
+			const isEmpty = Object.keys(cacheToSave).length === 0 || Object.values(cacheToSave).every((orgObj) => Object.keys(orgObj).length === 0);
 			if (isEmpty && deleteFile) {
 				if (fs.existsSync(this.cacheFile)) {
 					fs.unlinkSync(this.cacheFile);
@@ -159,9 +158,8 @@ class GlobalCache {
 				return;
 			}
 			fs.writeFileSync(this.cacheFile, JSON.stringify(cacheToSave, null, 2), 'utf8');
-
 		} catch (err) {
-			logger.error('[CACHE] Error saving cache: ' + err);
+			logger.error(`[CACHE] Error saving cache: ${err}`);
 		}
 	}
 
@@ -192,7 +190,7 @@ class GlobalCache {
 				logger.debug(`Cache file "${this.cacheFile}" not found`);
 			}
 		} catch (err) {
-			logger.error('Error loading cache: ' + err);
+			logger.error(`Error loading cache: ${err}`);
 		}
 	}
 }

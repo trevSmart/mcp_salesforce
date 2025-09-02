@@ -1,10 +1,11 @@
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import fs from 'fs-extra';
 import config from './config.js';
-import fs from 'fs';
-import state from './state.js';
-import path from 'path';
-import {fileURLToPath} from 'url';
 import {createModuleLogger} from './lib/logger.js';
-import {cleanupObsoleteTempFiles} from './lib/tempManager.js';
+import {cleanupObsoleteTempFiles, ensureBaseTmpDir} from './lib/tempManager.js';
+import {state} from './mcp-server.js';
+
 const logger = createModuleLogger(import.meta.url);
 
 // Avoid static import of salesforceServices to prevent ESM cycles during module init
@@ -20,7 +21,6 @@ async function __getExecuteSoqlQuery() {
 	}
 	return _executeSoqlQuery;
 }
-
 
 /**
  * Validates if the user has the required permissions
@@ -63,24 +63,24 @@ export function notifyProgressChange(progressToken, total, progress, message) {
 */
 
 /**
- * Reads text content from a file with flexible lookup rules.
- * - If input contains a path separator, it is treated as a path relative to src/ (this file's folder),
- *   with automatic fallback to a '.pam' variant when the original file doesn't exist (useful after packaging).
- * - If input does not contain a path separator, it is treated as a tool descriptor name and looked up under src/tools.
- * - If the found file content looks base64, it is decoded automatically.
- * @param {string} input - Tool name (legacy) or relative/absolute path to a file (without or with extension).
- * @returns {string|null} Content of the file or null if not found
- */
-export function textFileContent(input) {
+Reads text content from a file with flexible lookup rules.
+* - If input contains a path separator, it is treated as a path relative to src/ (this file's folder),
+*   with automatic fallback to a '.pam' variant when the original file doesn't exist (useful after packaging).
+* - If input does not contain a path separator, it is treated as a tool descriptor name and looked up under src/tools.
+* - If the found file content looks base64, it is decoded automatically.
+* @param {string} input - Tool name (legacy) or relative/absolute path to a file (without or with extension).
+* @returns {Promise<string|null>} Content of the file or null if not found
+*/
+export async function textFileContent(input) {
 	try {
 		const localFilename = fileURLToPath(import.meta.url);
 		const localDirname = path.dirname(localFilename);
 
-		const tryRead = (fullPath) => {
-			if (!fullPath || !fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) {
+		const tryRead = async (fullPath) => {
+			if (!(fullPath && (await fs.pathExists(fullPath)) && (await fs.stat(fullPath)).isFile())) {
 				return null;
 			}
-			const content = fs.readFileSync(fullPath, 'utf8');
+			const content = await fs.readFile(fullPath, 'utf8');
 			const trimmed = content.trim();
 			// Detect base64 payloads (used in publish step for .md/.apex → .pam)
 			const isBase64 = /^[A-Za-z0-9+/\r\n]*={0,2}$/.test(trimmed) && trimmed.length > 0;
@@ -94,13 +94,13 @@ export function textFileContent(input) {
 			const basePath = path.isAbsolute(input) ? input : path.join(localDirname, input);
 
 			// 1) Exact path
-			let content = tryRead(basePath);
+			let content = await tryRead(basePath);
 			if (content !== null) {
 				return content;
 			}
 
 			// 2) Try ".pam" sibling (for packaged artifacts)
-			content = tryRead(basePath + '.pam');
+			content = await tryRead(`${basePath}.pam`);
 			if (content !== null) {
 				return content;
 			}
@@ -108,10 +108,11 @@ export function textFileContent(input) {
 			// 3) Try prefix match inside the same directory (e.g., basename.*)
 			const dir = path.dirname(basePath);
 			const base = path.basename(basePath);
-			if (fs.existsSync(dir)) {
-				const entry = (fs.readdirSync(dir) || []).find(f => f.startsWith(base + '.'));
+			if (await fs.pathExists(dir)) {
+				const entries = await fs.readdir(dir);
+				const entry = entries.find((f) => f.startsWith(`${base}.`));
 				if (entry) {
-					content = tryRead(path.join(dir, entry));
+					content = await tryRead(path.join(dir, entry));
 					if (content !== null) {
 						return content;
 					}
@@ -123,30 +124,23 @@ export function textFileContent(input) {
 
 		// Case B: legacy tool descriptor lookup under src/tools
 		const toolsDir = path.join(localDirname, 'tools');
-		if (!fs.existsSync(toolsDir)) {
+		if (!(await fs.pathExists(toolsDir))) {
 			return null;
 		}
-		const files = fs.readdirSync(toolsDir);
-		const candidates = files.filter(file => file.startsWith(input + '.'));
+		const files = await fs.readdir(toolsDir);
+		const candidates = files.filter((file) => file.startsWith(`${input}.`));
 		if (!candidates.length) {
 			return null;
 		}
 
 		// Prefer Markdown descriptions over JS when both exist
-		const preferredOrder = [
-			`${input}.md`,
-			`${input}.md.pam`,
-			`${input}.pam`,
-			`${input}.apex`,
-			`${input}.js`
-		];
-		let chosen = candidates.find(f => preferredOrder.includes(f));
+		const preferredOrder = [`${input}.md`, `${input}.md.pam`, `${input}.pam`, `${input}.apex`, `${input}.js`];
+		let chosen = candidates.find((f) => preferredOrder.includes(f));
 		if (!chosen) {
 			// Fallback to the first candidate (stable behavior)
 			chosen = candidates[0];
 		}
-		return tryRead(path.join(toolsDir, chosen));
-
+		return await tryRead(path.join(toolsDir, chosen));
 	} catch (error) {
 		logger.debug(error, 'textFileContent error');
 		return null;
@@ -163,7 +157,7 @@ export function textFileContent(input) {
  * @param {string} options.workspacePath - Workspace path for tmp directory (optional)
  * @returns {string|Promise<string>} Full path to the created file (Promise if async=true)
  */
-export function writeToFile(file, data, options = {}) {
+export async function writeToFile(file, data, options = {}) {
 	const {
 		async = false,
 		extension,
@@ -180,15 +174,13 @@ export function writeToFile(file, data, options = {}) {
 		if (isFullPath) {
 			// File is a full path
 			fullPath = file;
-			// Ensure directory exists
+			// Ensure directory exists using fs-extra
 			const dir = path.dirname(fullPath);
-			if (!fs.existsSync(dir)) {
-				fs.mkdirSync(dir, {recursive: true});
-				logger.debug(`Created directory: ${dir}`);
-			}
+			await fs.ensureDir(dir);
+			logger.debug(`Ensured directory exists: ${dir}`);
 		} else {
 			// File is just a filename, use tmp directory
-			const tmpDir = ensureTmpDir(workspacePath);
+			const tmpDir = ensureBaseTmpDir(workspacePath);
 			// Opportunistic cleanup of obsolete temp files
 			try {
 				cleanupObsoleteTempFiles({baseDir: tmpDir});
@@ -215,21 +207,16 @@ export function writeToFile(file, data, options = {}) {
 			content = data;
 		}
 
-		// Write file
+		// Write file using fs-extra
 		if (async) {
-			return fs.promises.writeFile(fullPath, content, encoding).then(() => {
-				logger.debug(`File written to: ${fullPath}`);
-				return fullPath;
-			}).catch(error => {
-				logger.error(`Error writing to file: ${error.message}`);
-				throw error;
-			});
+			await fs.writeFile(fullPath, content, encoding);
+			logger.debug(`File written to: ${fullPath}`);
+			return fullPath;
 		} else {
-			fs.writeFileSync(fullPath, content, encoding);
+			await fs.writeFile(fullPath, content, encoding);
 			logger.debug(`File written to: ${fullPath}`);
 			return fullPath;
 		}
-
 	} catch (error) {
 		logger.error(`Error writing to file: ${error.message}`);
 		throw error;
@@ -241,33 +228,16 @@ export function writeToFile(file, data, options = {}) {
  * @param {object} object - Object to save
  * @param {string} filename - Base name for the file (without extension)
  */
-export function saveToFile(object, filename) {
-	const tmpDir = ensureTmpDir();
+export async function saveToFile(object, filename) {
+	const tmpDir = ensureBaseTmpDir(state.workspacePath);
 	try {
 		cleanupObsoleteTempFiles({baseDir: tmpDir});
 	} catch {
 		logger.warn('Error cleaning up obsolete temp files');
 	}
 	const filePath = path.join(tmpDir, `${filename}_${Date.now()}.json`);
-	fs.writeFileSync(filePath, JSON.stringify(object, null, 3), 'utf8');
+	await fs.writeFile(filePath, JSON.stringify(object, null, 3), 'utf8');
 	logger.debug(`Object written to temporary file: ${filePath}`);
-}
-
-/**
- * Ensures the tmp directory exists in the workspace
- * @param {string} workspacePath - Path to the workspace
- * @returns {string} Path to the tmp directory
- */
-export function ensureTmpDir(workspacePath = null) {
-	const base = workspacePath && typeof workspacePath === 'string' ? workspacePath : process.cwd();
-	const tmpDir = path.join(base, 'tmp');
-
-	if (!fs.existsSync(tmpDir)) {
-		fs.mkdirSync(tmpDir, {recursive: true});
-		logger.debug(`Created tmp directory: ${tmpDir}`);
-	}
-
-	return tmpDir;
 }
 
 /**
@@ -278,9 +248,9 @@ export function ensureTmpDir(workspacePath = null) {
  * @param {string} workspacePath - Path to the workspace (optional)
  * @returns {string} Full path to the created file
  */
-export function writeToTmpFile(content, filename, encoding = 'utf8', workspacePath = null) {
+export async function writeToTmpFile(content, filename, encoding = 'utf8', workspacePath = null) {
 	try {
-		const tmpDir = ensureTmpDir(workspacePath);
+		const tmpDir = ensureBaseTmpDir(workspacePath);
 		try {
 			cleanupObsoleteTempFiles({baseDir: tmpDir});
 		} catch {
@@ -288,7 +258,7 @@ export function writeToTmpFile(content, filename, encoding = 'utf8', workspacePa
 		}
 		const fullPath = path.join(tmpDir, filename);
 
-		fs.writeFileSync(fullPath, content, encoding);
+		await fs.writeFile(fullPath, content, encoding);
 		logger.debug(`File written to tmp directory: ${fullPath}`);
 
 		return fullPath;
@@ -309,7 +279,7 @@ export function writeToTmpFile(content, filename, encoding = 'utf8', workspacePa
  */
 export async function writeToTmpFileAsync(content, filename, extension = 'txt', encoding = 'utf8', workspacePath = null) {
 	try {
-		const tmpDir = ensureTmpDir(workspacePath);
+		const tmpDir = ensureBaseTmpDir(workspacePath);
 		try {
 			cleanupObsoleteTempFiles({baseDir: tmpDir});
 		} catch {
@@ -319,7 +289,7 @@ export async function writeToTmpFileAsync(content, filename, extension = 'txt', 
 		const fullFilename = `${filename}_${timestamp}.${extension}`;
 		const fullPath = path.join(tmpDir, fullFilename);
 
-		await fs.promises.writeFile(fullPath, content, encoding);
+		await fs.writeFile(fullPath, content, encoding);
 		logger.debug(`File written to tmp directory (async): ${fullPath}`);
 
 		return fullPath;
@@ -334,14 +304,14 @@ export async function writeToTmpFileAsync(content, filename, extension = 'txt', 
  * @param {string} name - Name of the agent type
  * @returns {string} Instructions text
  */
-export function getAgentInstructions(name) {
+export async function getAgentInstructions(name) {
 	try {
 		const localFilename = fileURLToPath(import.meta.url);
 		const localDirname = path.dirname(localFilename);
 		const staticPath = path.join(localDirname, 'static', `${name}.md`);
 
-		if (fs.existsSync(staticPath)) {
-			return fs.readFileSync(staticPath, 'utf8');
+		if (await fs.pathExists(staticPath)) {
+			return await fs.readFile(staticPath, 'utf8');
 		}
 		return '';
 	} catch {
@@ -396,7 +366,7 @@ export function getFileNameFromPath(filePath) {
  */
 export function formatDate(date) {
 	// Use configured locale if provided; otherwise rely on system default locale
-	let locale = (typeof config?.locale === 'string' && config.locale.trim()) ? config.locale.trim() : undefined;
+	const locale = typeof config?.locale === 'string' && config.locale.trim() ? config.locale.trim() : undefined;
 
 	const timeOptions = {hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: false};
 	const dateOptions = {day: 'numeric', month: 'numeric', year: 'numeric'};
@@ -412,7 +382,7 @@ export function formatDate(date) {
 
 	let formattedDate = safeFormat(date, 'toLocaleTimeString', timeOptions);
 	if (date.toDateString() !== new Date().toDateString()) {
-		formattedDate = safeFormat(date, 'toLocaleDateString', dateOptions) + ' ' + formattedDate;
+		formattedDate = `${safeFormat(date, 'toLocaleDateString', dateOptions)} ${formattedDate}`;
 	}
 	return formattedDate;
 }

@@ -10,7 +10,7 @@ Allows you to invoke REST endpoints published via Apex REST Resources in Salesfo
 
 - The tool uses the current access token from the state to authenticate the request.
 
-- Always show the complete request details and response in a structured format.
+- Always show the complete request details and response in a **structured** format.
 
 ---
 ## Usage
@@ -95,40 +95,9 @@ You can provide the request body in two ways:
 ---
 ## Response Format
 The tool returns a structured response with:
-- **`content`**: Array containing the response text
-- **`structuredContent`**: The complete response from the Salesforce REST API including:
-  - **`endpoint`**: The constructed endpoint URL
-  - **`request`**: Details of the request sent (method, headers, body)
-  - **`response`**: The response from the Salesforce REST API
-  - **`status`**: HTTP status code
-  - **`success`**: Boolean indicating if the request was successful
+- `endpoint`: The constructed endpoint URL
+- `request`: Details of the request sent (method, headers, body)
+- `response`: The response from the Salesforce REST API
+- `status`: HTTP status code
 
----
-## Error Handling
-- Validates that the Apex REST Resource class name is provided
-- Validates that a valid HTTP operation is specified
-- Validates JSON format when using `bodySerialized`
-- Handles authentication errors and automatically refreshes tokens if needed
-- Provides detailed error messages for debugging
-- Returns structured error responses with `isError: true` flag
-
----
-## Authentication Requirements
-- Requires active Salesforce authentication
-- Uses the current access token from the MCP server state
-- Automatically handles token refresh if needed
-
----
-## Apex Class Detection
-The tool automatically:
-- Searches for the Apex class file in the local file system
-- Extracts the `@RestResource` URL mapping if present
-- Uses the URL mapping as the endpoint name when available
-
----
-## Notes
-- The tool automatically constructs the endpoint URL using the format `/apexrest/{className}`
-- The tool uses the current Salesforce session access token for authentication
-- All requests are made to the current org's instance URL
-- GET and DELETE operations typically don't require a request body
-- POST, PUT, and PATCH operations usually require a request body
+Show the response in a **structured** format.

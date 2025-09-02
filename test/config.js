@@ -3,7 +3,7 @@ export const TEST_CONFIG = {
 	// MCP Server configuration
 	mcpServer: {
 		startupDelay: 1000,
-		timeout: 90000,
+		timeout: 90_000,
 		serverPath: '../index.js',
 		defaultLogLevel: 'info'
 	},

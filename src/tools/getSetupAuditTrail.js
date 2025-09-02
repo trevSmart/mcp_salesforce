@@ -1,33 +1,23 @@
-import {textFileContent} from '../utils.js';
-import {createModuleLogger} from '../lib/logger.js';
-import {newResource} from '../mcp-server.js';
+import fs from 'node:fs';
+import path from 'node:path';
 import {z} from 'zod';
-import {retrieveSetupAuditTrailFile} from '../lib/auditTrailDownloader.js';
-import {executeSoqlQuery} from '../lib/salesforceServices.js';
-import state from '../state.js';
 import client from '../client.js';
-import fs from 'fs';
-import path from 'path';
+import {retrieveSetupAuditTrailFile} from '../lib/auditTrailDownloader.js';
+import {createModuleLogger} from '../lib/logger.js';
+import {executeSoqlQuery} from '../lib/salesforceServices.js';
+import {newResource, state} from '../mcp-server.js';
+import {textFileContent} from '../utils.js';
+
 const logger = createModuleLogger(import.meta.url);
 
 export const getSetupAuditTrailToolDefinition = {
 	name: 'getSetupAuditTrail',
 	title: 'Get the changes in the Salesforce org metadata performed in the last days from the Salesforce Setup Audit Trail data, filtered by allowed sections',
-	description: textFileContent('tools/getSetupAuditTrail.md'),
+	description: await textFileContent('tools/getSetupAuditTrail.md'),
 	inputSchema: {
-		lastDays: z.number()
-			.int()
-			.min(1)
-			.max(60)
-			.optional()
-			.default(30)
-			.describe('Number of days to query (between 1 and 90)'),
-		user: z.string()
-			.optional()
-			.describe('Accepts a username or a name. Only the changes performed by this username will be returned. If not set the changes from all users will be returned'),
-		metadataName: z.string()
-			.optional()
-			.describe('Name of the metadata component to get the changes of (e.g. "FOO_AlertMessages_Controller", "FOO_AlertMessage__c", "FOO_AlertNessageList_LWC", etc.)')
+		lastDays: z.number().int().min(1).max(60).optional().default(30).describe('Number of days to query (between 1 and 90)'),
+		user: z.string().optional().describe('Accepts a username or a name. Only the changes performed by this username will be returned. If not set the changes from all users will be returned'),
+		metadataName: z.string().optional().describe('Name of the metadata component to get the changes of (e.g. "FOO_AlertMessages_Controller", "FOO_AlertMessage__c", "FOO_AlertNessageList_LWC", etc.)')
 	},
 	annotations: {
 		readOnlyHint: true,
@@ -39,15 +29,49 @@ export const getSetupAuditTrailToolDefinition = {
 
 // Allowed sections (deduped) for relevant setup changes
 const ALLOWED_SECTIONS = new Set([
-	'Apex Class', 'Lightning Components', 'Lightning Pages', 'Groups', 'Custom Objects', 'Sharing Rules',
-	'Customize Cases', 'Customize Entitlement Process', 'Named Credentials', 'Customize Activities',
-	'Custom Apps', 'Apex Trigger', 'Rename Tabs and Labels', 'Custom Tabs', 'Custom Metadata Types',
-	'Validation Rules', 'Static Resource', 'Data Management', 'Field Dependencies', 'Customize Opportunities',
-	'Omni-Channel', 'Application', 'Global Value Sets', 'Triggers Settings', 'External Credentials',
-	'Custom Permissions', 'Customize Accounts', 'Customize Contacts', 'Standard Buttons and Links', 'Flows',
-	'Workflow Rule', 'Manage apps', 'Sharing Defaults', 'Connected Apps', 'Customize Chat Transcripts',
-	'Global Actions', 'Customize Content', 'Timeline Configurations [bmpyrckt]', 'Page', 'User Interface',
-	'Component', 'Customize Leads', 'Customize Contracts'
+	'Apex Class',
+	'Lightning Components',
+	'Lightning Pages',
+	'Groups',
+	'Custom Objects',
+	'Sharing Rules',
+	'Customize Cases',
+	'Customize Entitlement Process',
+	'Named Credentials',
+	'Customize Activities',
+	'Custom Apps',
+	'Apex Trigger',
+	'Rename Tabs and Labels',
+	'Custom Tabs',
+	'Custom Metadata Types',
+	'Validation Rules',
+	'Static Resource',
+	'Data Management',
+	'Field Dependencies',
+	'Customize Opportunities',
+	'Omni-Channel',
+	'Application',
+	'Global Value Sets',
+	'Triggers Settings',
+	'External Credentials',
+	'Custom Permissions',
+	'Customize Accounts',
+	'Customize Contacts',
+	'Standard Buttons and Links',
+	'Flows',
+	'Workflow Rule',
+	'Manage apps',
+	'Sharing Defaults',
+	'Connected Apps',
+	'Customize Chat Transcripts',
+	'Global Actions',
+	'Customize Content',
+	'Timeline Configurations [bmpyrckt]',
+	'Page',
+	'User Interface',
+	'Component',
+	'Customize Leads',
+	'Customize Contracts'
 ]);
 
 // In-memory caches to reduce latency across calls
@@ -75,7 +99,8 @@ function normalizeMultilineFields(inputPath) {
 			const raw = lines[i] ?? '';
 			const line = raw.trimEnd();
 			if (i === 0) {
-				out.push(line.trim()); continue;
+				out.push(line.trim());
+				continue;
 			}
 			if (newRecord.test(line)) {
 				current && out.push(current);
@@ -93,7 +118,7 @@ function normalizeMultilineFields(inputPath) {
 }
 
 // Parse a record, manages escaped delimiters ("")
-function parseCSVLine(line) {
+function parseCsvLine(line) {
 	if (!line || typeof line !== 'string') {
 		return [];
 	}
@@ -139,7 +164,7 @@ function parseCSVLine(line) {
  * Also recognizes underscores as word delimiters
  */
 function containsExactWord(text, word) {
-	if (!text || !word) {
+	if (!(text && word)) {
 		return false;
 	}
 	const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -163,13 +188,14 @@ function applyAllFilters(lines, lastDays, username, metadataName) {
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i];
 			if (i === 0) {
-				out.push(line.trim()); continue;
+				out.push(line.trim());
+				continue;
 			}
-			if (!line || !line.trim()) {
+			if (!line?.trim()) {
 				continue;
 			}
 
-			const f = parseCSVLine(line);
+			const f = parseCsvLine(line);
 			if (!f || f.length < 5) {
 				continue;
 			}
@@ -212,7 +238,7 @@ function applyAllFilters(lines, lastDays, username, metadataName) {
 /**
  * Convert CSV content into an array of change records.
  */
-function parseCSVToRecords(csvContent, userNamesMap = {}) {
+function parseCsvToRecords(csvContent, userNamesMap = {}) {
 	if (!csvContent) {
 		return [];
 	}
@@ -228,7 +254,7 @@ function parseCSVToRecords(csvContent, userNamesMap = {}) {
 		}
 
 		try {
-			const fields = parseCSVLine(line);
+			const fields = parseCsvLine(line);
 			if (fields && fields.length >= 5) {
 				const username = fields[1];
 				const record = {
@@ -240,7 +266,7 @@ function parseCSVToRecords(csvContent, userNamesMap = {}) {
 				records.push(record);
 			}
 		} catch {
-			continue;
+			// ignore
 		}
 	}
 
@@ -259,11 +285,11 @@ function formatDateToLocal(dateString) {
 		// Parse Salesforce date (e.g., "27/8/2025, 14:06:53 CEST")
 		const dateMatch = dateString.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}),\s*(\d{1,2}):(\d{1,2}):(\d{1,2})/);
 		if (dateMatch) {
-			const day = parseInt(dateMatch[1]);
-			const month = parseInt(dateMatch[2]);
-			const year = parseInt(dateMatch[3]);
-			const hours = parseInt(dateMatch[4]);
-			const minutes = parseInt(dateMatch[5]);
+			const day = Number.parseInt(dateMatch[1], 10);
+			const month = Number.parseInt(dateMatch[2], 10);
+			const year = Number.parseInt(dateMatch[3], 10);
+			const hours = Number.parseInt(dateMatch[4], 10);
+			const minutes = Number.parseInt(dateMatch[5], 10);
 
 			// Crear data local
 			const date = new Date(year, month - 1, day, hours, minutes);
@@ -296,13 +322,13 @@ function parseSalesforceDate(dateString) {
 		// Try D/M/YYYY first (common in exported CSV)
 		const eu = dateString.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
 		if (eu) {
-			const day = parseInt(eu[1]);
-			const month = parseInt(eu[2]) - 1;
-			const year = parseInt(eu[3]);
+			const day = Number.parseInt(eu[1], 10);
+			const month = Number.parseInt(eu[2], 10) - 1;
+			const year = Number.parseInt(eu[3], 10);
 			return new Date(year, month, day);
 		}
 		const d = new Date(dateString);
-		return isNaN(d.getTime()) ? null : d;
+		return Number.isNaN(d.getTime()) ? null : d;
 	} catch {
 		return null;
 	}
@@ -324,7 +350,7 @@ async function getUserNamesFromUsernames(usernames) {
 
 		for (const uname of usernames) {
 			const cached = USERNAME_NAME_CACHE.get(uname);
-			if (cached && (now - cached.cachedAt) < USERNAME_CACHE_TTL_MS) {
+			if (cached && now - cached.cachedAt < USERNAME_CACHE_TTL_MS) {
 				userMap[uname] = cached.name;
 			} else {
 				toFetch.push(uname);
@@ -332,14 +358,14 @@ async function getUserNamesFromUsernames(usernames) {
 		}
 
 		if (toFetch.length) {
-			const usernameList = toFetch.map(username => `'${username.replace(/'/g, "\\'")}'`).join(',');
+			const usernameList = toFetch.map((username) => `'${username.replace(/'/g, "\\'")}'`).join(',');
 			const soqlQuery = `SELECT Id, Username, Name FROM User WHERE Username IN (${usernameList})`;
 			const queryResult = await executeSoqlQuery(soqlQuery);
-			if (queryResult && queryResult.records) {
-				queryResult.records.forEach(record => {
+			if (queryResult?.records) {
+				for (const record of queryResult.records) {
 					userMap[record.Username] = record.Name;
 					USERNAME_NAME_CACHE.set(record.Username, {name: record.Name, cachedAt: now});
-				});
+				}
 			}
 		}
 
@@ -357,11 +383,11 @@ async function getUserNamesFromUsernames(usernames) {
  * If the Action field contains the exact word "Changed" or "Created", replace it with that exact word.
  */
 function compressActionField(records) {
-	if (!records || !Array.isArray(records)) {
+	if (!(records && Array.isArray(records))) {
 		return records;
 	}
 
-	return records.map(r => {
+	return records.map((r) => {
 		if (r.type === 'Lightning Components' || r.type === 'Apex Class') {
 			if (containsExactWord(r.action, 'Changed')) {
 				return {...r, action: 'Changed'};
@@ -394,7 +420,7 @@ function getFreshAuditTrailFilePath() {
 export async function getSetupAuditTrailToolHandler({lastDays = 30, user = null, metadataName = null}) {
 	try {
 		// Resolve optional user filter: accepts username or Name
-		const resolveUser = async(u) => {
+		const resolveUser = async (u) => {
 			if (!u) {
 				return {usernameForFiltering: null, resolvedUsername: null};
 			}
@@ -412,7 +438,7 @@ export async function getSetupAuditTrailToolHandler({lastDays = 30, user = null,
 				let res = await executeSoqlQuery(exactQ);
 				if (!res?.records?.length) {
 					const tokens = raw.split(/\s+/).filter(Boolean).map(esc);
-					const where = tokens.map(t => `Name LIKE '%${t}%'`).join(' AND ') || `Name LIKE '%${esc(raw)}%'`;
+					const where = tokens.map((t) => `Name LIKE '%${t}%'`).join(' AND ') || `Name LIKE '%${esc(raw)}%'`;
 					res = await executeSoqlQuery(`SELECT Username, Name, IsActive, LastLoginDate FROM User WHERE ${where} ORDER BY IsActive DESC, LastLoginDate DESC NULLS LAST LIMIT 5`);
 				}
 				if (res?.records?.length) {
@@ -442,7 +468,7 @@ export async function getSetupAuditTrailToolHandler({lastDays = 30, user = null,
 				logger.error(`Setup Audit Trail file download error: ${downloadError.message}`);
 				throw downloadError;
 			}
-			if (!filePath || !fs.existsSync(filePath)) {
+			if (!(filePath && fs.existsSync(filePath))) {
 				throw new Error('Could not retrieve Setup Audit Trail data. The file was not downloaded.');
 			}
 		}
@@ -468,17 +494,19 @@ export async function getSetupAuditTrailToolHandler({lastDays = 30, user = null,
 		const userNamesMap = await getUserNamesFromUsernames(uniqueUsernames);
 
 		// Parse filtered lines into records
-		const records = parseCSVToRecords(filteredLines.join('\n'), userNamesMap);
+		const records = parseCsvToRecords(filteredLines.join('\n'), userNamesMap);
 
 		// Comprimir el camp Action per reduir la mida de la resposta
 		const compressedRecords = compressActionField(records);
 
 		newResource(resourceUri, 'Setup audit trail CSV', 'Setup audit trail CSV', 'text/csv', originalFileContent, {audience: ['user', 'assistant']});
 
-		const content = [{
-			type: 'text',
-			text: `Setup audit trail CSV processed successfully. Total records: ${totalRecords}, Filtered records: ${finalFilteredRecords}`
-		}];
+		const content = [
+			{
+				type: 'text',
+				text: `Setup audit trail CSV processed successfully. Total records: ${totalRecords}, Filtered records: ${finalFilteredRecords}`
+			}
+		];
 
 		if (client.supportsCapability('resource_links')) {
 			content.push({type: 'resource_link', uri: resourceUri});
@@ -498,15 +526,16 @@ export async function getSetupAuditTrailToolHandler({lastDays = 30, user = null,
 				records: compressedRecords
 			}
 		};
-
 	} catch (error) {
 		logger.error(error, 'Error getting setup audit trail data');
 		return {
 			isError: true,
-			content: [{
-				type: 'text',
-				text: `Error retrieving Setup Audit Trail data:\n\nError message:\n${error.message}\n\nError stack:\n${error.stack}`
-			}]
+			content: [
+				{
+					type: 'text',
+					text: `Error retrieving Setup Audit Trail data:\n\nError message:\n${error.message}\n\nError stack:\n${error.stack}`
+				}
+			]
 		};
 	}
 }

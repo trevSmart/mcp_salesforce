@@ -1,5 +1,7 @@
+/** biome-ignore-all lint/suspicious/noConsole: Console.log requiered for script output to stdout */
+/** biome-ignore-all lint/style/useNamingConvention: SObject fields are not in camelCase */
+import fs from 'node:fs';
 import {TEST_CONFIG} from '../test-config.js';
-import fs from 'fs';
 
 // TestContext class for sharing data between tests
 class TestContext {
@@ -46,7 +48,9 @@ export class SalesforceMcpTestSuite {
 		}
 	}
 
-	async scriptAfterAll(/* context */) { /* no-op by default */ }
+	async scriptAfterAll(/* context */) {
+		/* no-op by default */
+	}
 
 	// Display tool output in a formatted way
 	displayToolOutput(toolName, result) {
@@ -73,7 +77,7 @@ export class SalesforceMcpTestSuite {
 			if (text.length <= maxLength) {
 				return text;
 			}
-			return text.substring(0, maxLength) + '... [truncated]';
+			return `${text.substring(0, maxLength)}... [truncated]`;
 		};
 
 		// Display text content (always show, even if empty)
@@ -102,16 +106,17 @@ export class SalesforceMcpTestSuite {
 		if (result?.structuredContent && Object.keys(result.structuredContent).length > 0) {
 			const structuredStr = JSON.stringify(result.structuredContent, null, 2);
 			// Indent the structured content with 4 spaces
-			const indentedStructured = structuredStr.split('\n').map(line => `    ${line}`).join('\n');
+			const indentedStructured = structuredStr
+				.split('\n')
+				.map((line) => `    ${line}`)
+				.join('\n');
 			console.log(`${TEST_CONFIG.colors.yellow}${truncateOutput(indentedStructured)}${TEST_CONFIG.colors.reset}`);
 		} else {
 			console.log(`${TEST_CONFIG.colors.yellow}    (empty or not available)${TEST_CONFIG.colors.reset}`);
 		}
 
 		// Display any other result properties
-		const otherProps = Object.keys(result || {}).filter(key =>
-			!['structuredContent', 'content', 'isError'].includes(key)
-		);
+		const otherProps = Object.keys(result || {}).filter((key) => !['structuredContent', 'content', 'isError'].includes(key));
 
 		if (otherProps.length > 0) {
 			console.log(`${TEST_CONFIG.colors.green}✓ Other Properties:${TEST_CONFIG.colors.reset}`);
@@ -129,7 +134,7 @@ export class SalesforceMcpTestSuite {
 		return [
 			{
 				name: 'List Available Tools',
-				run: async() => {
+				run: async () => {
 					await this.mcpClient.listTools();
 				},
 				required: true,
@@ -137,8 +142,10 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'salesforceMcpUtils getOrgAndUserDetails',
-				run: async() => {
-					return await this.mcpClient.callTool('salesforceMcpUtils', {action: 'getOrgAndUserDetails'});
+				run: async () => {
+					return await this.mcpClient.callTool('salesforceMcpUtils', {
+						action: 'getOrgAndUserDetails'
+					});
 				},
 				required: true,
 				dependencies: ['List Available Tools'],
@@ -148,10 +155,12 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'salesforceMcpUtils getState',
-				run: async() => {
-					const result = await this.mcpClient.callTool('salesforceMcpUtils', {action: 'getState'});
+				run: async () => {
+					const result = await this.mcpClient.callTool('salesforceMcpUtils', {
+						action: 'getState'
+					});
 					const sc = result?.structuredContent;
-					if (!sc || !sc.state || sc.client === undefined || sc.resources === undefined) {
+					if (!(sc?.state) || sc.client === undefined || sc.resources === undefined) {
 						throw new Error('getState: structuredContent must include state, client and resources');
 					}
 					return result;
@@ -161,8 +170,10 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'salesforceMcpUtils loadRecordPrefixesResource',
-				run: async() => {
-					const result = await this.mcpClient.callTool('salesforceMcpUtils', {action: 'loadRecordPrefixesResource'});
+				run: async () => {
+					const result = await this.mcpClient.callTool('salesforceMcpUtils', {
+						action: 'loadRecordPrefixesResource'
+					});
 					const sc = result?.structuredContent;
 					if (!sc || typeof sc !== 'object' || Array.isArray(sc)) {
 						throw new Error('loadRecordPrefixesResource: structuredContent must be an object map');
@@ -177,15 +188,17 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'salesforceMcpUtils getCurrentDatetime',
-				run: async() => {
-					return await this.mcpClient.callTool('salesforceMcpUtils', {action: 'getCurrentDatetime'});
+				run: async () => {
+					return await this.mcpClient.callTool('salesforceMcpUtils', {
+						action: 'getCurrentDatetime'
+					});
 				},
 				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
 				canRunInParallel: true
 			},
 			{
 				name: 'salesforceMcpUtils clearCache',
-				run: async() => {
+				run: async () => {
 					return await this.mcpClient.callTool('salesforceMcpUtils', {action: 'clearCache'});
 				},
 				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
@@ -193,22 +206,23 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'salesforceMcpUtils reportIssue validation',
-				run: async() => {
+				run: async () => {
 					try {
 						return await this.mcpClient.callTool('salesforceMcpUtils', {
 							action: 'reportIssue',
 							issueDescription: 'Some description',
 							issueToolName: 'testTool'
 						});
-
 					} catch (error) {
 						// If the error is thrown by the tool itself, that's also valid
 						if (error.message.includes('issueDescription is required and must be at least 10 characters long')) {
 							return {
-								content: [{
-									type: 'text',
-									text: '✅ Validation working correctly - rejected short description'
-								}],
+								content: [
+									{
+										type: 'text',
+										text: '✅ Validation working correctly - rejected short description'
+									}
+								],
 								structuredContent: {validation: 'passed'}
 							};
 						}
@@ -220,7 +234,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'salesforceMcpUtils reportIssue success (dry-run)',
-				run: async() => {
+				run: async () => {
 					// Server process is started with MCP_REPORT_ISSUE_DRY_RUN=true (see test/helpers.js),
 					// so this will not hit the real webhook and should return a fake success payload.
 					const result = await this.mcpClient.callTool('salesforceMcpUtils', {
@@ -240,7 +254,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'apexDebugLogs status',
-				run: async() => {
+				run: async () => {
 					return await this.mcpClient.callTool('apexDebugLogs', {action: 'status'});
 				},
 				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
@@ -248,7 +262,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'apexDebugLogs on',
-				run: async() => {
+				run: async () => {
 					return await this.mcpClient.callTool('apexDebugLogs', {action: 'on'});
 				},
 				dependencies: ['apexDebugLogs status'],
@@ -256,9 +270,9 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'apexDebugLogs list',
-				run: async(context) => {
+				run: async (context) => {
 					const result = await this.mcpClient.callTool('apexDebugLogs', {action: 'list'});
-					if (!result?.structuredContent || !Array.isArray(result.structuredContent.logs)) {
+					if (!(result?.structuredContent && Array.isArray(result.structuredContent.logs))) {
 						throw new Error('apexDebugLogs list: structuredContent.logs must be an array');
 					}
 					if (result.structuredContent.logs.length > 0) {
@@ -279,7 +293,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'apexDebugLogs get',
-				run: async(context) => {
+				run: async (context) => {
 					const logId = context.get('logId');
 					if (!logId) {
 						throw new Error('logId not found in context. Make sure apexDebugLogs list test runs first and sets the logId.');
@@ -325,7 +339,7 @@ export class SalesforceMcpTestSuite {
 			*/
 			{
 				name: 'apexDebugLogs off',
-				run: async() => {
+				run: async () => {
 					return await this.mcpClient.callTool('apexDebugLogs', {action: 'off'});
 				},
 				dependencies: ['apexDebugLogs on'],
@@ -333,7 +347,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'salesforceMcpUtils clearCache (final)',
-				run: async() => {
+				run: async () => {
 					return await this.mcpClient.callTool('salesforceMcpUtils', {action: 'clearCache'});
 				},
 				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
@@ -341,7 +355,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'describeObject Account',
-				run: async() => {
+				run: async () => {
 					const result = await this.mcpClient.callTool('describeObject', {
 						sObjectName: 'Account'
 					});
@@ -361,17 +375,17 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'executeSoqlQuery',
-				run: async() => {
+				run: async () => {
 					const result = await this.mcpClient.callTool('executeSoqlQuery', {
 						query: 'SELECT Id, Name FROM Account LIMIT 3'
 					});
 					const sc = result?.structuredContent;
-					if (!sc || !Array.isArray(sc.records)) {
+					if (!(sc && Array.isArray(sc.records))) {
 						throw new Error('executeSoqlQuery: records must be an array');
 					}
 					if (sc.records.length > 0) {
 						const r = sc.records[0];
-						if (!r.Id || !r.Name) {
+						if (!(r.Id && r.Name)) {
 							throw new Error('executeSoqlQuery: first record must include Id and Name');
 						}
 						if (!r.url) {
@@ -385,10 +399,10 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'getRecentlyViewedRecords',
-				run: async() => {
+				run: async () => {
 					const result = await this.mcpClient.callTool('getRecentlyViewedRecords', {});
 					const sc = result?.structuredContent;
-					if (!sc || !Array.isArray(sc.records) || typeof sc.totalSize !== 'number') {
+					if (!(sc && Array.isArray(sc.records)) || typeof sc.totalSize !== 'number') {
 						throw new Error('getRecentlyViewedRecords: invalid structuredContent shape');
 					}
 					return result;
@@ -398,7 +412,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'getApexClassCodeCoverage',
-				run: async() => {
+				run: async () => {
 					return await this.mcpClient.callTool('getApexClassCodeCoverage', {
 						classNames: ['TestMCPTool']
 					});
@@ -408,7 +422,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'describeObject Account (cached, no fields + picklists)',
-				run: async() => {
+				run: async () => {
 					const result = await this.mcpClient.callTool('describeObject', {
 						sObjectName: 'Account',
 						includeFields: false,
@@ -431,7 +445,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'describeObject Account (no fields, no picklists)',
-				run: async() => {
+				run: async () => {
 					const result = await this.mcpClient.callTool('describeObject', {
 						sObjectName: 'Account',
 						includeFields: false,
@@ -451,7 +465,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'describeObject ApexClass (Tooling API)',
-				run: async() => {
+				run: async () => {
 					const result = await this.mcpClient.callTool('describeObject', {
 						sObjectName: 'ApexClass',
 						useToolingApi: true
@@ -470,18 +484,18 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'executeSoqlQuery (Tooling API)',
-				run: async() => {
+				run: async () => {
 					const result = await this.mcpClient.callTool('executeSoqlQuery', {
 						query: 'SELECT Id, Name FROM ApexClass LIMIT 3',
 						useToolingApi: true
 					});
 					const sc = result?.structuredContent;
-					if (!sc || !Array.isArray(sc.records)) {
+					if (!(sc && Array.isArray(sc.records))) {
 						throw new Error('executeSoqlQuery (Tooling): records must be an array');
 					}
 					if (sc.records.length > 0) {
 						const r = sc.records[0];
-						if (!r.Id || !r.Name) {
+						if (!(r.Id && r.Name)) {
 							throw new Error('executeSoqlQuery (Tooling): first record must include Id and Name');
 						}
 						if (!r.url) {
@@ -496,7 +510,7 @@ export class SalesforceMcpTestSuite {
 			// (Removed misplaced cleanup script for duplicate test)
 			{
 				name: 'createMetadata Apex Test Class',
-				run: async() => {
+				run: async () => {
 					return await this.mcpClient.callTool('createMetadata', {
 						type: 'apexTestClass',
 						name: 'TestMCPToolClassTest'
@@ -504,13 +518,10 @@ export class SalesforceMcpTestSuite {
 				},
 				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
 				canRunInParallel: true,
-				scriptAfter: async() => {
+				scriptAfter: async () => {
 					// Clean up only the files created by this test
 					const classDir = 'force-app/main/default/classes';
-					const classFiles = [
-						`${classDir}/TestMCPToolClassTest.cls`,
-						`${classDir}/TestMCPToolClassTest.cls-meta.xml`
-					];
+					const classFiles = [`${classDir}/TestMCPToolClassTest.cls`, `${classDir}/TestMCPToolClassTest.cls-meta.xml`];
 					for (const filePath of classFiles) {
 						if (fs.existsSync(filePath)) {
 							try {
@@ -525,7 +536,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'createMetadata Apex Trigger',
-				run: async() => {
+				run: async () => {
 					return await this.mcpClient.callTool('createMetadata', {
 						type: 'apexTrigger',
 						name: 'TestMCPToolTrigger',
@@ -535,13 +546,10 @@ export class SalesforceMcpTestSuite {
 				},
 				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
 				canRunInParallel: true,
-				scriptAfter: async() => {
+				scriptAfter: async () => {
 					// Clean up only the files created by this test
 					const triggerDir = 'force-app/main/default/triggers';
-					const triggerFiles = [
-						`${triggerDir}/TestMCPToolTrigger.trigger`,
-						`${triggerDir}/TestMCPToolTrigger.trigger-meta.xml`
-					];
+					const triggerFiles = [`${triggerDir}/TestMCPToolTrigger.trigger`, `${triggerDir}/TestMCPToolTrigger.trigger-meta.xml`];
 					for (const filePath of triggerFiles) {
 						if (fs.existsSync(filePath)) {
 							try {
@@ -556,7 +564,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'createMetadata LWC',
-				run: async() => {
+				run: async () => {
 					return await this.mcpClient.callTool('createMetadata', {
 						type: 'lwc',
 						name: 'testMCPToolComponent'
@@ -564,7 +572,7 @@ export class SalesforceMcpTestSuite {
 				},
 				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
 				canRunInParallel: true,
-				scriptAfter: async() => {
+				scriptAfter: async () => {
 					// Clean up only the folder created by this test
 					const lwcFolder = 'force-app/main/default/lwc/testMCPToolComponent';
 					if (fs.existsSync(lwcFolder)) {
@@ -593,7 +601,7 @@ export class SalesforceMcpTestSuite {
 			*/
 			{
 				name: 'createMetadata Apex Class',
-				run: async() => {
+				run: async () => {
 					// Create a plain Apex class (not a test class)
 					return await this.mcpClient.callTool('createMetadata', {
 						type: 'apexClass',
@@ -602,13 +610,10 @@ export class SalesforceMcpTestSuite {
 				},
 				dependencies: ['salesforceMcpUtils getOrgAndUserDetails'],
 				canRunInParallel: true,
-				scriptAfter: async() => {
+				scriptAfter: async () => {
 					// Clean up only the files created by this test
 					const classDir = 'force-app/main/default/classes';
-					const classFiles = [
-						`${classDir}/TestMCPToolClass.cls`,
-						`${classDir}/TestMCPToolClass.cls-meta.xml`
-					];
+					const classFiles = [`${classDir}/TestMCPToolClass.cls`, `${classDir}/TestMCPToolClass.cls-meta.xml`];
 					for (const filePath of classFiles) {
 						if (fs.existsSync(filePath)) {
 							try {
@@ -623,16 +628,18 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'dmlOperation Create',
-				run: async(context) => {
+				run: async (context) => {
 					const result = await this.mcpClient.callTool('dmlOperation', {
 						operations: {
-							create: [{
-								sObjectName: 'Account',
-								fields: {
-									Name: 'Test MCP Tool Account',
-									Description: 'Account created by MCP tool test'
+							create: [
+								{
+									sObjectName: 'Account',
+									fields: {
+										Name: 'Test MCP Tool Account',
+										Description: 'Account created by MCP tool test'
+									}
 								}
-							}]
+							]
 						}
 					});
 
@@ -652,7 +659,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'getRecord',
-				run: async(context) => {
+				run: async (context) => {
 					const createdAccountId = context.get('createdAccountId');
 					if (!createdAccountId) {
 						throw new Error('createdAccountId not found in context. Make sure dmlOperation Create test runs first and sets the createdAccountId.');
@@ -680,7 +687,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'dmlOperation Update',
-				run: async(context) => {
+				run: async (context) => {
 					const createdAccountId = context.get('createdAccountId');
 					if (!createdAccountId) {
 						throw new Error('createdAccountId not found in context. Make sure dmlOperation Create test runs first and sets the createdAccountId.');
@@ -688,13 +695,15 @@ export class SalesforceMcpTestSuite {
 
 					const result = await this.mcpClient.callTool('dmlOperation', {
 						operations: {
-							update: [{
-								sObjectName: 'Account',
-								recordId: createdAccountId,
-								fields: {
-									Description: `Updated by MCP Tool test at ${new Date().toISOString()}`
+							update: [
+								{
+									sObjectName: 'Account',
+									recordId: createdAccountId,
+									fields: {
+										Description: `Updated by MCP Tool test at ${new Date().toISOString()}`
+									}
 								}
-							}]
+							]
 						}
 					});
 					if (result?.structuredContent?.outcome !== 'success') {
@@ -707,7 +716,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'dmlOperation Update (bypass confirmation)',
-				run: async(context) => {
+				run: async (context) => {
 					const createdAccountId = context.get('createdAccountId');
 					if (!createdAccountId) {
 						throw new Error('createdAccountId not found in context. Make sure dmlOperation Create test runs first and sets the createdAccountId.');
@@ -715,13 +724,15 @@ export class SalesforceMcpTestSuite {
 
 					const result = await this.mcpClient.callTool('dmlOperation', {
 						operations: {
-							update: [{
-								sObjectName: 'Account',
-								recordId: createdAccountId,
-								fields: {
-									Description: 'Bypass confirmation update'
+							update: [
+								{
+									sObjectName: 'Account',
+									recordId: createdAccountId,
+									fields: {
+										Description: 'Bypass confirmation update'
+									}
 								}
-							}]
+							]
 						},
 						options: {bypassUserConfirmation: true}
 					});
@@ -735,7 +746,7 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'dmlOperation Delete',
-				run: async(context) => {
+				run: async (context) => {
 					const createdAccountId = context.get('createdAccountId');
 					if (!createdAccountId) {
 						throw new Error('createdAccountId not found in context. Make sure dmlOperation Create test runs first and sets the createdAccountId.');
@@ -743,10 +754,12 @@ export class SalesforceMcpTestSuite {
 
 					const result = await this.mcpClient.callTool('dmlOperation', {
 						operations: {
-							delete: [{
-								sObjectName: 'Account',
-								recordId: createdAccountId
-							}]
+							delete: [
+								{
+									sObjectName: 'Account',
+									recordId: createdAccountId
+								}
+							]
 						}
 					});
 					if (result?.structuredContent?.outcome !== 'success') {
@@ -759,14 +772,17 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'dmlOperation allOrNone=true (expect failure)',
-				run: async() => {
+				run: async () => {
 					// Try creating two records with allOrNone=true where one is invalid (missing Name)
 					try {
 						await this.mcpClient.callTool('dmlOperation', {
 							operations: {
 								create: [
 									{sObjectName: 'Account', fields: {Name: 'AllOrNone Test OK'}},
-									{sObjectName: 'Account', fields: {Description: 'This will fail because Name is required'}}
+									{
+										sObjectName: 'Account',
+										fields: {Description: 'This will fail because Name is required'}
+									}
 								]
 							},
 							options: {allOrNone: true}
@@ -786,9 +802,9 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'executeAnonymousApex',
-				run: async() => {
+				run: async () => {
 					return await this.mcpClient.callTool('executeAnonymousApex', {
-						apexCode: 'System.debug(\'Hello from MCP tool test\');\nSystem.debug(\'Current time: \' + Datetime.now());',
+						apexCode: "System.debug('Hello from MCP tool test');\nSystem.debug('Current time: ' + Datetime.now());",
 						mayModify: false
 					});
 				},
@@ -798,13 +814,13 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'getSetupAuditTrail',
-				scriptBefore: async() => {
+				scriptBefore: async () => {
 					// Clean up audit trail files
 					const tmpDir = 'tmp';
 					if (fs.existsSync(tmpDir)) {
 						try {
 							const files = fs.readdirSync(tmpDir);
-							const auditTrailFiles = files.filter(file => file.startsWith('SetupAuditTrail'));
+							const auditTrailFiles = files.filter((file) => file.startsWith('SetupAuditTrail'));
 
 							if (auditTrailFiles.length > 0) {
 								for (const file of auditTrailFiles) {
@@ -824,7 +840,7 @@ export class SalesforceMcpTestSuite {
 						}
 					}
 				},
-				run: async() => {
+				run: async () => {
 					const result = await this.mcpClient.callTool('getSetupAuditTrail', {lastDays: 2});
 					const sc = result?.structuredContent;
 					if (!sc || typeof sc.setupAuditTrailFileTotalRecords !== 'number' || typeof sc.setupAuditTrailFileFilteredTotalRecords !== 'number') {
@@ -851,12 +867,12 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'runApexTest',
-				run: async() => {
+				run: async () => {
 					const result = await this.mcpClient.callTool('runApexTest', {
 						methodNames: [TEST_CONFIG.salesforce.runApexTestMethodName]
 					});
 					const sc = result?.structuredContent;
-					if (!sc || !Array.isArray(sc.result) || sc.result.length === 0) {
+					if (!(sc && Array.isArray(sc.result)) || sc.result.length === 0) {
 						throw new Error('runApexTest: result array must be non-empty');
 					}
 					const t = sc.result[0];
@@ -873,13 +889,13 @@ export class SalesforceMcpTestSuite {
 			},
 			{
 				name: 'invokeApexRestResource',
-				run: async() => {
+				run: async () => {
 					const result = await this.mcpClient.callTool('invokeApexRestResource', {
 						apexClassOrRestResourceName: TEST_CONFIG.salesforce.testApexRestResourceName,
 						operation: 'GET'
 					});
 					const sc = result?.structuredContent;
-					if (!sc || !sc.endpoint || !sc.request || !sc.response) {
+					if (!(sc?.endpoint && sc.request && sc.response)) {
 						throw new Error('invokeApexRestResource: missing required structuredContent fields');
 					}
 					if (sc.request.method !== 'GET') {
@@ -904,24 +920,24 @@ export class SalesforceMcpTestSuite {
 
 		// Helper function to check if all dependencies are completed
 		const areDependenciesCompleted = (test) => {
-			return (test.dependencies || []).every(dep => completedTests.has(dep));
+			return (test.dependencies || []).every((dep) => completedTests.has(dep));
 		};
 
 		// Helper function to get tests that can run in current phase
 		const getRunnableTests = (availableTests) => {
-			return availableTests.filter(test =>
-				!completedTests.has(test.name) && areDependenciesCompleted(test)
-			);
+			return availableTests.filter((test) => !completedTests.has(test.name) && areDependenciesCompleted(test));
 		};
 
 		// Helper function to get dependencies for a phase
 		const getPhaseDependencies = (phaseTests) => {
 			const dependencies = new Set();
-			phaseTests.forEach(test => {
+			for (const test of phaseTests) {
 				if (test.dependencies) {
-					test.dependencies.forEach(dep => dependencies.add(dep));
+					for (const dep of test.dependencies) {
+						dependencies.add(dep);
+					}
 				}
-			});
+			 }
 			return Array.from(dependencies);
 		};
 
@@ -931,13 +947,13 @@ export class SalesforceMcpTestSuite {
 
 			if (currentTests.length === 0) {
 				// No tests can run, this indicates a circular dependency
-				const remainingTests = tests.filter(test => !completedTests.has(test.name));
-				throw new Error(`Circular dependency detected. Remaining tests: ${remainingTests.map(t => t.name).join(', ')}`);
+				const remainingTests = tests.filter((test) => !completedTests.has(test.name));
+				throw new Error(`Circular dependency detected. Remaining tests: ${remainingTests.map((t) => t.name).join(', ')}`);
 			}
 
 			// Group tests by whether they can run in parallel
-			const sequentialTests = currentTests.filter(test => !test.canRunInParallel);
-			const parallelTests = currentTests.filter(test => test.canRunInParallel);
+			const sequentialTests = currentTests.filter((test) => !test.canRunInParallel);
+			const parallelTests = currentTests.filter((test) => test.canRunInParallel);
 
 			// Add sequential tests first (they must run one by one)
 			if (sequentialTests.length > 0) {
@@ -947,15 +963,17 @@ export class SalesforceMcpTestSuite {
 					canRunInParallel: false,
 					dependencies: getPhaseDependencies(sequentialTests)
 				};
-				sequentialTests.forEach(test => completedTests.add(test.name));
+				for (const test of sequentialTests) {
+					completedTests.add(test.name);
+				}
 				currentPhase++;
 			}
 
 			// For parallel tests, prioritize high-priority tests first
 			if (parallelTests.length > 0) {
 				// Separate high-priority tests from regular ones
-				const highPriorityTests = parallelTests.filter(test => test.priority === 'high');
-				const regularTests = parallelTests.filter(test => test.priority !== 'high');
+				const highPriorityTests = parallelTests.filter((test) => test.priority === 'high');
+				const regularTests = parallelTests.filter((test) => test.priority !== 'high');
 
 				// Add each high-priority test in its own phase for immediate execution
 				if (highPriorityTests.length > 0) {
@@ -981,7 +999,9 @@ export class SalesforceMcpTestSuite {
 						priority: 'regular',
 						dependencies: getPhaseDependencies(regularTests)
 					};
-					regularTests.forEach(test => completedTests.add(test.name));
+					for (const test of regularTests) {
+						completedTests.add(test.name);
+					}
 					currentPhase++;
 				}
 			}
@@ -1006,7 +1026,7 @@ export class SalesforceMcpTestSuite {
 
 		// Get all tests to access their dependencies
 		const allTests = this.getAvailableTests();
-		const testMap = new Map(allTests.map(test => [test.name, test]));
+		const testMap = new Map(allTests.map((test) => [test.name, test]));
 
 		// Build hierarchical structure based on dependencies
 		const buildPhaseHierarchy = (phases) => {
@@ -1014,18 +1034,18 @@ export class SalesforceMcpTestSuite {
 			const rootPhases = [];
 
 			// Create phase map with test names for dependency checking
-			phases.forEach((phase, index) => {
-				const phaseTestNames = phase.tests.map(test => test.name);
+			for (const [index, phase] of phases.entries()) {
+				const phaseTestNames = phase.tests.map((test) => test.name);
 				phaseMap.set(index, {
 					...phase,
 					phaseNumber: index + 1,
 					testNames: phaseTestNames,
 					children: []
 				});
-			});
+			}
 
 			// Build parent-child relationships
-			phases.forEach((phase, index) => {
+			for (const [index] of phases.entries()) {
 				const currentPhase = phaseMap.get(index);
 
 				// Find parent phase by checking if any test in current phase depends on tests in other phases
@@ -1036,9 +1056,9 @@ export class SalesforceMcpTestSuite {
 					}
 
 					const otherPhase = phaseMap.get(i);
-					const hasDependency = currentPhase.tests.some(test => {
+					const hasDependency = currentPhase.tests.some((test) => {
 						const testInfo = testMap.get(test.name);
-						return testInfo?.dependencies?.some(dep => otherPhase.testNames.includes(dep));
+						return testInfo?.dependencies?.some((dep) => otherPhase.testNames.includes(dep));
 					});
 
 					if (hasDependency) {
@@ -1056,7 +1076,7 @@ export class SalesforceMcpTestSuite {
 				} else {
 					rootPhases.push(currentPhase);
 				}
-			});
+			}
 
 			return rootPhases;
 		};
@@ -1071,7 +1091,7 @@ export class SalesforceMcpTestSuite {
 			const otherTestPrefix = isLast ? `${baseIndent}   ├─` : `${baseIndent}│  ├─`;
 
 			// Check if phase contains any required tests
-			const hasRequiredTests = phase.tests.some(test => {
+			const hasRequiredTests = phase.tests.some((test) => {
 				const testInfo = testMap.get(test.name);
 				return testInfo?.required === true;
 			});
@@ -1079,37 +1099,35 @@ export class SalesforceMcpTestSuite {
 			// Phase header
 			const phaseType = phase.canRunInParallel ? 'parallel' : 'sequential';
 			const phaseDescription = hasRequiredTests ? 'required tests' : 'selected tests';
-			const dependencyText = phase.dependencies && phase.dependencies.length > 0
-				? ` ${TEST_CONFIG.colors.blue}⟵ depends on: ${phase.dependencies.join(', ')}${TEST_CONFIG.colors.reset}`
-				: '';
+			const dependencyText = phase.dependencies && phase.dependencies.length > 0 ? ` ${TEST_CONFIG.colors.blue}⟵ depends on: ${phase.dependencies.join(', ')}${TEST_CONFIG.colors.reset}` : '';
 
 			console.log(`${phasePrefix}${TEST_CONFIG.colors.pink} Phase ${phase.phaseNumber}${TEST_CONFIG.colors.reset}${dependencyText}`);
 			console.log(`${testPrefix}${TEST_CONFIG.colors.cyan}${phase.tests.length} ${phaseDescription}${TEST_CONFIG.colors.gray} (${phaseType})${TEST_CONFIG.colors.reset}`);
 
 			// Tests in this phase
-			phase.tests.forEach((test, testIndex) => {
+					for (const [testIndex, test] of phase.tests.entries()) {
 				const isLastTest = testIndex === phase.tests.length - 1;
 				const testPrefixToUse = isLastTest ? lastTestPrefix : otherTestPrefix;
 				const priorityText = test.priority === 'high' ? ` ${TEST_CONFIG.colors.gray}(high priority)${TEST_CONFIG.colors.reset}` : '';
 
 				console.log(`${TEST_CONFIG.colors.bright}${testPrefixToUse}${TEST_CONFIG.colors.reset} ${test.name}${priorityText}`);
-			});
+			}
 
 			// Display children phases
 			if (phase.children.length > 0) {
 				// Add vertical line to connect to children
 				console.log(`${TEST_CONFIG.colors.bright}${testPrefix}${TEST_CONFIG.colors.reset}`);
 
-				phase.children.forEach((childPhase, childIndex) => {
+				for (const [childIndex, childPhase] of phase.children.entries()) {
 					const isLastChild = childIndex === phase.children.length - 1;
 					displayPhaseRecursive(childPhase, depth + 1, isLastChild);
-				});
+				}
 			}
 		};
 
 		// Build and display the phase hierarchy
 		const phaseHierarchy = buildPhaseHierarchy(executionPhases);
-		phaseHierarchy.forEach((phase, index) => {
+		for (const [index, phase] of phaseHierarchy.entries()) {
 			const isLastPhase = index === phaseHierarchy.length - 1;
 			displayPhaseRecursive(phase, 0, isLastPhase);
 
@@ -1117,7 +1135,7 @@ export class SalesforceMcpTestSuite {
 			if (!isLastPhase) {
 				console.log(`${TEST_CONFIG.colors.bright}    │${TEST_CONFIG.colors.reset}`);
 			}
-		});
+		}
 
 		console.log(''); // Empty line after test plan
 	}
@@ -1131,14 +1149,10 @@ export class SalesforceMcpTestSuite {
 
 		if (testsToRun?.length) {
 			// Always include required tests (tests with required: true)
-			const requiredTests = availableTests.filter(test => test.required === true);
+			const requiredTests = availableTests.filter((test) => test.required === true);
 
 			// Filter selected tests (tests without required: true)
-			const selectedTests = availableTests.filter(test =>
-				test.required !== true && testsToRun.some(testName =>
-					test.name.toLowerCase().includes(testName.toLowerCase())
-				)
-			);
+			const selectedTests = availableTests.filter((test) => test.required !== true && testsToRun.some((testName) => test.name.toLowerCase().includes(testName.toLowerCase())));
 
 			testsToExecute = [...requiredTests, ...selectedTests];
 
@@ -1147,7 +1161,7 @@ export class SalesforceMcpTestSuite {
 					console.log(`${TEST_CONFIG.colors.cyan}Running ${selectedTests.length} selected tests plus ${requiredTests.length} required tests${TEST_CONFIG.colors.reset}`);
 				}
 				if (!this.quiet) {
-					console.log(`${TEST_CONFIG.colors.cyan}Selected tests: ${selectedTests.map(t => t.name).join(', ')}${TEST_CONFIG.colors.reset}`);
+					console.log(`${TEST_CONFIG.colors.cyan}Selected tests: ${selectedTests.map((t) => t.name).join(', ')}${TEST_CONFIG.colors.reset}`);
 				}
 			} else {
 				if (!this.quiet) {

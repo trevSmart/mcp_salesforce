@@ -1,9 +1,9 @@
-import state from '../state.js';
-import {textFileContent} from '../utils.js';
-import {createModuleLogger} from '../lib/logger.js';
-import {getOrgAndUserDetails, callSalesforceApi} from '../lib/salesforceServices.js';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import {z} from 'zod';
+import {createModuleLogger} from '../lib/logger.js';
+import {callSalesforceApi, getOrgAndUserDetails} from '../lib/salesforceServices.js';
+import {state} from '../mcp-server.js';
+import {textFileContent} from '../utils.js';
 
 let currentSessionId = null;
 const logger = createModuleLogger(import.meta.url);
@@ -11,11 +11,9 @@ const logger = createModuleLogger(import.meta.url);
 export const chatWithAgentforceToolDefinition = {
 	name: 'chatWithAgentforce',
 	title: 'Chat with Agentforce',
-	description: textFileContent('tools/chatWithAgentforce.md'),
+	description: await textFileContent('tools/chatWithAgentforce.md'),
 	inputSchema: {
-		message: z
-			.string()
-			.describe('The message to send to Agentforce.')
+		message: z.string().describe('The message to send to Agentforce.')
 	},
 	annotations: {
 		readOnlyHint: false,
@@ -46,24 +44,14 @@ async function startSession() {
 			],
 			featureSupport: 'Streaming',
 			streamingCapabilities: {
-				chunkTypes: [
-					'Text'
-				]
+				chunkTypes: ['Text']
 			},
 			bypassUser: true
 		};
 
-		const response = await callSalesforceApi(
-			'POST',
-			'REST',
-			`/agents/${process.env.SF_MCP_AGENTFORCE_AGENT_ID}/sessions`,
-			body,
-			{baseUrl: 'https://api.salesforce.com/einstein/ai-agent/v1'}
-		);
+		const response = await callSalesforceApi('POST', 'REST', `/agents/${process.env.SF_MCP_AGENTFORCE_AGENT_ID}/sessions`, body, {baseUrl: 'https://api.salesforce.com/einstein/ai-agent/v1'});
 
-
-
-		if (!response || !response.sessionId) {
+		if (!response?.sessionId) {
 			throw new Error('Invalid response from Agentforce API: missing sessionId');
 		}
 
@@ -74,10 +62,12 @@ async function startSession() {
 		logger.error(error, 'Error starting session');
 		return {
 			isError: true,
-			content: [{
-				type: 'text',
-				text: `❌ Error: ${error.message}`
-			}]
+			content: [
+				{
+					type: 'text',
+					text: `❌ Error: ${error.message}`
+				}
+			]
 		};
 	}
 }
@@ -94,7 +84,7 @@ async function sendMessage(message) {
 			`/sessions/${currentSessionId}/messages`,
 			{
 				message: {
-					sequenceId: new Date().getTime(),
+					sequenceId: Date.now(),
 					type: 'Text',
 					text: message
 				},
@@ -113,10 +103,12 @@ async function sendMessage(message) {
 		logger.debug(JSON.stringify(error, null, 3), 'Error sending message');
 		return {
 			isError: true,
-			content: [{
-				type: 'text',
-				text: `❌ Error: ${error.message}`
-			}]
+			content: [
+				{
+					type: 'text',
+					text: `❌ Error: ${error.message}`
+				}
+			]
 		};
 	}
 }
@@ -125,10 +117,12 @@ export async function chatWithAgentforceToolHandler({message}) {
 	if (!message) {
 		return {
 			isError: true,
-			content: [{
-				type: 'text',
-				text: 'Validation error: the "message" field is required'
-			}]
+			content: [
+				{
+					type: 'text',
+					text: 'Validation error: the "message" field is required'
+				}
+			]
 		};
 	}
 
@@ -139,22 +133,25 @@ export async function chatWithAgentforceToolHandler({message}) {
 	try {
 		const response = await sendMessage(message);
 		return {
-			content: [{
-				type: 'text',
-				text: response.messages?.[0].message || 'No response received from Agentforce'
-			}],
+			content: [
+				{
+					type: 'text',
+					text: response.messages?.[0].message || 'No response received from Agentforce'
+				}
+			],
 			data: response,
 			structuredContent: response
 		};
-
 	} catch (error) {
 		logger.error(error);
 		return {
 			isError: true,
-			content: [{
-				type: 'text',
-				text: `❌ Error: ${error.message}`
-			}]
+			content: [
+				{
+					type: 'text',
+					text: `❌ Error: ${error.message}`
+				}
+			]
 		};
 	}
 }

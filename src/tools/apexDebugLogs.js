@@ -1,10 +1,11 @@
-import {newResource, mcpServer} from '../mcp-server.js';
-import state from '../state.js';
-import client from '../client.js';
-import {textFileContent, formatDate} from '../utils.js'; // ensureTmpDir, writeToTmpFile
-import {createModuleLogger} from '../lib/logger.js';
-import {executeSoqlQuery, dmlOperation, runCliCommand} from '../lib/salesforceServices.js';
+/** biome-ignore-all lint/style/useNamingConvention: SObject fields are not camelCase */
 import {z} from 'zod';
+import client from '../client.js';
+import {createModuleLogger} from '../lib/logger.js';
+import {dmlOperation, executeSoqlQuery, runCliCommand} from '../lib/salesforceServices.js';
+import {mcpServer, newResource, state} from '../mcp-server.js';
+import {formatDate, textFileContent} from '../utils.js'; // ensureTmpDir, writeToTmpFile
+
 // import path from 'path';
 // import {execSync} from 'child_process';
 const logger = createModuleLogger(import.meta.url);
@@ -12,13 +13,10 @@ const logger = createModuleLogger(import.meta.url);
 export const apexDebugLogsToolDefinition = {
 	name: 'apexDebugLogs',
 	title: 'Manage Apex debug logs',
-	description: textFileContent('tools/apexDebugLogs.md'),
+	description: await textFileContent('tools/apexDebugLogs.md'),
 	inputSchema: {
-		action: z.enum(['status', 'on', 'off', 'list', 'get'])
-			.describe('The action to perform. Possible values: "status", "on", "off", "list", "get".'),
-		logId: z.string()
-			.optional()
-			.describe('The ID of the log to retrieve (only used when action is "get"; selection is prompted if not provided).')
+		action: z.enum(['status', 'on', 'off', 'list', 'get']).describe('The action to perform. Possible values: "status", "on", "off", "list", "get".'),
+		logId: z.string().optional().describe('The ID of the log to retrieve (only used when action is "get"; selection is prompted if not provided).')
 		// analyzeOptions temporarily disabled while analyze action is not ready
 		// analyzeOptions: z.object({
 		// 	minDurationMs: z
@@ -366,14 +364,15 @@ async function exportMermaidToPng(mermaidText, fileBaseName) {
 }
 */
 
-export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOptions
+export async function apexDebugLogsToolHandler({action, logId}) {
+	// analyzeOptions
 	try {
 		if (!['status', 'on', 'off', 'list', 'get'].includes(action)) {
 			throw new Error(`Invalid action: ${action}`);
 		}
 
 		const user = state?.org?.user;
-		logger.debug(`User data: ${JSON.stringify(user)}`) ;
+		logger.debug(`User data: ${JSON.stringify(user)}`);
 		if (!user) {
 			throw new Error('User data not found');
 		}
@@ -381,10 +380,7 @@ export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOpti
 		if (action === 'status') {
 			logger.debug('Checking already existing TraceFlag...');
 
-			const soqlTraceFlagResult = await executeSoqlQuery(
-				`SELECT Id, StartDate, ExpirationDate, DebugLevel.DeveloperName FROM TraceFlag WHERE TracedEntityId = '${user.id}' AND StartDate < ${new Date().toISOString()} AND ExpirationDate > ${new Date().toISOString()} LIMIT 1`,
-				true
-			);
+			const soqlTraceFlagResult = await executeSoqlQuery(`SELECT Id, StartDate, ExpirationDate, DebugLevel.DeveloperName FROM TraceFlag WHERE TracedEntityId = '${user.id}' AND StartDate < ${new Date().toISOString()} AND ExpirationDate > ${new Date().toISOString()} LIMIT 1`, true);
 			const traceFlag = soqlTraceFlagResult?.records?.[0];
 
 			if (traceFlag) {
@@ -394,10 +390,12 @@ export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOpti
 				const status = startDate < now && expirationDate > now ? '🟢 Active' : '🟥 Inactive';
 
 				return {
-					content: [{
-						type: 'text',
-						text: `Apex debug logs status for user ${user.name} in ${state?.org?.alias}: ${status}.`
-					}],
+					content: [
+						{
+							type: 'text',
+							text: `Apex debug logs status for user ${user.name} in ${state?.org?.alias}: ${status}.`
+						}
+					],
 					structuredContent: {
 						user: user.name,
 						status,
@@ -409,42 +407,47 @@ export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOpti
 				};
 			} else {
 				return {
-					content: [{
-						type: 'text',
-						text: `Apex debug logs status for user ${user.name} in ${state?.org?.alias}: 🟥 Inactive`
-					}],
+					content: [
+						{
+							type: 'text',
+							text: `Apex debug logs status for user ${user.name} in ${state?.org?.alias}: 🟥 Inactive`
+						}
+					],
 					structuredContent: {status: 'inactive', traceFlag: null}
 				};
 			}
-
 		} else if (action === 'on') {
 			//1. Check if there's already an active TraceFlag
 			logger.debug('Checking for already active TraceFlag...');
-			const soqlActiveTraceFlagResult = await executeSoqlQuery(
-				`SELECT Id, StartDate, ExpirationDate, DebugLevel.DeveloperName FROM TraceFlag WHERE TracedEntityId = '${user.id}' AND LogType = 'DEVELOPER_LOG' AND ExpirationDate > ${new Date().toISOString()}`,
-				true
-			);
+			const soqlActiveTraceFlagResult = await executeSoqlQuery(`SELECT Id, StartDate, ExpirationDate, DebugLevel.DeveloperName FROM TraceFlag WHERE TracedEntityId = '${user.id}' AND LogType = 'DEVELOPER_LOG' AND ExpirationDate > ${new Date().toISOString()}`, true);
 			const activeTraceFlag = soqlActiveTraceFlagResult?.records?.[0];
 
 			if (activeTraceFlag) {
 				// Extend the expiration date by 1 hour from now
 				const now = new Date();
-				const newExpirationDate = new Date(now.getTime() + 60 * 60000); //1 hour from now
-				await dmlOperation({
-					update: [{
-						sObjectName: 'TraceFlag',
-						recordId: activeTraceFlag.Id,
-						fields: {ExpirationDate: newExpirationDate.toISOString()}
-					}]
-				}, {useToolingApi: true});
+				const newExpirationDate = new Date(now.getTime() + 60 * 60_000); //1 hour from now
+				await dmlOperation(
+					{
+						update: [
+							{
+								sObjectName: 'TraceFlag',
+								recordId: activeTraceFlag.Id,
+								fields: {ExpirationDate: newExpirationDate.toISOString()}
+							}
+						]
+					},
+					{useToolingApi: true}
+				);
 
 				const startDate = new Date(activeTraceFlag.StartDate);
 
 				return {
-					content: [{
-						type: 'text',
-						text: `Debug logs were already active for ${user.name} in ${state?.org?.alias}. Extended expiration date for the next hour, new expiration date is ${formatDate(newExpirationDate)}.`
-					}],
+					content: [
+						{
+							type: 'text',
+							text: `Debug logs were already active for ${user.name} in ${state?.org?.alias}. Extended expiration date for the next hour, new expiration date is ${formatDate(newExpirationDate)}.`
+						}
+					],
 					structuredContent: {
 						user: user.name,
 						traceFlagId: activeTraceFlag.Id,
@@ -457,50 +460,62 @@ export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOpti
 			}
 
 			//2. Find or create DebugLevel with DeveloperName=ReplayDebuggerLevels
-			let soqlDebugLevelResult = await executeSoqlQuery("SELECT Id FROM DebugLevel WHERE DeveloperName = 'ReplayDebuggerLevels' LIMIT 1", true);
+			const soqlDebugLevelResult = await executeSoqlQuery("SELECT Id FROM DebugLevel WHERE DeveloperName = 'ReplayDebuggerLevels' LIMIT 1", true);
 			let debugLevelId = soqlDebugLevelResult?.records?.[0]?.Id;
 
 			if (!debugLevelId) {
 				logger.debug('DebugLevel not found. Creating new DebugLevel...');
-				const debugLevelResult = await dmlOperation({
-					create: [{
-						sObjectName: 'DebugLevel',
-						fields: {
-							DeveloperName: 'ReplayDebuggerLevels',
-							MasterLabel: 'ReplayDebuggerLevels',
-							ApexCode: 'FINEST',
-							Visualforce: 'FINER'
-						}
-					}]
-				}, {useToolingApi: true});
+				const debugLevelResult = await dmlOperation(
+					{
+						create: [
+							{
+								sObjectName: 'DebugLevel',
+								fields: {
+									DeveloperName: 'ReplayDebuggerLevels',
+									MasterLabel: 'ReplayDebuggerLevels',
+									ApexCode: 'FINEST',
+									Visualforce: 'FINER'
+								}
+							}
+						]
+					},
+					{useToolingApi: true}
+				);
 				debugLevelId = debugLevelResult.successes?.[0]?.id;
 			}
 
 			const now = new Date();
 			const startDate = new Date(now);
-			const expirationDate = new Date(startDate.getTime() + 60 * 60000); //1 hour
-			const traceFlagResult = await dmlOperation({
-				create: [{
-					sObjectName: 'TraceFlag',
-					fields: {
-						TracedEntityId: user.id,
-						DebugLevelId: debugLevelId,
-						LogType: 'DEVELOPER_LOG',
-						StartDate: startDate.toISOString(),
-						ExpirationDate: expirationDate.toISOString()
-					}
-				}]
-			}, {useToolingApi: true});
+			const expirationDate = new Date(startDate.getTime() + 60 * 60_000); //1 hour
+			const traceFlagResult = await dmlOperation(
+				{
+					create: [
+						{
+							sObjectName: 'TraceFlag',
+							fields: {
+								TracedEntityId: user.id,
+								DebugLevelId: debugLevelId,
+								LogType: 'DEVELOPER_LOG',
+								StartDate: startDate.toISOString(),
+								ExpirationDate: expirationDate.toISOString()
+							}
+						}
+					]
+				},
+				{useToolingApi: true}
+			);
 
 			logger.debug(traceFlagResult, 'Create TraceFlag result');
 
 			const newTraceFlagId = traceFlagResult.successes?.[0]?.id;
 
 			return {
-				content: [{
-					type: 'text',
-					text: `Apex debug logs status for ${user.name} in ${state?.org?.alias}: active`
-				}],
+				content: [
+					{
+						type: 'text',
+						text: `Apex debug logs status for ${user.name} in ${state?.org?.alias}: active`
+					}
+				],
 				structuredContent: {
 					traceFlagId: newTraceFlagId,
 					status: startDate <= now && now <= expirationDate ? '🟢 Active' : '🟥 Inactive',
@@ -509,43 +524,51 @@ export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOpti
 					debugLevelName: 'ReplayDebuggerLevels'
 				}
 			};
-
 		} else if (action === 'off') {
-			const soqlTraceFlagResult = await executeSoqlQuery(
-				`SELECT Id, DebugLevelId FROM TraceFlag WHERE TracedEntityId = '${user.id}' AND ExpirationDate >= ${new Date().toISOString()}`,
-				true
-			);
+			const soqlTraceFlagResult = await executeSoqlQuery(`SELECT Id, DebugLevelId FROM TraceFlag WHERE TracedEntityId = '${user.id}' AND ExpirationDate >= ${new Date().toISOString()}`, true);
 			const traceFlag = soqlTraceFlagResult?.records?.[0];
 
 			if (!traceFlag) {
 				return {
-					content: [{
-						type: 'text',
-						text: `Debug logs were already inactive for ${user.name} in ${state?.org?.alias}, no action taken`
-					}],
+					content: [
+						{
+							type: 'text',
+							text: `Debug logs were already inactive for ${user.name} in ${state?.org?.alias}, no action taken`
+						}
+					],
 					structuredContent: {}
 				};
 			}
 
-			const newExpirationDate = new Date(Date.now() + 10000); // 10 seconds in the future
-			await dmlOperation({
-				update: [{
-					sObjectName: 'TraceFlag',
-					recordId: traceFlag.Id,
-					fields: {ExpirationDate: newExpirationDate.toISOString()}
-				}]
-			}, {useToolingApi: true});
+			const newExpirationDate = new Date(Date.now() + 10_000); // 10 seconds in the future
+			await dmlOperation(
+				{
+					update: [
+						{
+							sObjectName: 'TraceFlag',
+							recordId: traceFlag.Id,
+							fields: {ExpirationDate: newExpirationDate.toISOString()}
+						}
+					]
+				},
+				{useToolingApi: true}
+			);
 
 			return {
-				content: [{
-					type: 'text',
-					text: `Apex debug logs status for ${user.name} in ${state?.org?.alias}: 🟥 Inactive`
-				}],
-				structuredContent: {...traceFlag, status: '🟥 Inactive', expirationDate: formatDate(newExpirationDate)}
+				content: [
+					{
+						type: 'text',
+						text: `Apex debug logs status for ${user.name} in ${state?.org?.alias}: 🟥 Inactive`
+					}
+				],
+				structuredContent: {
+					...traceFlag,
+					status: '🟥 Inactive',
+					expirationDate: formatDate(newExpirationDate)
+				}
 			};
-
 		} else if (action === 'list') {
-			let response = await runCliCommand('sf apex list log --json');
+			const response = await runCliCommand('sf apex list log --json');
 			let logs = [];
 
 			try {
@@ -558,9 +581,9 @@ export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOpti
 
 			if (logs && Array.isArray(logs)) {
 				// Take only the first 50 logs and format them
-				logs = logs.slice(0, 30).map(logItem => {
+				logs = logs.slice(0, 30).map((logItem) => {
 					if (logItem.LogLength) {
-						const lengthInBytes = parseInt(logItem.LogLength);
+						const lengthInBytes = Number.parseInt(logItem.LogLength, 10);
 						if (lengthInBytes < 1024 * 1024) {
 							logItem.LogLength = `${Math.floor(lengthInBytes / 1024)} KB`;
 						} else {
@@ -570,7 +593,7 @@ export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOpti
 
 					// Convert duration from DurationMilliseconds to seconds
 					if (logItem.DurationMilliseconds) {
-						const durationMs = parseInt(logItem.DurationMilliseconds);
+						const durationMs = Number.parseInt(logItem.DurationMilliseconds, 10);
 						if (durationMs < 1000) {
 							logItem.duration = `${durationMs}ms`;
 						} else {
@@ -588,18 +611,19 @@ export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOpti
 			}
 
 			return {
-				content: [{
-					type: 'text',
-					text: `${logs.length} Apex debug logs found in ${state?.org?.alias}`
-				}],
+				content: [
+					{
+						type: 'text',
+						text: `${logs.length} Apex debug logs found in ${state?.org?.alias}`
+					}
+				],
 				structuredContent: {logs}
 			};
-
 		} else if (action === 'get') {
 			if (!logId) {
 				if (client.supportsCapability('elicitation')) {
 					// Get the list of available logs for selection
-					let response = await runCliCommand('sf apex list log --json');
+					const response = await runCliCommand('sf apex list log --json');
 					let logs = [];
 
 					try {
@@ -610,34 +634,47 @@ export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOpti
 						logs = [];
 					}
 
-					if (!logs || !Array.isArray(logs) || logs.length === 0) {
+					if (!(logs && Array.isArray(logs)) || logs.length === 0) {
 						throw new Error('No Apex debug logs available for selection');
 					}
 
 					// Take only the first 50 logs and format them for selection
-					const availableLogs = logs.slice(0, 50).map(logItem => {
+					const availableLogs = logs.slice(0, 50).map((logItem) => {
 						// Check if the log is from today
 						const today = new Date().toDateString();
 						const logDate = new Date(logItem.StartTime);
 						const isToday = logDate.toDateString() === today;
 						let startTime;
 						if (isToday) {
-							startTime = logDate.toLocaleTimeString('es-ES', {hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: false});
+							startTime = logDate.toLocaleTimeString('es-ES', {
+								hour: 'numeric',
+								minute: '2-digit',
+								second: '2-digit',
+								hour12: false
+							});
 						} else {
-							startTime = logDate.toLocaleDateString('es-ES', {day: 'numeric', month: 'numeric', year: '2-digit'}) + ' ' +
-								logDate.toLocaleTimeString('es-ES', {hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: false});
+							startTime =
+								logDate.toLocaleDateString('es-ES', {
+									day: 'numeric',
+									month: 'numeric',
+									year: '2-digit'
+								}) +
+								' ' +
+								logDate.toLocaleTimeString('es-ES', {
+									hour: 'numeric',
+									minute: '2-digit',
+									second: '2-digit',
+									hour12: false
+								});
 						}
 
 						const logUser = logItem.LogUser.Name || 'Unknown user';
 						const operation = logItem.Operation || 'Unknown operation';
-						const size = logItem.LogLength ?
-							(parseInt(logItem.LogLength) < 1024 * 1024 ?
-								`${Math.floor(parseInt(logItem.LogLength) / 1024)} KB` :
-								`${(parseInt(logItem.LogLength) / (1024 * 1024)).toFixed(1)} MB`) : 'N/A';
+						const size = logItem.LogLength ? (Number.parseInt(logItem.LogLength, 10) < 1024 * 1024 ? `${Math.floor(Number.parseInt(logItem.LogLength, 10) / 1024)} KB` : `${(Number.parseInt(logItem.LogLength, 10) / (1024 * 1024)).toFixed(1)} MB`) : 'N/A';
 
 						return {
 							id: logItem.Id,
-							description: `${startTime} - ${logUser} - ${operation} (${size})  →  ${logItem.Status === 'Success' ? '✅ Success' : '❌ ' + logItem.Status}`
+							description: `${startTime} - ${logUser} - ${operation} (${size})  →  ${logItem.Status === 'Success' ? '✅ Success' : `❌ ${logItem.Status}`}`
 						};
 					});
 
@@ -649,8 +686,8 @@ export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOpti
 							properties: {
 								logId: {
 									type: 'string',
-									enum: availableLogs.map(logItem => logItem.id),
-									enumNames: availableLogs.map(logItem => logItem.description),
+									enum: availableLogs.map((logItem) => logItem.id),
+									enumNames: availableLogs.map((logItem) => logItem.description),
 									description: 'Select the Apex debug log to retrieve'
 								}
 							},
@@ -661,10 +698,12 @@ export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOpti
 					if (elicitResult.action !== 'accept' || !elicitResult.content?.logId) {
 						return {
 							isError: true,
-							content: [{
-								type: 'text',
-								text: 'User has cancelled the log selection'
-							}]
+							content: [
+								{
+									type: 'text',
+									text: 'User has cancelled the log selection'
+								}
+							]
 						};
 					}
 
@@ -676,20 +715,17 @@ export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOpti
 
 			const apexLog = await runCliCommand(`sf apex get log --log-id ${logId}`);
 
-			const content = [{
-				type: 'text',
-				text: `Succesfully retrieved Apex debug log ${logId}`
-			}];
+			const content = [
+				{
+					type: 'text',
+					text: `Succesfully retrieved Apex debug log ${logId}`
+				}
+			];
 
 			const uri = `mcp://apexLogs/${logId}.log`;
-			newResource(
-				uri,
-				`${logId}.log`,
-				`Apex debug log ${logId}`,
-				'text/plain',
-				apexLog,
-				{audience: ['user']}
-			);
+			newResource(uri, `${logId}.log`, `Apex debug log ${logId}`, 'text/plain', apexLog, {
+				audience: ['user']
+			});
 			if (client.supportsCapability('resource_links')) {
 				content.push({type: 'resource_link', uri});
 			}
@@ -699,7 +735,7 @@ export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOpti
 				structuredContent: {apexLog}
 			};
 
-		/*
+			/*
 		} else if (action === 'analyze') {
 			// Analyze action temporarily disabled (feature not ready)
 			return {
@@ -708,15 +744,16 @@ export async function apexDebugLogsToolHandler({action, logId}) { // analyzeOpti
 			};
 			*/
 		}
-
 	} catch (error) {
 		logger.error(error);
 		return {
 			isError: true,
-			content: [{
-				type: 'text',
-				text: `❌ Error managing debug logs: ${error.message}`
-			}]
+			content: [
+				{
+					type: 'text',
+					text: `❌ Error managing debug logs: ${error.message}`
+				}
+			]
 		};
 	}
 }

@@ -1,13 +1,13 @@
-import {spawn, execSync} from 'child_process';
-import {fileURLToPath} from 'url';
-import {dirname, resolve} from 'path';
+import {execSync, spawn} from 'node:child_process';
+import {dirname, resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {TEST_CONFIG} from './test-config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // MCP Server management
-export class MCPServerManager {
+export class McpServerManager {
 	constructor(quiet = false) {
 		this.serverProcess = null;
 		this.quiet = quiet;
@@ -17,7 +17,6 @@ export class MCPServerManager {
 		if (!this.quiet) {
 			console.log(`\n${TEST_CONFIG.colors.blue}Starting MCP server...${TEST_CONFIG.colors.reset}`);
 		}
-
 
 		// Ensure test runs never create real GitHub issues via webhook
 		const env = {...process.env};
@@ -46,7 +45,7 @@ export class MCPServerManager {
 		});
 
 		// Wait for server to start
-		await new Promise(resolveTimeout => setTimeout(resolveTimeout, TEST_CONFIG.mcpServer.startupDelay));
+		await new Promise((resolveTimeout) => setTimeout(resolveTimeout, TEST_CONFIG.mcpServer.startupDelay));
 	}
 
 	async stop() {
@@ -62,8 +61,8 @@ export class MCPServerManager {
 }
 
 // Salesforce org management
-export class SalesforceOrgManager {
-	static getCurrentOrg() {
+export const salesforceOrgManager = {
+	getCurrentOrg() {
 		try {
 			const result = execSync('sf config get target-org --json', {encoding: 'utf8'});
 			const config = JSON.parse(result);
@@ -72,9 +71,9 @@ export class SalesforceOrgManager {
 			console.error(`  ${TEST_CONFIG.colors.red}Error getting current org:${TEST_CONFIG.colors.reset}`, error.message);
 			return null;
 		}
-	}
+	},
 
-	static setTargetOrg(alias, quiet = false) {
+	setTargetOrg(alias, quiet = false) {
 		try {
 			execSync(`sf config set target-org "${alias}" --global`, {encoding: 'utf8'});
 			if (!quiet) {
@@ -85,9 +84,9 @@ export class SalesforceOrgManager {
 			console.error(`  ${TEST_CONFIG.colors.red}Error switching to org ${alias}:${TEST_CONFIG.colors.reset}`, error.message);
 			return false;
 		}
-	}
+	},
 
-	static async ensureTestOrg(quiet = false) {
+	async ensureTestOrg(quiet = false) {
 		const currentOrg = this.getCurrentOrg();
 		const testOrg = TEST_CONFIG.salesforce.testOrgAlias;
 
@@ -110,9 +109,9 @@ export class SalesforceOrgManager {
 		} else {
 			throw new Error(`Failed to switch to test org: ${testOrg}`);
 		}
-	}
+	},
 
-	static restoreOriginalOrg(originalOrg, quiet = false) {
+	restoreOriginalOrg(originalOrg, quiet = false) {
 		if (!originalOrg) {
 			if (!quiet) {
 				console.log(`${TEST_CONFIG.colors.blue}No original org to restore${TEST_CONFIG.colors.reset}`);
@@ -134,42 +133,41 @@ export class SalesforceOrgManager {
 }
 
 // Test utility functions
-export class TestHelpers {
-	static logNotification(level, text) {
-		const color = {
-			emergency: TEST_CONFIG.colors.red,
-			alert: TEST_CONFIG.colors.red,
-			critical: TEST_CONFIG.colors.red,
-			error: TEST_CONFIG.colors.red,
-			warning: TEST_CONFIG.colors.yellow,
-			notice: TEST_CONFIG.colors.green,
-			info: TEST_CONFIG.colors.cyan,
-			debug: TEST_CONFIG.colors.pink
-		}[level] || TEST_CONFIG.colors.reset;
+export const testHelpers = {
+	logNotification(level, text) {
+		const color =
+			{
+				emergency: TEST_CONFIG.colors.red,
+				alert: TEST_CONFIG.colors.red,
+				critical: TEST_CONFIG.colors.red,
+				error: TEST_CONFIG.colors.red,
+				warning: TEST_CONFIG.colors.yellow,
+				notice: TEST_CONFIG.colors.green,
+				info: TEST_CONFIG.colors.cyan,
+				debug: TEST_CONFIG.colors.pink
+			}[level] || TEST_CONFIG.colors.reset;
 
 		console.log(`${color}[${level.toUpperCase()}]${TEST_CONFIG.colors.reset} ${text}`);
-	}
+	},
 
-	static formatDuration(startTime) {
+	formatDuration(startTime) {
 		const durationMs = Date.now() - startTime;
 		const durationSeconds = (durationMs / 1000).toFixed(2);
 		return `${durationSeconds}s`;
-	}
+	},
 
-	static getTestStatus(success) {
-		return success ?
-			`${TEST_CONFIG.colors.green}✓ PASS${TEST_CONFIG.colors.reset}` :
-			`${TEST_CONFIG.colors.red}✗ FAIL${TEST_CONFIG.colors.reset}`;
-	}
+	getTestStatus(success) {
+		return success ? `${TEST_CONFIG.colors.green}✓ PASS${TEST_CONFIG.colors.reset}` : `${TEST_CONFIG.colors.red}✗ FAIL${TEST_CONFIG.colors.reset}`;
+	},
 
-	static parseCommandLineArgs() {
+	parseCommandLineArgs() {
 		const args = {};
-		process.argv.slice(2).forEach(arg => {
+		for (const arg of process.argv.slice(2)) {
 			if (arg.startsWith('--')) {
-				const [key, value] = arg.substring(2).split('=');
-				args[key] = value || true;
+				const [key] = arg.substring(2).split('=');
+				args[key] = true;
 			}
-		});
+		}
 		return args;
 	}
 }

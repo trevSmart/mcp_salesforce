@@ -38,7 +38,7 @@ updates:
           - "patch"
       dev-dependencies:
         patterns:
-          - "eslint*"
+          - "biome*"
           - "@babel/*"
           - "javascript-obfuscator"
         update-types:

@@ -1,34 +1,24 @@
-import {textFileContent} from '../utils.js';
-import {createModuleLogger} from '../lib/logger.js';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import {z} from 'zod';
+import {createModuleLogger} from '../lib/logger.js';
 import {callSalesforceApi} from '../lib/salesforceServices.js';
-import state from '../state.js';
-import fs from 'fs/promises';
-import path from 'path';
+import {state} from '../mcp-server.js';
+import {textFileContent} from '../utils.js';
 
 const logger = createModuleLogger(import.meta.url);
 
 export const invokeApexRestResourceToolDefinition = {
 	name: 'invokeApexRestResource',
 	title: 'Invoke Apex REST Resource',
-	description: textFileContent('tools/invokeApexRestResource.md'),
+	description: await textFileContent('tools/invokeApexRestResource.md'),
 	inputSchema: {
-		apexClassOrRestResourceName: z.string()
-			.describe('Name of the Apex REST resource or name of its containing Apex class'),
-		operation: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
-			.describe('The HTTP operation to perform'),
-		bodySerialized: z.string()
-			.optional()
-			.describe('The request body for the HTTP request (serialized as a JSON string)'),
-		bodyObject: z.record(z.any())
-			.optional()
-			.describe('The request body for the HTTP request (object)'),
-		urlParams: z.record(z.any())
-			.optional()
-			.describe('URL parameters to append to the endpoint (object)'),
-		headers: z.record(z.string())
-			.optional()
-			.describe('Additional headers to include in the request (object)')
+		apexClassOrRestResourceName: z.string().describe('Name of the Apex REST resource or name of its containing Apex class'),
+		operation: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).describe('The HTTP operation to perform'),
+		bodySerialized: z.string().optional().describe('The request body for the HTTP request (serialized as a JSON string)'),
+		bodyObject: z.record(z.any()).optional().describe('The request body for the HTTP request (object)'),
+		urlParams: z.record(z.any()).optional().describe('URL parameters to append to the endpoint (object)'),
+		headers: z.record(z.string()).optional().describe('Additional headers to include in the request (object)')
 	},
 	annotations: {
 		readOnlyHint: false,
@@ -37,7 +27,6 @@ export const invokeApexRestResourceToolDefinition = {
 		title: 'Invoke Apex REST Resource'
 	}
 };
-
 
 export async function invokeApexRestResourceToolHandler({apexClassOrRestResourceName, operation, bodySerialized, bodyObject, urlParams, headers}) {
 	// Process request body first (outside try block so it's available in catch)
@@ -73,17 +62,16 @@ export async function invokeApexRestResourceToolHandler({apexClassOrRestResource
 		}
 
 		// Check if we have authentication
-		if (!state?.org?.instanceUrl || !state?.org?.accessToken) {
+		if (!(state?.org?.instanceUrl && state?.org?.accessToken)) {
 			throw new Error('Not authenticated to Salesforce. Please authenticate first');
 		}
 
-
 		try {
 			const apexClassFilename = `${apexClassOrRestResourceName}${apexClassOrRestResourceName.endsWith('.cls') ? '' : '.cls'}`;
-			const apexClassFilePath = path.join(state.workspacePath, `force-app/main/default/classes/${apexClassFilename}`);
+			const apexClassFilePath = path.join(process.cwd(), `force-app/main/default/classes/${apexClassFilename}`);
 			logger.debug(`Apex class file path: ${apexClassFilePath}`);
 
-			const apexClassPath = path.join(state.workspacePath, `force-app/main/default/classes/${apexClassFilename}`);
+			const apexClassPath = path.join(process.cwd(), `force-app/main/default/classes/${apexClassFilename}`);
 			await fs.access(apexClassPath);
 
 			logger.debug(`Apex class exists in local file system: ${apexClassPath}`);
@@ -91,10 +79,10 @@ export async function invokeApexRestResourceToolHandler({apexClassOrRestResource
 			// Read the Apex class file to find the REST resource annotation
 			const fileContent = await fs.readFile(apexClassPath, 'utf8');
 
-			const pattern = new RegExp('@RestResource\\s*\\(\\s*urlMapping\\s*=\\s*[\'"]/?(.*?)[\'"](\\s*\\))?', 'i');
+			const pattern = /@RestResource\s*\(\s*urlMapping\s*=\s*['"]\/?(.*?)['"](\s*\))?/i;
 			const matcher = pattern.exec(fileContent);
 
-			if (matcher && matcher[1]) {
+			if (matcher?.[1]) {
 				// Extract the path and clean it from wildcards and trailing slashes
 				const extractedPath = matcher[1].replace(/\/\*$|\*$|\/$/, '');
 				logger.debug(`Found Apex REST resource name in Apex class URL mapping: ${extractedPath}`);
@@ -120,23 +108,55 @@ export async function invokeApexRestResourceToolHandler({apexClassOrRestResource
 
 		logger.info(`Apex REST Resource "${apexClassOrRestResourceName}" (${operation}) call completed`);
 
+		// Construct the endpoint URL
+		const endpoint = `${state.org.instanceUrl}/services/apexrest/${apexClassOrRestResourceName}`;
 
-		return {
-			content: [{
-				type: 'text',
-				text: `Successfully called "${apexClassOrRestResourceName}" Apex rest resource`
-			}],
-			structuredContent: response
+		// Structure the response according to expected format
+		const structuredResponse = {
+			endpoint,
+			request: {
+				method: operation,
+				headers: headers || {},
+				body: body || null
+			},
+			response: response,
+			status: 200 // Assuming success since callSalesforceApi throws on error
 		};
 
+		return {
+			content: [
+				{
+					type: 'text',
+					text: `Successfully called "${apexClassOrRestResourceName}" Apex rest resource`
+				}
+			],
+			structuredContent: structuredResponse
+		};
 	} catch (error) {
+		// Construct the endpoint URL for error case
+		const endpoint = state?.org?.instanceUrl ? `${state.org.instanceUrl}/services/apexrest/${apexClassOrRestResourceName}` : `/services/apexrest/${apexClassOrRestResourceName}`;
+
+		// Structure the error response according to expected format
+		const structuredError = {
+			endpoint,
+			request: {
+				method: operation,
+				headers: headers || {},
+				body: body || null
+			},
+			response: error.message,
+			status: 500 // Error status code
+		};
+
 		return {
 			isError: true,
-			content: [{
-				type: 'text',
-				text: `Error invoking Apex REST Resource "${apexClassOrRestResourceName}" (${operation}): ${error.message}`
-			}],
-			structuredContent: error
+			content: [
+				{
+					type: 'text',
+					text: `Error invoking Apex REST Resource "${apexClassOrRestResourceName}" (${operation}): ${error.message}`
+				}
+			],
+			structuredContent: structuredError
 		};
 	}
 }

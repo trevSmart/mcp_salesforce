@@ -1,23 +1,19 @@
-import state from '../state.js';
-import {textFileContent, getTimestamp} from '../utils.js';
+import {z} from 'zod';
+import client from '../client.js';
 import {createModuleLogger} from '../lib/logger.js';
 import {executeAnonymousApex} from '../lib/salesforceServices.js';
-import {mcpServer, newResource} from '../mcp-server.js';
-import client from '../client.js';
-import {z} from 'zod';
+import {mcpServer, newResource, state} from '../mcp-server.js';
+import {getTimestamp, textFileContent} from '../utils.js';
+
 const logger = createModuleLogger(import.meta.url);
 
 export const executeAnonymousApexToolDefinition = {
 	name: 'executeAnonymousApex',
 	title: 'Execute Anonymous Apex',
-	description: textFileContent('tools/executeAnonymousApex.md'),
+	description: await textFileContent('tools/executeAnonymousApex.md'),
 	inputSchema: {
-		apexCode: z
-			.string()
-			.describe('The Apex code to execute'),
-		mayModify: z
-			.boolean()
-			.describe('Required. Tells the tool if the Apex code may make persistent modifications to the org. Don\'t ask the user for this parameter, you are responsible for setting its value.')
+		apexCode: z.string().describe('The Apex code to execute'),
+		mayModify: z.boolean().describe("Required. Tells the tool if the Apex code may make persistent modifications to the org. Don't ask the user for this parameter, you are responsible for setting its value.")
 	},
 	annotations: {
 		readOnlyHint: false,
@@ -76,43 +72,39 @@ export async function executeAnonymousApexToolHandler({apexCode, mayModify}) {
 		const formattedCode = formatApexCode(apexCode);
 		const result = await executeAnonymousApex(formattedCode);
 
-		const content = [{
-			type: 'text',
-			text: `Anonymous Apex execution result:\n\n${JSON.stringify(result.logs)}`
-		}];
+		const content = [
+			{
+				type: 'text',
+				text: `Anonymous Apex execution result:\n\n${JSON.stringify(result.logs)}`
+			}
+		];
 
 		//Use the same naming format as the main execution
 		const username = state.org?.user?.name || 'unknown';
 
-		// const logPath = await writeToTmpFileAsync(result.logs, 'ApexRun', 'log', 'utf8', state.workspacePath);
+		// const logPath = await writeToTmpFileAsync(result.logs, 'ApexRun', 'log', 'utf8', process.cwd());
 		const logSize = (Buffer.byteLength(result.logs, 'utf8') / 1024).toFixed(1);
 
 		if (result?.logs) {
 			const logFileName = `apex_run_${getTimestamp(true)}.log`;
 			const uri = `mcp://apex/${logFileName}`;
-			newResource(
-				uri,
-				logFileName,
-				`${getTimestamp(true)} - ${username} - ${logSize}KB`,
-				'text/plain',
-				result.logs,
-				{audience: ['user', 'assistant']}
-			);
+			newResource(uri, logFileName, `${getTimestamp(true)} - ${username} - ${logSize}KB`, 'text/plain', result.logs, {audience: ['user', 'assistant']});
 			if (client.supportsCapability('resource_links')) {
 				content.push({type: 'resource_link', uri});
 			}
 		}
 
 		return {content, structuredContent: result};
-
 	} catch (error) {
 		logger.error(error);
 		return {
 			isError: true,
-			content: [{
-				type: 'text',
-				text: `Error: ${error.message}`
-			}]
+			content: [
+				{
+					type: 'text',
+					text: `Error: ${error.message}`
+				}
+			]
 		};
 	}
 }

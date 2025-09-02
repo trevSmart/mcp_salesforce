@@ -1,31 +1,29 @@
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 import config from '../config.js';
 import {createModuleLogger} from './logger.js';
 
 const logger = createModuleLogger(import.meta.url);
 
+// Get temp directory configuration
 function getConfig() {
 	const defaults = {
 		baseSubdir: 'tmp',
 		retentionDays: 7
 		// Scheduling disabled by design; cleanup runs opportunistically on writes
 	};
-	const userCfg = (config && config.tempDir) ? config.tempDir : {};
-	return {
-		...defaults,
-		...userCfg
-	};
+	return {...defaults, ...(config?.tempDir || {})};
 }
 
-export function getBaseTmpDir(workspacePath = null) {
-	const base = workspacePath && typeof workspacePath === 'string' ? workspacePath : process.cwd();
+// Get the base temporary directory path
+export function getBaseTmpDir() {
 	const {baseSubdir} = getConfig();
-	return path.join(base, baseSubdir);
+	return path.join(process.cwd(), baseSubdir);
 }
 
-export function ensureBaseTmpDir(workspacePath = null) {
-	const tmpDir = getBaseTmpDir(workspacePath);
+// Ensure the base temporary directory exists
+export function ensureBaseTmpDir() {
+	const tmpDir = getBaseTmpDir();
 	try {
 		if (!fs.existsSync(tmpDir)) {
 			fs.mkdirSync(tmpDir, {recursive: true});
@@ -37,13 +35,13 @@ export function ensureBaseTmpDir(workspacePath = null) {
 	return tmpDir;
 }
 
+// Clean up obsolete temporary files
 export function cleanupObsoleteTempFiles(options = {}) {
-	const {retentionDays, baseDir} = {
-		retentionDays: getConfig().retentionDays,
-		baseDir: options.baseDir || ensureBaseTmpDir()
-	};
+	const baseDir = options.baseDir || ensureBaseTmpDir();
+	const retentionDays = options.retentionDays || getConfig().retentionDays;
 	const maxAgeMs = Math.max(0, Number(retentionDays)) * 24 * 60 * 60 * 1000;
-	if (!maxAgeMs) {
+
+	if (!(maxAgeMs && fs.existsSync(baseDir))) {
 		return {deleted: 0, inspected: 0, baseDir};
 	}
 
@@ -51,24 +49,25 @@ export function cleanupObsoleteTempFiles(options = {}) {
 	let inspected = 0;
 
 	try {
-		if (!fs.existsSync(baseDir)) {
-			return {deleted: 0, inspected: 0, baseDir};
-		}
-
 		const entries = fs.readdirSync(baseDir);
 		const now = Date.now();
+
 		for (const entry of entries) {
 			// Skip dotfiles or known keep files
 			if (entry === '.gitkeep' || entry.startsWith('.')) {
 				continue;
 			}
+
 			const fullPath = path.join(baseDir, entry);
 			try {
 				const stats = fs.statSync(fullPath);
 				inspected++;
+
+				// Only clean files, not directories
 				if (!stats.isFile()) {
 					continue;
-				} // only clean files, not directories
+				}
+
 				const ageMs = now - stats.mtimeMs;
 				if (ageMs > maxAgeMs) {
 					fs.unlinkSync(fullPath);
@@ -87,6 +86,7 @@ export function cleanupObsoleteTempFiles(options = {}) {
 	} else {
 		logger.debug(`Temp cleanup: nothing to delete in ${baseDir}`);
 	}
+
 	return {deleted, inspected, baseDir};
 }
 

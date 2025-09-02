@@ -1,18 +1,18 @@
-import config from '../config.js';
-import fs from 'fs/promises';
-import path from 'path';
-import state from '../state.js';
-import {newResource} from '../mcp-server.js';
-import {exec as execCb} from 'child_process';
+import {exec as execCb} from 'node:child_process';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import {promisify} from 'node:util';
+import config from '../config.js';
+import {newResource, state} from '../mcp-server.js';
 import {createModuleLogger} from './logger.js';
-import {ensureBaseTmpDir, cleanupObsoleteTempFiles} from './tempManager.js';
+import {cleanupObsoleteTempFiles, ensureBaseTmpDir} from './tempManager.js';
+
 const exec = promisify(execCb);
 const logger = createModuleLogger(import.meta.url);
 
 /**
-* Cache management helper for Salesforce API calls
-*/
+ * Cache management helper for Salesforce API calls
+ */
 class ApiCacheManager {
 	constructor(cacheConfig) {
 		this.config = cacheConfig || {};
@@ -30,16 +30,16 @@ class ApiCacheManager {
 	}
 
 	/**
-	* Generate cache key for the request
-	*/
+	 * Generate cache key for the request
+	 */
 	generateCacheKey(orgKey, operation, apiType, endpoint, extra = null) {
 		const cacheKeyExtra = extra ? `|${JSON.stringify(extra)}` : '';
 		return `${orgKey}|${String(operation).toUpperCase()}|${String(apiType).toUpperCase()}|${endpoint}${cacheKeyExtra}`;
 	}
 
 	/**
-	* Prune cache if it grows too large
-	*/
+	 * Prune cache if it grows too large
+	 */
 	pruneCache() {
 		while (this.cache.size > this.maxEntries) {
 			const firstKey = this.cache.keys().next().value;
@@ -48,10 +48,10 @@ class ApiCacheManager {
 	}
 
 	/**
-	* Get cached response if available and valid
-	*/
+	 * Get cached response if available and valid
+	 */
 	getCachedResponse(cacheKey, isGet, bypassCache, cacheTtlMs) {
-		if (!this.enabled || !this.cacheGet || !isGet || bypassCache || cacheTtlMs <= 0) {
+		if (!(this.enabled && this.cacheGet && isGet) || bypassCache || cacheTtlMs <= 0) {
 			return null;
 		}
 
@@ -65,10 +65,10 @@ class ApiCacheManager {
 	}
 
 	/**
-	* Store response in cache
-	*/
+	 * Store response in cache
+	 */
 	storeInCache(cacheKey, data, isGet, bypassCache, cacheTtlMs) {
-		if (!this.enabled || !this.cacheGet || !isGet || bypassCache || cacheTtlMs <= 0) {
+		if (!(this.enabled && this.cacheGet && isGet) || bypassCache || cacheTtlMs <= 0) {
 			return;
 		}
 
@@ -77,10 +77,10 @@ class ApiCacheManager {
 	}
 
 	/**
-	* Invalidate cache on write operations
-	*/
+	 * Invalidate cache on write operations
+	 */
 	invalidateCacheOnWrite(operation) {
-		if (!this.enabled || !this.invalidateOnWrite) {
+		if (!(this.enabled && this.invalidateOnWrite)) {
 			return;
 		}
 
@@ -91,8 +91,8 @@ class ApiCacheManager {
 	}
 
 	/**
-	* Get cache TTL for the request
-	*/
+	 * Get cache TTL for the request
+	 */
 	getCacheTtl(optionsTtlMs) {
 		return typeof optionsTtlMs === 'number' ? Math.max(0, optionsTtlMs) : this.defaultTtlMs;
 	}
@@ -116,12 +116,17 @@ function generateTimestamp() {
 
 //Helper function to convert username to camelCase
 function toCamelCase(username) {
-	return username	.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).map((word, index) => {
-		if (index === 0) {
-			return word; //First word stays lowercase
-		}
-		return word.charAt(0).toUpperCase() + word.slice(1);
-	}).join('');
+	return username
+		.toLowerCase()
+		.replace(/[^a-z0-9\s]/g, '')
+		.split(/\s+/)
+		.map((word, index) => {
+			if (index === 0) {
+				return word; //First word stays lowercase
+			}
+			return word.charAt(0).toUpperCase() + word.slice(1);
+		})
+		.join('');
 }
 
 //Helper function to generate filename with username and timestamp
@@ -136,7 +141,9 @@ export async function runCliCommand(command) {
 		let stdout = null;
 		try {
 			const response = await exec(command, {
-				maxBuffer: 100 * 1024 * 1024, cwd: state.workspacePath, windowsHide: true
+				maxBuffer: 100 * 1024 * 1024,
+				cwd: process.cwd(),
+				windowsHide: true
 			});
 			stdout = response.stdout;
 		} catch (error) {
@@ -147,7 +154,6 @@ export async function runCliCommand(command) {
 			}
 		}
 		return stdout;
-
 	} catch (error) {
 		error.stderr && (error.message += `\nSTDERR: ${error.stderr}`);
 		error.stdout && (error.message += `\nSTDOUT: ${error.stdout}`);
@@ -163,7 +169,9 @@ export async function executeSoqlQuery(query, useToolingApi = false) {
 		}
 
 		const apiType = useToolingApi ? 'TOOLING' : 'REST';
-		const response = await callSalesforceApi('GET', apiType, '/query', null, {queryParams: {q: query}});
+		const response = await callSalesforceApi('GET', apiType, '/query', null, {
+			queryParams: {q: query}
+		});
 
 		// Validate response structure
 		if (!response || typeof response !== 'object') {
@@ -172,12 +180,11 @@ export async function executeSoqlQuery(query, useToolingApi = false) {
 
 		// Check for Salesforce API errors
 		if (response.errors?.length) {
-			throw new Error(`Salesforce API error: ${response.errors.map(err => err.message || err).join('; ')}`);
+			throw new Error(`Salesforce API error: ${response.errors.map((err) => err.message || err).join('; ')}`);
 		}
 
 		// Return the response (contains records, totalSize, done, etc.)
 		return response;
-
 	} catch (error) {
 		logger.error(error, 'Error executing SOQL query');
 		throw error;
@@ -218,7 +225,7 @@ export async function getOrgAndUserDetails(skipCache = false) {
 		};
 		state.org = org;
 
-		const getUserFullName = async() => {
+		const getUserFullName = async () => {
 			// Escape username to avoid SOQL injection in string literal
 			const safeUsername = org.user.username.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 			const soqlUserResult = await executeSoqlQuery(`SELECT Id, Name, Profile.Name FROM User WHERE Username = '${safeUsername}'`);
@@ -229,18 +236,11 @@ export async function getOrgAndUserDetails(skipCache = false) {
 				profileName: user.Profile?.Name,
 				name: user.Name
 			};
-			newResource(
-				'mcp://org/orgAndUserDetail.json',
-				'Org and user details',
-				'Org and user details',
-				'application/json',
-				JSON.stringify(state.org, null, 3)
-			);
+			newResource('mcp://org/orgAndUserDetail.json', 'Org and user details', 'Org and user details', 'application/json', JSON.stringify(state.org, null, 3));
 		};
 		getUserFullName();
 
 		return org;
-
 	} catch (error) {
 		logger.error(error, 'Error getting org and user details');
 		throw error;
@@ -251,7 +251,7 @@ export async function getOrgAndUserDetails(skipCache = false) {
 export async function dmlOperation(operations, options = {}) {
 	try {
 		// Validate org state
-		if (!state?.org?.instanceUrl || !state?.org?.accessToken) {
+		if (!(state?.org?.instanceUrl && state?.org?.accessToken)) {
 			throw new Error('Org details not initialized. Please wait for server initialization.');
 		}
 
@@ -300,7 +300,7 @@ export async function dmlOperation(operations, options = {}) {
 			}
 
 			const payload = {
-				allOrNone: options.allOrNone || false,
+				allOrNone: options.allOrNone,
 				compositeRequest: compositeRequests
 			};
 			const result = await callSalesforceApi('POST', 'TOOLING', '/composite', payload);
@@ -356,14 +356,13 @@ export async function dmlOperation(operations, options = {}) {
 				successes: successes.length ? successes : undefined,
 				errors: errors.length ? errors : undefined
 			};
-
 		} else {
 			const requestOperations = [];
 
 			if (operations.create?.length) {
 				requestOperations.push({
 					type: 'Create',
-					records: operations.create.map(record => ({
+					records: operations.create.map((record) => ({
 						apiName: record.sObjectName,
 						fields: record.fields
 					}))
@@ -373,7 +372,7 @@ export async function dmlOperation(operations, options = {}) {
 			if (operations.update?.length) {
 				requestOperations.push({
 					type: 'Update',
-					records: operations.update.map(record => ({
+					records: operations.update.map((record) => ({
 						fields: {
 							Id: record.recordId,
 							...record.fields
@@ -385,14 +384,14 @@ export async function dmlOperation(operations, options = {}) {
 			if (operations.delete?.length) {
 				requestOperations.push({
 					type: 'Delete',
-					records: operations.delete.map(record => ({
+					records: operations.delete.map((record) => ({
 						fields: {Id: record.recordId}
 					}))
 				});
 			}
 
 			const payload = {
-				allOrNone: options.allOrNone || false,
+				allOrNone: options.allOrNone,
 				operations: requestOperations
 			};
 
@@ -445,7 +444,6 @@ export async function dmlOperation(operations, options = {}) {
 				errors: errors.length ? errors : undefined
 			};
 		}
-
 	} catch (error) {
 		logger.error(error, 'Error executing batch DML operation');
 		throw error;
@@ -454,7 +452,7 @@ export async function dmlOperation(operations, options = {}) {
 
 export async function getRecord(sObjectName, recordId) {
 	try {
-		if (!sObjectName || !recordId) {
+		if (!(sObjectName && recordId)) {
 			throw new Error('sObjectName and recordId are required');
 		}
 		logger.debug(`Getting record via REST API: ${sObjectName}/${recordId}`);
@@ -463,12 +461,11 @@ export async function getRecord(sObjectName, recordId) {
 			throw new Error('Invalid response structure from Salesforce API');
 		}
 		if (response.errors?.length) {
-			const errorMessages = response.errors.map(err => err.message || err).join('; ');
+			const errorMessages = response.errors.map((err) => err.message || err).join('; ');
 			throw new Error(`Salesforce API error: ${errorMessages}`);
 		}
 
 		return response;
-
 	} catch (error) {
 		logger.error(error, `Error getting record ${recordId} from object ${sObjectName}`);
 		throw error;
@@ -492,7 +489,6 @@ export async function describeObject(sObjectName) {
 		}
 
 		return response;
-
 	} catch (error) {
 		logger.error(error, `Error describing object ${sObjectName}`);
 		throw error;
@@ -532,7 +528,6 @@ export async function runApexTest(classNames = [], methodNames = [], suiteNames 
 		}
 
 		return responseObj.result.testRunId;
-
 	} catch (error) {
 		logger.error(error, 'Error running Apex tests');
 		throw error;
@@ -543,27 +538,27 @@ export async function getApexClassCodeCoverage(classNames = []) {
 	try {
 		// Backward compatibility: accept a single string too
 		const requestedNames = Array.isArray(classNames) ? classNames : [classNames];
-		const filteredNames = requestedNames.filter(n => typeof n === 'string' && n.trim().length);
+		const filteredNames = requestedNames.filter((n) => typeof n === 'string' && n.trim().length);
 		if (!filteredNames.length) {
 			return {success: true, classes: []};
 		}
 
 		// Escape single quotes in names for SOQL
-		const escapedNames = filteredNames.map(n => `'${String(n).replace(/'/g, '\\\'')}'`).join(',');
+		const escapedNames = filteredNames.map((n) => `'${String(n).replace(/'/g, "\\'")}'`).join(',');
 
 		// Ensure all requested classes exist in the org (use Tooling API ApexClass)
 		const soqlExistingClasses = `SELECT Id, Name FROM ApexClass WHERE Name IN (${escapedNames})`;
 		const existingClassesResult = await executeSoqlQuery(soqlExistingClasses, true);
 		const existingRecords = existingClassesResult?.records || [];
-		const existingNamesSet = new Set(existingRecords.map(r => r.Name));
+		const existingNamesSet = new Set(existingRecords.map((r) => r.Name));
 		const existingIdByName = {};
 		for (const rec of existingRecords) {
 			existingIdByName[rec.Name] = rec.Id;
 		}
 
 		// Identify missing classes but don't throw error - we'll handle them gracefully
-		const missingNames = filteredNames.filter(n => !existingNamesSet.has(n));
-		const existingNames = filteredNames.filter(n => existingNamesSet.has(n));
+		const missingNames = filteredNames.filter((n) => !existingNamesSet.has(n));
+		const existingNames = filteredNames.filter((n) => existingNamesSet.has(n));
 
 		// Build initial class entries for all requested names and collect ids that have aggregate
 		const classIdsForMethodQuery = [];
@@ -608,7 +603,7 @@ export async function getApexClassCodeCoverage(classNames = []) {
 		// Only proceed with coverage queries if we have existing classes
 		if (existingNames.length > 0) {
 			// Include relationship Name explicitly in the SELECT
-			const soqlCoverageAggregates = `SELECT ApexClassOrTriggerId, ApexClassOrTrigger.Name, NumLinesCovered, NumLinesUncovered FROM ApexCodeCoverageAggregate WHERE ApexClassOrTrigger.Name IN (${existingNames.map(n => `'${n.replace(/'/g, '\\\'')}'`).join(',')})`;
+			const soqlCoverageAggregates = `SELECT ApexClassOrTriggerId, ApexClassOrTrigger.Name, NumLinesCovered, NumLinesUncovered FROM ApexCodeCoverageAggregate WHERE ApexClassOrTrigger.Name IN (${existingNames.map((n) => `'${n.replace(/'/g, "\\'")}'`).join(',')})`;
 			const responseCoverageAggregates = await executeSoqlQuery(soqlCoverageAggregates, true);
 			const coverageAggregates = responseCoverageAggregates?.records || [];
 			const aggregateByName = {};
@@ -628,7 +623,7 @@ export async function getApexClassCodeCoverage(classNames = []) {
 						const uncovered = agg.NumLinesUncovered || 0;
 						const total = covered + uncovered;
 						const percentage = total > 0 ? Math.round((covered / total) * 100) : 0;
-						const coverageStatus = total === 0 ? 'none' : (percentage === 100 ? 'full' : 'partial');
+						const coverageStatus = total === 0 ? 'none' : percentage === 100 ? 'full' : 'partial';
 
 						entry.numLinesCovered = covered;
 						entry.numLinesUncovered = uncovered;
@@ -673,7 +668,7 @@ export async function getApexClassCodeCoverage(classNames = []) {
 				}
 				// Order and limit test methods per class
 				for (const entry of classes) {
-					if (entry.testMethods && entry.testMethods.length) {
+					if (entry.testMethods?.length) {
 						entry.testMethods.sort((a, b) => b.linesCovered - a.linesCovered);
 						entry.testMethods = entry.testMethods.slice(0, 10);
 					}
@@ -695,12 +690,10 @@ export async function getApexClassCodeCoverage(classNames = []) {
 		});
 
 		const totalClasses = classes.length;
-		const classesWithCoverage = classes.filter(c => c.aggregateFound && c.totalLines > 0).length;
-		const classesWithoutCoverage = classes.filter(c => c.coverageStatus !== 'class not found' && (!c.aggregateFound || c.totalLines === 0)).length;
-		const missingClasses = classes.filter(c => c.coverageStatus === 'class not found').length;
-		const averagePercentage = classes.filter(c => c.coverageStatus !== 'class not found').length > 0
-			? Math.round(classes.filter(c => c.coverageStatus !== 'class not found').reduce((s, c) => s + (c.percentage || 0), 0) / classes.filter(c => c.coverageStatus !== 'class not found').length)
-			: 0;
+		const classesWithCoverage = classes.filter((c) => c.aggregateFound && c.totalLines > 0).length;
+		const classesWithoutCoverage = classes.filter((c) => c.coverageStatus !== 'class not found' && (!c.aggregateFound || c.totalLines === 0)).length;
+		const missingClasses = classes.filter((c) => c.coverageStatus === 'class not found').length;
+		const averagePercentage = classes.filter((c) => c.coverageStatus !== 'class not found').length > 0 ? Math.round(classes.filter((c) => c.coverageStatus !== 'class not found').reduce((s, c) => s + (c.percentage || 0), 0) / classes.filter((c) => c.coverageStatus !== 'class not found').length) : 0;
 
 		const result = {
 			success: true,
@@ -713,15 +706,19 @@ export async function getApexClassCodeCoverage(classNames = []) {
 				averagePercentage
 			},
 			classes,
-			errors: missingNames.length > 0 ? [{
-				message: `The following Apex classes do not exist in the org: ${missingNames.join(', ')}`,
-				classNames: missingNames
-			}] : [],
+			errors:
+				missingNames.length > 0
+					? [
+							{
+								message: `The following Apex classes do not exist in the org: ${missingNames.join(', ')}`,
+								classNames: missingNames
+							}
+						]
+					: [],
 			warnings: []
 		};
 
 		return result;
-
 	} catch (error) {
 		logger.error(error, `Error getting code coverage for classes ${Array.isArray(classNames) ? classNames.join(', ') : classNames}`);
 		throw error;
@@ -732,7 +729,7 @@ export async function executeAnonymousApex(apexCode) {
 	if (!apexCode || typeof apexCode !== 'string') {
 		throw new Error('apexCode is required and must be a string');
 	}
-	const tmpDir = ensureBaseTmpDir(state.workspacePath);
+	const tmpDir = ensureBaseTmpDir(process.cwd());
 	try {
 		cleanupObsoleteTempFiles({baseDir: tmpDir});
 	} catch {
@@ -780,7 +777,7 @@ export async function executeAnonymousApex(apexCode) {
 			if (output) {
 				errorMsg += `Output file content: ${output}`;
 			}
-			if (response && response.message) {
+			if (response?.message) {
 				errorMsg += `Salesforce error: ${response.message}`;
 			}
 			logger.error(errorMsg, 'Error executing anonymous Apex');
@@ -788,11 +785,9 @@ export async function executeAnonymousApex(apexCode) {
 		}
 		logger.debug(response);
 		return response.result;
-
 	} catch (error) {
 		logger.error(error, 'Error executing anonymous Apex');
 		throw error;
-
 	} finally {
 		// Delete temporary files (commented out to keep the files)
 		/*
@@ -822,7 +817,6 @@ export async function deployMetadata(sourceDir) {
 		}
 
 		return response.result;
-
 	} catch (error) {
 		logger.error(error, `Error deploying metadata file ${sourceDir}`);
 		throw error;
@@ -854,7 +848,6 @@ export async function generateMetadata({type, name, outputDir, triggerSObject, t
 				command += ` --output-dir "${resolvedOutputDir}"`;
 			}
 			// No template parameter from tool; we'll inject content later for test class
-
 		} else if (type === 'apexTrigger') {
 			if (!triggerSObject || typeof triggerSObject !== 'string') {
 				throw new Error('triggerSObject is required and must be a string when type is apexTrigger');
@@ -866,20 +859,18 @@ export async function generateMetadata({type, name, outputDir, triggerSObject, t
 			if (resolvedOutputDir) {
 				command += ` --output-dir "${resolvedOutputDir}"`;
 			}
-
 		} else if (type === 'lwc') {
 			command = `sf lightning generate component --type lwc --name "${name}"`;
 			if (resolvedOutputDir) {
 				command += ` --output-dir "${resolvedOutputDir}"`;
 			}
-
 		} else {
 			throw new Error(`Unsupported type: ${type}`);
 		}
 
 		const stdout = await runCliCommand(command);
 
-		const resolvedDir = path.resolve(state.workspacePath || process.cwd(), resolvedOutputDir || '.');
+		const resolvedDir = path.resolve(process.cwd(), resolvedOutputDir || '.');
 		let files = [];
 		let folder = null;
 
@@ -887,11 +878,17 @@ export async function generateMetadata({type, name, outputDir, triggerSObject, t
 			const classFilePath = path.join(resolvedDir, `${name}.cls`);
 			const metaFilePath = path.join(resolvedDir, `${name}.cls-meta.xml`);
 			try {
-				await fs.access(classFilePath); files.push(classFilePath);
-			} catch { /* File not accessible */ }
+				await fs.access(classFilePath);
+				files.push(classFilePath);
+			} catch {
+				/* File not accessible */
+			}
 			try {
-				await fs.access(metaFilePath); files.push(metaFilePath);
-			} catch { /* File not accessible */ }
+				await fs.access(metaFilePath);
+				files.push(metaFilePath);
+			} catch {
+				/* File not accessible */
+			}
 
 			// Overwrite content for Apex test classes with a fixed template
 			if (type === 'apexTestClass') {
@@ -919,33 +916,41 @@ public class ${name} {
 					logger.error(`Error writing file ${classFilePath}`);
 				}
 			}
-
 		} else if (type === 'apexTrigger') {
 			const triggerFilePath = path.join(resolvedDir, `${name}.trigger`);
 			const metaFilePath = path.join(resolvedDir, `${name}.trigger-meta.xml`);
 			try {
-				await fs.access(triggerFilePath); files.push(triggerFilePath);
+				await fs.access(triggerFilePath);
+				files.push(triggerFilePath);
 			} catch {
 				logger.error(`File not accessible: ${triggerFilePath}`);
 			}
 			try {
-				await fs.access(metaFilePath); files.push(metaFilePath);
+				await fs.access(metaFilePath);
+				files.push(metaFilePath);
 			} catch {
 				logger.error(`File not accessible: ${metaFilePath}`);
 			}
-
 		} else if (type === 'lwc') {
 			folder = path.join(resolvedDir, name);
 			try {
 				const entries = await fs.readdir(folder);
-				files = entries.map(f => path.join(folder, f));
+				files = entries.map((f) => path.join(folder, f));
 			} catch {
 				logger.error(`Error reading directory ${folder}`);
 			}
 		}
 
-		return {success: true, type, name, triggerSObject, outputDir: resolvedDir, folder, files, stdout};
-
+		return {
+			success: true,
+			type,
+			name,
+			triggerSObject,
+			outputDir: resolvedDir,
+			folder,
+			files,
+			stdout
+		};
 	} catch (error) {
 		logger.error(error, `Error generating metadata ${name} of type ${type}`);
 		throw error;
@@ -953,9 +958,9 @@ public class ${name} {
 }
 
 /**
-* Refreshes the access token by running any CLI command to trigger token refresh
-* and then updates the state with the new token
-*/
+ * Refreshes the access token by running any CLI command to trigger token refresh
+ * and then updates the state with the new token
+ */
 async function refreshAccessToken() {
 	try {
 		logger.debug('Access token expired, refreshing...');
@@ -963,7 +968,6 @@ async function refreshAccessToken() {
 		const newAccessToken = userDetails.result.accessToken;
 		state.org.accessToken = newAccessToken;
 		return true;
-
 	} catch (error) {
 		logger.error(`Failed to refresh access token: ${error.message}`);
 		return false;
@@ -972,7 +976,7 @@ async function refreshAccessToken() {
 
 export async function callSalesforceApi(operation, apiType, service, body = null, options = {}) {
 	// Validate required parameters
-	if (!operation || !apiType || !service) {
+	if (!(operation && apiType && service)) {
 		throw new Error('operation, apiType, and service are required parameters');
 	}
 
@@ -989,7 +993,7 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 	}
 
 	// Ensure org details are available
-	if (!state?.org?.id || !state?.org?.instanceUrl || !state?.org?.accessToken) {
+	if (!(state?.org?.id && state?.org?.instanceUrl && state?.org?.accessToken)) {
 		throw new Error('Org details not initialized. Please wait for server initialization.');
 	}
 
@@ -1026,23 +1030,23 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 	const cacheKey = cacheManager.generateCacheKey(state.org.id, operation, apiType, endpoint, options.cacheKeyExtra);
 
 	// Helper function to check if response contains INVALID_SESSION_ID error
-	const isInvalidSessionError = responseBody => typeof responseBody === 'string' && responseBody.includes('INVALID_SESSION_ID');
+	const isInvalidSessionError = (responseBody) => typeof responseBody === 'string' && responseBody.includes('INVALID_SESSION_ID');
 
 	// Helper function that performs a curl request but returns a fetch-like response
-	const curlAsFetch = async(endpointUrl, requestOptions) => {
+	const curlAsFetch = async (endpointUrl, requestOptions) => {
 		// Build curl command
 		let curlCommand = `curl -s -w "HTTPSTATUS:%{http_code}" -X ${requestOptions.method} "${endpointUrl}"`;
 
 		// Add headers
 		if (requestOptions.headers) {
-			Object.entries(requestOptions.headers).forEach(([key, value]) => {
+			for (const [key, value] of Object.entries(requestOptions.headers)) {
 				if (key.toLowerCase() === 'authorization') {
 					// Use single quotes for Authorization header to avoid issues with special characters
 					curlCommand += ` -H '${key}: ${value}'`;
 				} else {
 					curlCommand += ` -H "${key}: ${value}"`;
 				}
-			});
+			}
 		}
 
 		// Add body - don't double-quote since body is already JSON stringified
@@ -1054,7 +1058,7 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 
 		const {stdout} = await exec(curlCommand);
 		const httpStatusMatch = stdout.match(/HTTPSTATUS:(\d+)/);
-		const status = httpStatusMatch ? parseInt(httpStatusMatch[1]) : 200;
+		const status = httpStatusMatch ? Number.parseInt(httpStatusMatch[1], 10) : 200;
 		const bodyText = stdout.replace(/HTTPSTATUS:\d+/, '').trim();
 
 		return {
@@ -1071,11 +1075,11 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 	};
 
 	// Function to make the actual API call
-	const makeApiCall = async() => {
+	const makeApiCall = async () => {
 		const requestOptions = {
 			method: operation.toUpperCase(),
 			headers: {
-				'Authorization': `Bearer ${state.org.accessToken}`,
+				Authorization: `Bearer ${state.org.accessToken}`,
 				'Content-Type': 'application/json'
 			}
 		};
@@ -1121,7 +1125,10 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 
 		if (Object.keys(requestOptions).length) {
 			// Remove sensitive headers before logging
-			const maskedRequestOptions = {...requestOptions, headers: {...(requestOptions.headers || {})}};
+			const maskedRequestOptions = {
+				...requestOptions,
+				headers: {...(requestOptions.headers || {})}
+			};
 			if ('Authorization' in maskedRequestOptions.headers) {
 				delete maskedRequestOptions.headers.Authorization;
 			}
@@ -1142,7 +1149,6 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 				if (isInvalidSessionError(errorBody)) {
 					throw new Error('INVALID_SESSION_ID');
 				}
-
 			} catch (parseError) {
 				if (parseError.message === 'INVALID_SESSION_ID') {
 					throw parseError;
@@ -1154,14 +1160,13 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 		}
 
 		try {
-			const data = (await response.json());
+			const data = await response.json();
 			// Store in cache for GET
 			cacheManager.storeInCache(cacheKey, data, isGet, bypassCache, cacheTtlMs);
 			return data;
-
 		} catch (parseError) {
 			logger.warn(`Could not parse JSON response: ${parseError.message}`);
-			const text = (await response.text());
+			const text = await response.text();
 			cacheManager.storeInCache(cacheKey, text, isGet, bypassCache, cacheTtlMs);
 			return text;
 		}

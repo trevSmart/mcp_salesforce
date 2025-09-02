@@ -8,7 +8,7 @@ An MCP server by IBM that provides Salesforce org context to your IDE AI agent
 - **Parallel Test Execution**: Intelligent test grouping for 31% faster test execution
 - **Automated Code Review**: GitHub Actions workflows for continuous code quality
 - **Security Scanning**: Automated vulnerability detection and dependency management
-- **Code Quality**: ESLint integration with comprehensive rule sets
+- **Code Quality**: Biome integration with comprehensive rule sets
 
 ### Requirements
 - Node.js v22.7.0 or newer
@@ -21,7 +21,7 @@ This project includes a comprehensive automated code review system powered by Gi
 
 #### **Pull Request Workflows**
 - **Automated Checks**: Runs on every PR with linting, testing, and security scans
-- **Code Quality Analysis**: ESLint integration with detailed reporting
+- **Code Quality Analysis**: Biome integration with detailed reporting
 - **Security Audits**: Automated vulnerability detection and dependency scanning
 - **Multi-Node Testing**: Ensures compatibility across Node.js versions
 

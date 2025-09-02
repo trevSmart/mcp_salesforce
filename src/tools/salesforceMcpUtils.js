@@ -1,26 +1,21 @@
-import client from '../client.js';
-import state from '../state.js';
-import {textFileContent, formatDate} from '../utils.js';
-import {createModuleLogger} from '../lib/logger.js';
 import {z} from 'zod';
-import {resources, newResource, clearResources, sendProgressNotification} from '../mcp-server.js';
+import client from '../client.js';
 import config from '../config.js';
-import {getOrgAndUserDetails, executeAnonymousApex} from '../lib/salesforceServices.js';
+import {createModuleLogger} from '../lib/logger.js';
+import {executeAnonymousApex, getOrgAndUserDetails} from '../lib/salesforceServices.js';
+import {clearResources, newResource, resources, sendProgressNotification, state} from '../mcp-server.js';
+import {formatDate, textFileContent} from '../utils.js';
+
 const logger = createModuleLogger(import.meta.url);
 
 export const salesforceMcpUtilsToolDefinition = {
 	name: 'salesforceMcpUtils',
 	title: 'IBM Salesforce MCP Utils',
-	description: textFileContent('tools/salesforceMcpUtils.md'),
+	description: await textFileContent('tools/salesforceMcpUtils.md'),
 	inputSchema: {
-		action: z.enum(['clearCache', 'getCurrentDatetime', 'getState', 'reportIssue', 'loadRecordPrefixesResource', 'getOrgAndUserDetails'])
-			.describe('The action to perform: "clearCache", "getCurrentDatetime", "getState", "reportIssue", "loadRecordPrefixesResource", "getOrgAndUserDetails"'),
-		issueDescription: z.string()
-			.optional()
-			.describe('Detailed description of the issue (required for reportIssue action)'),
-		issueToolName: z.string()
-			.optional()
-			.describe('Name of the tool that failed or needs improvement (optional)')
+		action: z.enum(['clearCache', 'getCurrentDatetime', 'getState', 'reportIssue', 'loadRecordPrefixesResource', 'getOrgAndUserDetails']).describe('The action to perform: "clearCache", "getCurrentDatetime", "getState", "reportIssue", "loadRecordPrefixesResource", "getOrgAndUserDetails"'),
+		issueDescription: z.string().optional().describe('Detailed description of the issue (required for reportIssue action)'),
+		issueToolName: z.string().optional().describe('Name of the tool that failed or needs improvement (optional)')
 	},
 	annotations: {
 		readOnlyHint: false,
@@ -31,7 +26,7 @@ export const salesforceMcpUtilsToolDefinition = {
 };
 
 // Helper function to generate manual titles when sampling is not available
-function generateManualTitle(description, toolName) {
+function generateManualTitle(toolName) {
 	let title = 'Issue';
 
 	if (toolName && toolName !== 'Unknown') {
@@ -50,13 +45,14 @@ export async function salesforceMcpUtilsToolHandler({action, issueDescription, i
 		if (action === 'clearCache') {
 			clearResources();
 			return {
-				content: [{
-					type: 'text',
-					text: '✅ Successfully cleared cached resources'
-				}],
+				content: [
+					{
+						type: 'text',
+						text: '✅ Successfully cleared cached resources'
+					}
+				],
 				structuredContent: {action, status: 'success'}
 			};
-
 		} else if (action === 'getCurrentDatetime') {
 			const now = new Date();
 
@@ -68,89 +64,80 @@ export async function salesforceMcpUtilsToolHandler({action, issueDescription, i
 			};
 
 			return {
-				content: [{
-					type: 'text',
-					text: JSON.stringify(result, null, 2)
-				}],
+				content: [
+					{
+						type: 'text',
+						text: JSON.stringify(result, null, 2)
+					}
+				],
 				structuredContent: result
 			};
-
 		} else if (action === 'getState') {
-			// Create a copy of state without the async tempPath property
-			const stateCopy = {
-				org: state.org,
-				currentLogLevel: state.currentLogLevel,
-				userValidated: state.userValidated,
-				workspacePath: state.workspacePath,
-				startedDate: state.startedDate
-			};
-
-			const output = {
-				state: stateCopy,
-				client,
-				resources
-			};
 			return {
-				content: [{
-					type: 'text',
-					text: 'Successfully retrieved the internal state of the MCP server'
-				}],
-				structuredContent: output
+				content: [
+					{
+						type: 'text',
+						text: 'Successfully retrieved the internal state of the MCP server'
+					}
+				],
+				structuredContent: {state, client, resources}
 			};
-
 		} else if (action === 'loadRecordPrefixesResource') {
 			const content = [];
 			let structuredContent = {};
-			let resourceUri = 'mcp://prefixes/recordPrefixes.csv';
+			const resourceUri = 'mcp://prefixes/recordPrefixes.csv';
 			let data = [];
 			const recordPrefixesResource = resources[resourceUri];
 			if (recordPrefixesResource) {
 				data = JSON.parse(recordPrefixesResource.text);
 				content.push({type: 'text', text: '✅ Object record prefixes resource already loaded'});
-
 			} else {
 				// Load Apex script content via generalized textFileContent helper.
 				// Works in dev (src/static/*.apex) and in packaged builds (src/static/*.apex.pam).
-				const apexScript = textFileContent('static/retrieve-sobject-prefixes.apex');
+				const apexScript = await textFileContent('static/retrieve-sobject-prefixes.apex');
 				if (!apexScript) {
 					throw new Error('No retrieve-sobject-prefixes.apex(.pam) content found under static');
 				}
 				const result = await executeAnonymousApex(apexScript);
 				if (result.success) {
 					const resultLogs = result.logs;
-					data = resultLogs.split('\n')
-						.filter(line => line.trim() && line.includes('USER_DEBUG'))
-						.map(line => {
+					data = resultLogs
+						.split('\n')
+						.filter((line) => line.trim() && line.includes('USER_DEBUG'))
+						.map((line) => {
 							const lastPipeIndex = line.lastIndexOf('|');
 							return lastPipeIndex !== -1 ? line.substring(lastPipeIndex + 1) : line;
 						})
-						.filter(line => line.trim()); // Remove any empty lines after processing
+						.filter((line) => line.trim()); // Remove any empty lines after processing
 
 					// Create new resource
-					newResource(
-						resourceUri,
-						'SObject record prefixes list',
-						'This resource contains a list of SObject record prefixes.',
-						'application/json',
-						JSON.stringify(data, null, '\t'),
-						{audience: ['user', 'assistant']}
-					);
+					newResource(resourceUri, 'SObject record prefixes list', 'This resource contains a list of SObject record prefixes.', 'application/json', JSON.stringify(data, null, '\t'), {audience: ['user', 'assistant']});
 
-					content.push({type: 'text', text: '✅ Object record prefixes resource loaded successfully'});
-
+					content.push({
+						type: 'text',
+						text: '✅ Object record prefixes resource loaded successfully'
+					});
 				} else {
 					throw new Error(`Failed to load record prefixes: ${result.error}`);
 				}
 			}
 
+			// Ensure data is an array before transformation
+			if (!Array.isArray(data)) {
+				logger.warn('Data is not an array, converting to array format');
+				data = [];
+			}
+
 			// Transform the array data into the desired object format
 			const transformedData = {};
-			data.forEach(item => {
-				const [objectName, prefix] = item.split(',');
-				if (objectName && prefix) {
-					transformedData[prefix] = objectName;
+			for (const item of data) {
+				if (typeof item === 'string') {
+					const [objectName, prefix] = item.split(',');
+					if (objectName?.trim() && prefix?.trim()) {
+						transformedData[prefix.trim()] = objectName.trim();
+					}
 				}
-			});
+			}
 
 			if (client.supportsCapability('resource_links')) {
 				content.push({type: 'resource_link', uri: resourceUri});
@@ -165,17 +152,17 @@ export async function salesforceMcpUtilsToolHandler({action, issueDescription, i
 				content,
 				structuredContent
 			};
-
 		} else if (action === 'getOrgAndUserDetails') {
 			const result = await getOrgAndUserDetails();
 			return {
-				content: [{
-					type: 'text',
-					text: 'Successfully retrieved the org and user details'
-				}],
+				content: [
+					{
+						type: 'text',
+						text: 'Successfully retrieved the org and user details'
+					}
+				],
 				structuredContent: result
 			};
-
 		} else if (action === 'reportIssue') {
 			if (progressToken) {
 				sendProgressNotification(progressToken, 1, 3, 'Starting reportIssue');
@@ -228,7 +215,7 @@ Return only the tool name or "Unknown" without any explanation.`;
 
 						const toolDetectionResponse = await mcpServer.server.createMessage({
 							messages: [{role: 'user', content: {type: 'text', text: toolDetectionPrompt}}],
-							systemPrompt: 'You are a Model Context Protocol expert. Analyze issue descriptions to identify which of the MCP server\'s tools is most likely affected.',
+							systemPrompt: "You are a Model Context Protocol expert. Analyze issue descriptions to identify which of the MCP server's tools is most likely affected.",
 							modelPreferences: {speedPriority: 0, intelligencePriority: 1},
 							maxTokens: 50
 						});
@@ -254,17 +241,16 @@ Return only the tool name or "Unknown" without any explanation.`;
 
 					// Fallback if generated title is too long or empty
 					if (!title || title.length > 60) {
-						title = cleanDescription.length > 60 ? cleanDescription.substring(0, 60) + '...' : cleanDescription;
+						title = cleanDescription.length > 60 ? `${cleanDescription.substring(0, 60)}...` : cleanDescription;
 					}
-
 				} catch (error) {
 					logger.debug(`Error generating title with sampling: ${error.message}`);
 					// Fallback to manual title generation
-					title = cleanDescription.length > 60 ? cleanDescription.substring(0, 60) + '...' : cleanDescription;
+					title = cleanDescription.length > 60 ? `${cleanDescription.substring(0, 60)}...` : cleanDescription;
 				}
 			} else {
 				// Manual title generation when sampling is not available
-				title = generateManualTitle(cleanDescription, detectedToolName);
+				title = generateManualTitle(detectedToolName);
 			}
 
 			if (progressToken) {
@@ -293,10 +279,12 @@ Return only the tool name or "Unknown" without any explanation.`;
 
 				if (elicitResult.action !== 'accept' || elicitResult.content?.confirm !== 'Yes') {
 					return {
-						content: [{
-							type: 'text',
-							text: 'User has cancelled the issue report'
-						}],
+						content: [
+							{
+								type: 'text',
+								text: 'User has cancelled the issue report'
+							}
+						],
 						structuredContent: elicitResult
 					};
 				}
@@ -319,12 +307,12 @@ Return only the tool name or "Unknown" without any explanation.`;
 					os: process.platform === 'darwin' ? 'Mac OS' : process.platform,
 					user: process.env.USER || process.env.USERNAME || 'Unknown',
 					nodeVersion: process.version,
-					mcpProtocolVersion: config.SERVER_CONSTANTS.protocolVersion
+					mcpProtocolVersion: config.serverConstants.protocolVersion
 				},
 				server: {
-					serverInfo: config.SERVER_CONSTANTS.serverInfo,
-					capabilities: config.SERVER_CONSTANTS.capabilities,
-					workspacePath: state.workspacePath,
+					serverInfo: config.serverConstants.serverInfo,
+					capabilities: config.serverConstants.capabilities,
+					workspacePath: process.cwd(),
 					org: state.org
 				},
 				client: {
@@ -337,7 +325,7 @@ Return only the tool name or "Unknown" without any explanation.`;
 			if (String(process.env.MCP_REPORT_ISSUE_DRY_RUN || '').toLowerCase() === 'true') {
 				const fake = {
 					success: true,
-					issueId: 'DRY-RUN-' + Math.random().toString(36).slice(2, 10).toUpperCase(),
+					issueId: `DRY-RUN-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
 					issueUrl: 'about:blank#dry-run',
 					message: 'Dry run: issue not sent to webhook',
 					request: {type: issueType, title, tool: detectedToolName, severity: issueSeverity}
@@ -364,10 +352,12 @@ Return only the tool name or "Unknown" without any explanation.`;
 						logger.info(`Issue created successfully: ${result.issueUrl}`);
 
 						return {
-							content: [{
-								type: 'text',
-								text: `Issue ${result.issueId} successfully created`
-							}],
+							content: [
+								{
+									type: 'text',
+									text: `Issue ${result.issueId} successfully created`
+								}
+							],
 							structuredContent: result
 						};
 					} else {
@@ -376,24 +366,23 @@ Return only the tool name or "Unknown" without any explanation.`;
 				} else {
 					throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
 				}
-
 			} catch (error) {
 				logger.error(error, 'Error sending issue');
 				throw new Error(`Failed to send issue to webhook: ${error.message}`);
 			}
-
 		} else {
 			throw new Error(`Invalid action: ${action}`);
 		}
-
 	} catch (error) {
 		logger.error(error, 'Error in salesforceMcpUtilsTool');
 		return {
 			isError: true,
-			content: [{
-				type: 'text',
-				text: `❌ Error: ${error.message}`
-			}]
+			content: [
+				{
+					type: 'text',
+					text: `❌ Error: ${error.message}`
+				}
+			]
 		};
 	}
 }

@@ -1,8 +1,10 @@
-import state from '../state.js';
-import {executeSoqlQuery} from '../lib/salesforceServices.js';
-import {textFileContent} from '../utils.js';
 import {createModuleLogger} from '../lib/logger.js';
+import {executeSoqlQuery} from '../lib/salesforceServices.js';
+import {state} from '../mcp-server.js';
+import {textFileContent} from '../utils.js';
+
 const logger = createModuleLogger(import.meta.url);
+
 import {z} from 'zod';
 
 //Recursive function to add url properties to all records and related records
@@ -25,7 +27,7 @@ function addUrlToRecord(record) {
 		if (value && typeof value === 'object') {
 			if (Array.isArray(value)) {
 				//Handle arrays of related records
-				record[key] = value.map(item => addUrlToRecord(item));
+				record[key] = value.map((item) => addUrlToRecord(item));
 			} else {
 				//Handle single related record
 				record[key] = addUrlToRecord(value);
@@ -39,16 +41,10 @@ function addUrlToRecord(record) {
 export const executeSoqlQueryToolDefinition = {
 	name: 'executeSoqlQuery',
 	title: 'Execute SOQL Query',
-	description: textFileContent('tools/executeSoqlQuery.md'),
+	description: await textFileContent('tools/executeSoqlQuery.md'),
 	inputSchema: {
-		query: z
-			.string()
-			.describe('The SOQL query to execute'),
-		useToolingApi: z
-			.boolean()
-			.optional()
-			.default(false)
-			.describe('Whether to use the Tooling API for the query (default: false)')
+		query: z.string().describe('The SOQL query to execute'),
+		useToolingApi: z.boolean().optional().default(false).describe('Whether to use the Tooling API for the query (default: false)')
 	},
 	annotations: {
 		readOnlyHint: true,
@@ -60,7 +56,7 @@ export const executeSoqlQueryToolDefinition = {
 
 export async function executeSoqlQueryToolHandler({query, useToolingApi = false}) {
 	try {
-		let queryResult = await executeSoqlQuery(query, useToolingApi);
+		const queryResult = await executeSoqlQuery(query, useToolingApi);
 
 		// Validate response structure
 		if (!queryResult || typeof queryResult !== 'object') {
@@ -68,44 +64,35 @@ export async function executeSoqlQueryToolHandler({query, useToolingApi = false}
 		}
 
 		// Ensure records array exists
-		if (!queryResult.records || !Array.isArray(queryResult.records)) {
+		if (!(queryResult.records && Array.isArray(queryResult.records))) {
 			throw new Error('No records found in query response');
 		}
 
 		// Add URLs to all records and related records
-		queryResult.records = queryResult.records.map(r => addUrlToRecord({...r}));
+		queryResult.records = queryResult.records.map((r) => addUrlToRecord({...r}));
 
 		// Build response message
 		const totalSize = queryResult.totalSize || queryResult.records.length;
-		const message = `SOQL query executed successfully. Returned ${totalSize} record${totalSize !== 1 ? 's' : ''}.`;
-
-		// If there are many records, provide a summary instead of full JSON
-		// eslint-disable-next-line no-unused-vars
-		const displayRecords = totalSize > 10 ?
-			queryResult.records.slice(0, 10) :
-			queryResult.records;
-
-		// eslint-disable-next-line no-unused-vars
-		const displayText = totalSize > 10 ?
-			`${message} Showing first 10 records (${totalSize - 10} more available in structuredContent):` :
-			`${message} All records:`;
 
 		return {
-			content: [{
-				type: 'text',
-				text: `${totalSize} records returned`
-			}],
+			content: [
+				{
+					type: 'text',
+					text: `SOQL query executed successfully. Returned ${totalSize} record${totalSize !== 1 ? 's' : ''}.`
+				}
+			],
 			structuredContent: queryResult
 		};
-
 	} catch (error) {
 		logger.error(error);
 		return {
 			isError: true,
-			content: [{
-				type: 'text',
-				text: `❌ Error executing SOQL query: ${error.message}`
-			}]
+			content: [
+				{
+					type: 'text',
+					text: `❌ Error executing SOQL query: ${error.message}`
+				}
+			]
 		};
 	}
 }

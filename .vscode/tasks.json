@@ -84,7 +84,7 @@
 			"script": "lint:fix",
 			"problemMatcher": [],
 			"label": "npm: lint:fix",
-			"detail": "eslint . --fix",
+			"detail": "biome check --write .",
 			"presentation": {
 				"showReuseMessage": false,
 				"reveal": "silent",
@@ -93,13 +93,6 @@
 				"focus": true,
 				"clear": true
 			}
-		},
-		{
-			"type": "npm",
-			"script": "mcp:client2",
-			"problemMatcher": [],
-			"label": "npm: mcp:client2",
-			"detail": "node test/run-mcp-client2.js"
 		}
 	]
 }

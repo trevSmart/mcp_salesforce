@@ -1,26 +1,21 @@
-import {textFileContent} from '../utils.js';
+/** biome-ignore-all lint/style/useNamingConvention: SObject fields are not camelCase */
+import {z} from 'zod';
 import {createModuleLogger} from '../lib/logger.js';
 import {callSalesforceApi} from '../lib/salesforceServices.js';
-import {z} from 'zod';
 import {newResource, resources} from '../mcp-server.js';
+import {textFileContent} from '../utils.js';
+
 const logger = createModuleLogger(import.meta.url);
 
 export const describeObjectToolDefinition = {
 	name: 'describeObject',
 	title: 'Describe SObject schema',
-	description: textFileContent('tools/describeObject.md'),
+	description: await textFileContent('tools/describeObject.md'),
 	inputSchema: {
-		sObjectName: z.string()
-			.describe('The name of the SObject to describe'),
-		includeFields: z.boolean()
-			.describe('If true, includes fields in the response. If false, excludes fields for faster processing and smaller response.').default(true),
-		includePicklistValues: z.boolean()
-			.describe('If true, includes picklist values for picklist and multipicklist fields. If false, only field metadata is returned.')
-			.default(false),
-		useToolingApi: z.boolean()
-			.optional()
-			.default(false)
-			.describe('Whether to use the Tooling API for retrieving the SObject schema (default: false)')
+		sObjectName: z.string().describe('The name of the SObject to describe'),
+		includeFields: z.boolean().describe('If true, includes fields in the response. If false, excludes fields for faster processing and smaller response.').default(true),
+		includePicklistValues: z.boolean().describe('If true, includes picklist values for picklist and multipicklist fields. If false, only field metadata is returned.').default(false),
+		useToolingApi: z.boolean().optional().default(false).describe('Whether to use the Tooling API for retrieving the SObject schema (default: false)')
 	},
 	annotations: {
 		readOnlyHint: true,
@@ -32,7 +27,7 @@ export const describeObjectToolDefinition = {
 
 export async function describeObjectToolHandler({sObjectName, includeFields = true, includePicklistValues = false, useToolingApi = false}) {
 	try {
-		const resourceName = 'mcp://mcp/sobject-ui-schema-' + sObjectName.toLowerCase() + '.json';
+		const resourceName = `mcp://mcp/sobject-ui-schema-${sObjectName.toLowerCase()}.json`;
 
 		// Check cache first
 		if (resources[resourceName]) {
@@ -43,10 +38,12 @@ export async function describeObjectToolHandler({sObjectName, includeFields = tr
 			const filteredData = applyFiltering(cached, includeFields, includePicklistValues);
 
 			return {
-				content: [{
-					type: 'text',
-					text: 'Successfully retrieved from cache the SObject schema for ' + sObjectName + ' with the following data: ' + JSON.stringify(filteredData, null, 3)
-				}],
+				content: [
+					{
+						type: 'text',
+						text: `Successfully retrieved from cache the SObject schema for ${sObjectName} with the following data: ${JSON.stringify(filteredData, null, 3)}`
+					}
+				],
 				structuredContent: {wasCached: true, ...filteredData}
 			};
 		}
@@ -72,39 +69,35 @@ export async function describeObjectToolHandler({sObjectName, includeFields = tr
 			}
 
 			// Transform UI API response to match our expected format
-			transformedData = transformUIApiResponse(response, 'all', includePicklistValues);
+			transformedData = transformUiApiResponse(response, 'all', includePicklistValues);
 		}
 
 		// Apply filtering
 		const filteredData = applyFiltering(transformedData, includeFields, includePicklistValues);
 
 		// Cache the result (always cache the full data)
-		newResource(
-			resourceName,
-			`${sObjectName} SObject schema`,
-			`${sObjectName} SObject schema`,
-			'application/json',
-			JSON.stringify(transformedData, null, 3),
-			{audience: ['assistant', 'user']}
-		);
+		newResource(resourceName, `${sObjectName} SObject schema`, `${sObjectName} SObject schema`, 'application/json', JSON.stringify(transformedData, null, 3), {audience: ['assistant', 'user']});
 
 		return {
-			content: [{
-				type: 'text',
-				text: 'Successfully retrieved the SObject schema for ' + sObjectName
-			}],
+			content: [
+				{
+					type: 'text',
+					text: `Successfully retrieved the SObject schema for ${sObjectName}`
+				}
+			],
 			structuredContent: filteredData
 		};
-
 	} catch (error) {
 		logger.error(error);
 		const errorContent = {error: true, message: error.message};
 		return {
 			isError: true,
-			content: [{
-				type: 'text',
-				text: JSON.stringify(errorContent)
-			}],
+			content: [
+				{
+					type: 'text',
+					text: JSON.stringify(errorContent)
+				}
+			],
 			structuredContent: errorContent
 		};
 	}
@@ -150,18 +143,18 @@ function applyFiltering(data, includeFields, includePicklistValues) {
 	return result;
 }
 
-function transformUIApiResponse(uiApiResponse, include, includePicklistValues) {
+function transformUiApiResponse(uiApiResponse, include, includePicklistValues) {
 	const result = {
 		name: uiApiResponse.apiName,
 		label: uiApiResponse.label || '',
 		labelPlural: uiApiResponse.labelPlural || '',
 		keyPrefix: uiApiResponse.keyPrefix || '',
-		searchable: uiApiResponse.searchable || false,
-		createable: uiApiResponse.createable || false,
-		custom: uiApiResponse.custom || false,
-		deletable: uiApiResponse.deletable || false,
-		updateable: uiApiResponse.updateable || false,
-		queryable: uiApiResponse.queryable || false
+		searchable: uiApiResponse.searchable,
+		createable: uiApiResponse.createable,
+		custom: uiApiResponse.custom,
+		deletable: uiApiResponse.deletable,
+		updateable: uiApiResponse.updateable,
+		queryable: uiApiResponse.queryable
 	};
 
 	// Include fields if requested
@@ -188,12 +181,12 @@ function transformToolingApiResponse(toolingApiResponse, includePicklistValues) 
 		label: toolingApiResponse.label || '',
 		labelPlural: toolingApiResponse.labelPlural || '',
 		keyPrefix: toolingApiResponse.keyPrefix || '',
-		searchable: toolingApiResponse.searchable || false,
-		createable: toolingApiResponse.createable || false,
-		custom: toolingApiResponse.custom || false,
-		deletable: toolingApiResponse.deletable || false,
-		updateable: toolingApiResponse.updateable || false,
-		queryable: toolingApiResponse.queryable || false
+		searchable: toolingApiResponse.searchable,
+		createable: toolingApiResponse.createable,
+		custom: toolingApiResponse.custom,
+		deletable: toolingApiResponse.deletable,
+		updateable: toolingApiResponse.updateable,
+		queryable: toolingApiResponse.queryable
 	};
 
 	// Include fields if available
@@ -223,12 +216,12 @@ function transformToolingFields(toolingFields, includePicklistValues) {
 			label: fieldInfo.label || '',
 			type: mapToolingDataType(fieldInfo.type),
 			length: fieldInfo.length || 0,
-			custom: fieldInfo.custom || false,
+			custom: fieldInfo.custom,
 			relationshipName: fieldInfo.relationshipName || null,
 			referenceTo: fieldInfo.referenceTo || [],
 			required: fieldInfo.nillable === false,
-			unique: fieldInfo.unique || false,
-			externalId: fieldInfo.externalId || false
+			unique: fieldInfo.unique,
+			externalId: fieldInfo.externalId
 		};
 
 		// Include picklist values if requested
@@ -249,7 +242,7 @@ function transformToolingRecordTypes(toolingRecordTypes) {
 		transformedRecordTypes.push({
 			recordTypeId: recordTypeInfo.recordTypeId || '',
 			name: recordTypeInfo.name || '',
-			available: recordTypeInfo.available || false
+			available: recordTypeInfo.available
 		});
 	}
 
@@ -257,7 +250,7 @@ function transformToolingRecordTypes(toolingRecordTypes) {
 }
 
 function transformToolingChildRelationships(toolingChildRelationships) {
-	return toolingChildRelationships.map(relationship => ({
+	return toolingChildRelationships.map((relationship) => ({
 		childSObject: relationship.childSObject || '',
 		field: relationship.field || '',
 		relationshipName: relationship.relationshipName || ''
@@ -313,12 +306,12 @@ function transformFields(uiFields, includePicklistValues) {
 			label: fieldInfo.label || '',
 			type: mapDataType(fieldInfo.dataType),
 			length: fieldInfo.length || 0,
-			custom: fieldInfo.custom || false,
+			custom: fieldInfo.custom,
 			relationshipName: fieldInfo.relationshipName || null,
 			referenceTo: extractReferenceTo(fieldInfo),
-			required: fieldInfo.required || false,
-			unique: fieldInfo.unique || false,
-			externalId: fieldInfo.externalId || false
+			required: fieldInfo.required,
+			unique: fieldInfo.unique,
+			externalId: fieldInfo.externalId
 		};
 
 		// Include picklist values if requested
@@ -339,7 +332,7 @@ function transformRecordTypes(uiRecordTypes) {
 		transformedRecordTypes.push({
 			recordTypeId: recordTypeId,
 			name: recordTypeInfo.name || '',
-			available: recordTypeInfo.available || false
+			available: recordTypeInfo.available
 		});
 	}
 
@@ -347,7 +340,7 @@ function transformRecordTypes(uiRecordTypes) {
 }
 
 function transformChildRelationships(uiChildRelationships) {
-	return uiChildRelationships.map(relationship => ({
+	return uiChildRelationships.map((relationship) => ({
 		childSObject: relationship.childObjectApiName || '',
 		field: relationship.fieldName || '',
 		relationshipName: relationship.relationshipName || ''
@@ -388,7 +381,7 @@ function extractReferenceTo(fieldInfo) {
 		return [];
 	}
 
-	return fieldInfo.referenceToInfos.map(ref => ref.apiName);
+	return fieldInfo.referenceToInfos.map((ref) => ref.apiName);
 }
 
 function transformPicklistValues(uiPicklistValues) {

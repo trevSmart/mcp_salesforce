@@ -61,18 +61,14 @@
 					"name": "$(edit) Lint",
 					"useVsCodeApi": true,
 					"command": "workbench.action.tasks.runTask",
-					"args": [
-						"npm: lint:fix"
-					],
+					"args": ["npm: lint:fix"],
 					"color": "#6D81fA"
 				},
 				{
 					"name": "$(test-view-icon) Inspect",
 					"useVsCodeApi": true,
 					"command": "workbench.action.tasks.runTask",
-					"args": [
-						"npm: startMcpInspector"
-					],
+					"args": ["npm: startMcpInspector"],
 					"color": "#8F77c9"
 				},
 				{
@@ -85,9 +81,7 @@
 					"name": "$(send) Publish server",
 					"useVsCodeApi": true,
 					"command": "workbench.action.tasks.runTask",
-					"args": [
-						"npm: publish-package"
-					],
+					"args": ["npm: publish-package"],
 					"color": "#cc8888"
 				}
 			],
@@ -105,9 +99,7 @@
 			"statusBar.background": null
 		},
 		"typescript.workspaceSymbols.excludeLibrarySymbols": false,
-		"todohighlight.keywords": [
-			"TODO"
-		],
+		"todohighlight.keywords": ["TODO"],
 		"chatgpt.openOnStartup": false
 	}
 }

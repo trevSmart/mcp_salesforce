@@ -1,18 +1,14 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import {chromium} from 'playwright';
-import fs from 'fs';
-import path from 'path';
+import {state} from '../mcp-server.js';
 import {createModuleLogger} from './logger.js';
-import state from '../state.js';
+
 const logger = createModuleLogger(import.meta.url);
 
 // Try clicking the first candidate link found across page and frames
 async function clickDownloadCandidate(page, timeoutPerClick = 1000) {
-	const selectors = [
-		'a:has-text("Download setup audit trail")',
-		'a[href*="csv"]',
-		'a[href*="download"]',
-		'a[href*="audit"]'
-	];
+	const selectors = ['a:has-text("Download setup audit trail")', 'a[href*="csv"]', 'a[href*="download"]', 'a[href*="audit"]'];
 
 	const contexts = [page, ...page.frames()];
 	for (const sel of selectors) {
@@ -47,18 +43,17 @@ async function retrieveFile() {
 		const {instanceUrl, accessToken} = state.org;
 		const frontdoorUrl = `${instanceUrl}/secur/frontdoor.jsp?sid=${encodeURIComponent(accessToken)}&retURL=${encodeURIComponent(setupUrl)}`;
 		await page.goto(frontdoorUrl, {waitUntil: 'domcontentloaded'});
-		await page.waitForURL(url => url.pathname.includes(setupUrl), {timeout: 60000});
-
+		await page.waitForURL((url) => url.pathname.includes(setupUrl), {timeout: 60_000});
 
 		// Attempt clicking candidates while waiting for a download event
 		const download = await Promise.race([
-			(async() => {
-				const dl = await page.waitForEvent('download', {timeout: 60000});
+			(async () => {
+				const dl = await page.waitForEvent('download', {timeout: 60_000});
 				return dl;
 			})(),
-			(async() => {
+			(async () => {
 				const start = Date.now();
-				const maxWaitMs = 20000;
+				const maxWaitMs = 20_000;
 				while (Date.now() - start < maxWaitMs) {
 					const clicked = await clickDownloadCandidate(page);
 					if (clicked) {
@@ -74,11 +69,9 @@ async function retrieveFile() {
 		const filePath = path.join(tmpDir, 'SetupAuditTrail.csv');
 		await download.saveAs(filePath);
 		return filePath;
-
 	} catch (error) {
 		logger.error(error, 'Error during Setup Audit Trail download');
 		throw error;
-
 	} finally {
 		if (browser) {
 			await browser.close();
@@ -94,11 +87,10 @@ async function retrieveFileWithRetry(maxRetries = 2) {
 			return await retrieveFile();
 		} catch (error) {
 			lastError = error;
-			const transient = typeof error?.message === 'string'
-				&& (error.message.includes('Frame was detached') || error.message.includes('Target page, context or browser has been closed'));
+			const transient = typeof error?.message === 'string' && (error.message.includes('Frame was detached') || error.message.includes('Target page, context or browser has been closed'));
 			if (transient && attempt < maxRetries) {
 				logger.warn(`Transient error on attempt ${attempt}, retrying...`);
-				await new Promise(r => setTimeout(r, 2000));
+				await new Promise((r) => setTimeout(r, 2000));
 				continue;
 			}
 			break;

@@ -55,6 +55,8 @@ Include (in this recommended order):
    - Save IDs for potential reuse
 
 9) apexDebugLogs (only non-mutating actions)
+   - action: "on"
+   - action: "off"
    - action: "status"
    - action: "list"
    - If logs are available, action: "get" with the first Id returned by "list" (if none, skip this call)
@@ -83,12 +85,9 @@ Include (in this recommended order):
     - Try describeObject with a non-existent object name to see how errors are handled
     - Try executeSoqlQuery with an invalid query to test error responses
 
-At the end, optionally, call salesforceMcpUtils with action: "clearCache" to clean resources loaded in memory during the test.
-
 Important: Don't call any of the following tools/actions as they can modify the org or workspace:
    - createMetadata (all actions)
    - deployMetadata
-   - apexDebugLogs: "on" and "off" actions
    - Any tool or action that creates, updates, or deletes data/metadata
    - salesforceMcpUtils: "reportIssue" (makes an external call; not necessary for this test)
    - dmlOperation (all actions - creates/updates/deletes records)
@@ -98,10 +97,20 @@ Desired behavior: for each call, validate that the tool responds without error a
 Integration strategy: Maximize the reuse of data between tools:
 - Use IDs from getRecentlyViewedRecords or executeSoqlQuery for getRecord calls
 - Test the same objects multiple times with different describeObject options
-- Verify that cache works by calling the same tool with the same parameters twice
 - Test both regular API and Tooling API variants where applicable
 
-Final summary: return a comprehensive summary with the status of each call (success/error) and any relevant notes (e.g., how many records returned, first Id used, first log obtained, cache hits, Tooling API functionality, etc.). Include any interesting findings about the org's data structure or tool behavior.`
+Final summary: return a comprehensive summary with the status of each call (success/error) and any relevant notes (e.g., how many records returned, first Id used, first log obtained, cache hits, Tooling API functionality, etc.). Include any interesting findings about the org's data structure or tool behavior.
+
+**MANDATORY SUMMARY REQUIREMENTS:**
+At the end of your execution, you MUST provide a structured summary with:
+
+1. **Tool Execution Count**: Total number of tools executed during the test run
+2. **Success/Error Count**:
+   - Number of successful tool executions (OK)
+   - Number of failed tool executions (KO)
+3. **Excluded Tools List**: Complete list of tools that were intentionally NOT included in this test battery, explaining why each was excluded (e.g., "createMetadata - excluded because it creates persistent changes", "dmlOperation - excluded because it modifies data", etc.)
+
+This summary helps verify that the test covered the maximum safe tools while avoiding any destructive operations.`
 				}
 			}
 		]

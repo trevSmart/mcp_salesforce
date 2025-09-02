@@ -1,25 +1,21 @@
 import {z} from 'zod';
-import {describeObject} from '../lib/salesforceServices.js';
-import {textFileContent, getAgentInstructions} from '../utils.js';
 import {createModuleLogger} from '../lib/logger.js';
+import {describeObject} from '../lib/salesforceServices.js';
 import {mcpServer} from '../mcp-server.js';
+import {getAgentInstructions, textFileContent} from '../utils.js';
 
 export const generateSoqlQueryToolDefinition = {
 	name: 'generateSoqlQuery',
 	title: 'Generate SOQL Query',
-	description: textFileContent('tools/generateSoqlQuery.md'),
+	description: await textFileContent('tools/generateSoqlQuery.md'),
 	inputSchema: {
-		soqlQueryDescription: z
-			.string()
-			.describe('The description of the SOQL query to generate'),
+		soqlQueryDescription: z.string().describe('The description of the SOQL query to generate'),
 		/*
 		involvedSObjects: z
 			.array(z.string())
 			.describe('The SObjects involved in the query (e.g. ["Account", "Contact"])')
 		*/
-		involvedFields: z
-			.array(z.string())
-			.describe('The fields involved in the query (e.g. ["Case.AccountId", "Case.Account.Birthdate", "Contact.CreatedBy.Name"])')
+		involvedFields: z.array(z.string()).describe('The fields involved in the query (e.g. ["Case.AccountId", "Case.Account.Birthdate", "Contact.CreatedBy.Name"])')
 	},
 	annotations: {
 		readOnlyHint: true,
@@ -37,28 +33,31 @@ export async function generateSoqlQueryToolHandler({soqlQueryDescription, involv
 			throw new Error('soqlQueryDescription is required');
 		}
 
-		if (!involvedFields || !Array.isArray(involvedFields) || involvedFields.length === 0) {
+		if (!(involvedFields && Array.isArray(involvedFields)) || involvedFields.length === 0) {
 			throw new Error('involvedFields array is required and must contain at least one field');
 		}
 
 		// Extract SObject names from involvedFields
-		const sObjectNames = [...new Set(involvedFields.map(field => {
-			const parts = field.split('.');
-			return parts[0];
-		}))];
+		const sObjectNames = [
+			...new Set(
+				involvedFields.map((field) => {
+					const parts = field.split('.');
+					return parts[0];
+				})
+			)
+		];
 
 		const descObjResults = await Promise.all(
-			sObjectNames.map(async sObjectName => {
+			sObjectNames.map(async (sObjectName) => {
 				const descObjResult = (await describeObject(sObjectName)).result;
 
 				if (!descObjResult?.fields) {
 					throw new Error(`The 'fields' property was not found in the object description for ${sObjectName}`);
 				}
-				const childRelationships = descObjResult.childRelationships
-					.map(childRelationship => ({
-						childSObject: childRelationship.childSObject,
-						field: childRelationship.field
-					}));
+				const childRelationships = descObjResult.childRelationships.map((childRelationship) => ({
+					childSObject: childRelationship.childSObject,
+					field: childRelationship.field
+				}));
 
 				const fields = [];
 				for (const f of descObjResult.fields) {
@@ -79,15 +78,18 @@ export async function generateSoqlQueryToolHandler({soqlQueryDescription, involv
 				}
 
 				const recordTypeInfos = descObjResult.recordTypeInfos
-					.filter(recordType => recordType.active)
-					.map(recordType => ({
+					.filter((recordType) => recordType.active)
+					.map((recordType) => ({
 						name: recordType.name,
 						developerName: recordType.developerName
 					}));
 
 				return {
-					name: descObjResult.name, label: descObjResult.label,
-					childRelationships, fields, recordTypeInfos
+					name: descObjResult.name,
+					label: descObjResult.label,
+					childRelationships,
+					fields,
+					recordTypeInfos
 				};
 			})
 		);
@@ -102,23 +104,23 @@ export async function generateSoqlQueryToolHandler({soqlQueryDescription, involv
 			samplingPrompt += `## ${sObjectName} schema ##`;
 
 			samplingPrompt += '\n\n### Child Relationships ###';
-			describeResult.childRelationships.forEach(child => {
+			for (const child of describeResult.childRelationships) {
 				samplingPrompt += `\n  - \`${child.field}\`: "${child.field}" → \`${child.childSObject}\``;
-			});
+			}
 
 			samplingPrompt += '\n\n### Fields ###';
 
 			const fieldGroups = {
-				'Lookup': [],
-				'Text': [],
-				'Numeric': [],
-				'Picklist': [],
-				'Boolean': [],
+				Lookup: [],
+				Text: [],
+				Numeric: [],
+				Picklist: [],
+				Boolean: [],
 				'Date/Time': []
 			};
 
 			//Group fields by type
-			describeResult.fields.forEach(field => {
+			for (const field of describeResult.fields) {
 				const fieldLineBase = `    - \`${field.name}\`: "${field.label}"`;
 				if (field.type === 'reference') {
 					fieldGroups.Lookup.push(`${fieldLineBase} → \`${field.referenceTo.join(' / ')}\``);
@@ -129,7 +131,7 @@ export async function generateSoqlQueryToolHandler({soqlQueryDescription, involv
 				} else if (field.type === 'picklist') {
 					let picklistValues = '';
 					if (field.picklistValues) {
-						const values = field.picklistValues.map(v => `"${v.value}"`).join(', ');
+						const values = field.picklistValues.map((v) => `"${v.value}"`).join(', ');
 						picklistValues = `\n        Values: ${values}`;
 					}
 					fieldGroups.Picklist.push(`${fieldLineBase}${picklistValues}`);
@@ -138,22 +140,22 @@ export async function generateSoqlQueryToolHandler({soqlQueryDescription, involv
 				} else if (['date', 'datetime'].includes(field.type)) {
 					fieldGroups['Date/Time'].push(`${fieldLineBase}`);
 				}
-			});
+			}
 
 			//Append grouped fields
-			Object.entries(fieldGroups).forEach(([groupName, fields]) => {
+			for (const [groupName, fields] of Object.entries(fieldGroups)) {
 				if (fields.length > 0) {
 					samplingPrompt += `\n- #### ${groupName} ####`;
-					fields.forEach(line => {
+					for (const line of fields) {
 						samplingPrompt += `\n${line}`;
-					});
+					}
 				}
-			});
+			}
 
 			samplingPrompt += '\n\n### Record Types ###';
-			describeResult.recordTypeInfos.forEach(recordType => {
+			for (const recordType of describeResult.recordTypeInfos) {
 				samplingPrompt += `\n  - \`${recordType.developerName}\`: "${recordType.name}"`;
-			});
+			}
 		});
 
 		const samplingResponse = await mcpServer.server.createMessage({
@@ -164,21 +166,24 @@ export async function generateSoqlQueryToolHandler({soqlQueryDescription, involv
 		});
 
 		return {
-			content: [{
-				type: 'text',
-				text: samplingResponse.content.text
-			}],
+			content: [
+				{
+					type: 'text',
+					text: samplingResponse.content.text
+				}
+			],
 			structuredContent: samplingResponse
 		};
-
 	} catch (error) {
 		logger.error(error);
 		return {
 			isError: true,
-			content: [{
-				type: 'text',
-				text: `❌ Error: ${error.message}`
-			}]
+			content: [
+				{
+					type: 'text',
+					text: `❌ Error: ${error.message}`
+				}
+			]
 		};
 	}
 }

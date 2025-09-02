@@ -1,8 +1,7 @@
-import {createRequire} from 'module';
+import {createRequire} from 'node:module';
+
 const require = createRequire(import.meta.url);
 const pkg = require('../package.json');
-
-import {getAgentInstructions} from './utils.js';
 
 /**
  * Configuration object for the MCP server
@@ -29,7 +28,7 @@ export default {
 		// Clear cache after successful non-GET requests
 		invalidateOnWrite: true
 	},
-	SERVER_CONSTANTS: {
+	serverConstants: {
 		protocolVersion: '2025-06-18',
 		serverInfo: {
 			name: 'IBM Salesforce MCP Server',
@@ -43,6 +42,6 @@ export default {
 			prompts: {},
 			completions: {}
 		},
-		instructions: getAgentInstructions('agentInstruccions')
+		instructions: null // Instructions will be loaded lazily to avoid circular dependencies
 	}
 };

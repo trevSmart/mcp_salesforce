@@ -1,22 +1,17 @@
+import {z} from 'zod';
+import {createModuleLogger} from '../lib/logger.js';
 import {getRecord} from '../lib/salesforceServices.js';
 import {textFileContent} from '../utils.js';
-import {createModuleLogger} from '../lib/logger.js';
-import {z} from 'zod';
-// eslint-disable-next-line no-unused-vars
-import state from '../state.js';
+
 const logger = createModuleLogger(import.meta.url);
 
 export const getRecordToolDefinition = {
 	name: 'getRecord',
 	title: 'Get Record',
-	description: textFileContent('tools/getRecord.md'),
+	description: await textFileContent('tools/getRecord.md'),
 	inputSchema: {
-		sObjectName: z
-			.string()
-			.describe('The name of the SObject type of the record to retrieve.'),
-		recordId: z
-			.string()
-			.describe('The Id of the record to retrieve.')
+		sObjectName: z.string().describe('The name of the SObject type of the record to retrieve.'),
+		recordId: z.string().describe('The Id of the record to retrieve.')
 	},
 	annotations: {
 		readOnlyHint: true,
@@ -28,7 +23,7 @@ export const getRecordToolDefinition = {
 
 export async function getRecordToolHandler({sObjectName, recordId}) {
 	try {
-		if (!sObjectName || !recordId) {
+		if (!(sObjectName && recordId)) {
 			throw new Error('SObject name and record ID are required');
 		}
 
@@ -50,21 +45,24 @@ export async function getRecordToolHandler({sObjectName, recordId}) {
 		const structured = {id, sObject: sObjectName, fields};
 
 		return {
-			content: [{
-				type: 'text',
-				text: `Successfully retrieved details for the ${sObjectName} record with Id ${id}`
-			}],
+			content: [
+				{
+					type: 'text',
+					text: `Successfully retrieved details for the ${sObjectName} record with Id ${id}`
+				}
+			],
 			structuredContent: structured
 		};
-
 	} catch (error) {
 		logger.error(error);
 		return {
 			isError: true,
-			content: [{
-				type: 'text',
-				text: error.message
-			}],
+			content: [
+				{
+					type: 'text',
+					text: error.message
+				}
+			],
 			structuredContent: error
 		};
 	}

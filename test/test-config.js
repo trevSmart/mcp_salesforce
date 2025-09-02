@@ -3,7 +3,7 @@ export const TEST_CONFIG = {
 	// MCP Server configuration
 	mcpServer: {
 		startupDelay: 1000,
-		timeout: 90000,
+		timeout: 90_000,
 		// Allow overriding the server path via env for prepublish tests (e.g., '../dist/index.js')
 		serverPath: process.env.MCP_TEST_SERVER_PATH || '../index.js',
 		defaultLogLevel: 'info'
@@ -13,7 +13,7 @@ export const TEST_CONFIG = {
 	salesforce: {
 		testOrgAlias: 'DEVSERVICE',
 		runApexTestMethodName: 'CSBD_Utils_Test.decToHex',
-		testApexRestResourceName: 'CSBD_WS_TestEndpoint'
+		testApexRestResourceName: 'GetGestorRoutingLlamada'
 	},
 
 	// Test execution configuration

@@ -72,7 +72,7 @@
             {
 				"name": ".",
 				"color": "#00000000",
-				"command": null
+				"command": ""
 			},
             {
                 "name": "$(edit) Lint",
@@ -108,8 +108,7 @@
         "editor.selectionHighlightBackground": "#ff00005b",
         "tab.activeForeground": "#ffffff",
         "tab.activeBorder": "#006bc9",
-        "tab.activeModifiedBorder": "#f4a238",
-        "statusBar.background": null
+        "tab.activeModifiedBorder": "#f4a238"
     },
     "typescript.workspaceSymbols.excludeLibrarySymbols": false,
     "todohighlight.keywords": [
@@ -118,7 +117,7 @@
     "github-actions.workflows.pinned.workflows": [
         ".github/workflows/push-checks.yml"
     ],
-    "chatgpt.openOnStartup": true,
+    "chatgpt.openOnStartup": false,
     "breadcrumbs.filePath": "on",
     "editor.fontLigatures": true,
     "editor.fontFamily": "Fira Code",

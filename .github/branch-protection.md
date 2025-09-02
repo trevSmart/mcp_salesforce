@@ -7,7 +7,7 @@ This document outlines the recommended branch protection rules to work with the 
 ### Required Status Checks
 Enable the following status checks as required before merging:
 
-- **lint-and-test** - ESLint and test execution
+- **lint-and-test** - Biome and test execution
 - **security** - Security audit and dependency checks
 - **code-quality** - Code quality analysis
 - **CodeQL** - Security code scanning

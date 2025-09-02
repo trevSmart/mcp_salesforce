@@ -31,7 +31,7 @@ Thumbs.db
 # Misc
 *.old*
 .nvmrc
-.eslint*
+.biome*
 
 # Project-specific
 dev/
@@ -45,7 +45,7 @@ notebooks/
 rules/
 .fiveserverrc
 @/
-eslint.config.js
+biome.json
 .github/
 .cursorignore
 .env
