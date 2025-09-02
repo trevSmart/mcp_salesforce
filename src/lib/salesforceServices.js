@@ -975,237 +975,252 @@ async function refreshAccessToken() {
 }
 
 export async function callSalesforceApi(operation, apiType, service, body = null, options = {}) {
-	// Validate required parameters
-	if (!(operation && apiType && service)) {
-		throw new Error('operation, apiType, and service are required parameters');
-	}
-
-	// Validate operation
-	const validOperations = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
-	if (!validOperations.includes(operation.toUpperCase())) {
-		throw new Error(`Invalid operation: ${operation}. Must be one of: ${validOperations.join(', ')}`);
-	}
-
-	// Validate API type
-	const validApiTypes = ['REST', 'TOOLING', 'UI', 'APEX'];
-	if (!validApiTypes.includes(apiType.toUpperCase())) {
-		throw new Error(`Invalid API type: ${apiType}. Must be one of: ${validApiTypes.join(', ')}`);
-	}
-
-	// Ensure org details are available
-	if (!(state?.org?.id && state?.org?.instanceUrl && state?.org?.accessToken)) {
-		throw new Error('Org details not initialized. Please wait for server initialization.');
-	}
-
-	// Initialize cache manager
-	const cacheManager = new ApiCacheManager(config?.apiCache);
-
-	// Build the full endpoint based on API type
-	const apiVersion = state.org.apiVersion;
-	let endpoint;
-
-	// Check if a custom base URL is provided
-	if (options.baseUrl) {
-		endpoint = `${options.baseUrl}${service}`;
-	} else {
-		const apiEndpoints = {
-			rest: `${state.org.instanceUrl}/services/data/v${apiVersion}${service}`,
-			tooling: `${state.org.instanceUrl}/services/data/v${apiVersion}/tooling${service}`,
-			ui: `${state.org.instanceUrl}/services/data/v${apiVersion}/ui-api${service}`,
-			apex: `${state.org.instanceUrl}/services/apexrest/${service}`
-		};
-		endpoint = apiEndpoints?.[apiType.toLowerCase()];
-		if (!endpoint) {
-			throw new Error(`Unsupported API type: ${apiType}`);
-		}
-	}
-
-	// Handle query parameters if provided
-	if (options.queryParams && typeof options.queryParams === 'object') {
-		const queryString = new URLSearchParams(options.queryParams).toString();
-		queryString && (endpoint += `?${queryString}`);
-	}
-
-	// Compose cache key (org + op + apiType + endpoint + extra)
-	const cacheKey = cacheManager.generateCacheKey(state.org.id, operation, apiType, endpoint, options.cacheKeyExtra);
-
-	// Helper function to check if response contains INVALID_SESSION_ID error
-	const isInvalidSessionError = (responseBody) => typeof responseBody === 'string' && responseBody.includes('INVALID_SESSION_ID');
-
-	// Helper function that performs a curl request but returns a fetch-like response
-	const curlAsFetch = async (endpointUrl, requestOptions) => {
-		// Build curl command
-		let curlCommand = `curl -s -w "HTTPSTATUS:%{http_code}" -X ${requestOptions.method} "${endpointUrl}"`;
-
-		// Add headers
-		if (requestOptions.headers) {
-			for (const [key, value] of Object.entries(requestOptions.headers)) {
-				if (key.toLowerCase() === 'authorization') {
-					// Use single quotes for Authorization header to avoid issues with special characters
-					curlCommand += ` -H '${key}: ${value}'`;
-				} else {
-					curlCommand += ` -H "${key}: ${value}"`;
-				}
-			}
+	try {
+		// Validate required parameters
+		if (!(operation && apiType && service)) {
+			throw new Error('operation, apiType, and service are required parameters');
 		}
 
-		// Add body - don't double-quote since body is already JSON stringified
-		if (requestOptions.body) {
-			curlCommand += ` -d '${requestOptions.body}'`;
+		// Validate operation
+		const validOperations = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+		if (!validOperations.includes(operation.toUpperCase())) {
+			throw new Error(`Invalid operation: ${operation}. Must be one of: ${validOperations.join(', ')}`);
 		}
 
-		logger.debug(`Executing curl command: ${curlCommand}`);
-
-		const {stdout} = await exec(curlCommand);
-		const httpStatusMatch = stdout.match(/HTTPSTATUS:(\d+)/);
-		const status = httpStatusMatch ? Number.parseInt(httpStatusMatch[1], 10) : 200;
-		const bodyText = stdout.replace(/HTTPSTATUS:\d+/, '').trim();
-
-		return {
-			ok: status >= 200 && status < 300,
-			status,
-			statusText: status >= 200 && status < 300 ? 'OK' : 'Error',
-			async text() {
-				return bodyText;
-			},
-			async json() {
-				return JSON.parse(bodyText);
-			}
-		};
-	};
-
-	// Function to make the actual API call
-	const makeApiCall = async () => {
-		const requestOptions = {
-			method: operation.toUpperCase(),
-			headers: {
-				Authorization: `Bearer ${state.org.accessToken}`,
-				'Content-Type': 'application/json'
-			}
-		};
-
-		// Add custom headers if provided
-		if (options.headers && typeof options.headers === 'object') {
-			Object.assign(requestOptions.headers, options.headers);
+		// Validate API type
+		const validApiTypes = ['REST', 'TOOLING', 'UI', 'APEX'];
+		if (!validApiTypes.includes(apiType.toUpperCase())) {
+			throw new Error(`Invalid API type: ${apiType}. Must be one of: ${validApiTypes.join(', ')}`);
 		}
 
-		// Add body for all methods (including GET for non-standard APIs)
-		if (body) {
-			// If body is already a string, assume it's JSON and use it directly
-			// Otherwise, stringify the object
-			if (typeof body === 'string') {
-				requestOptions.body = body;
-			} else {
-				requestOptions.body = JSON.stringify(body);
-			}
+		// Ensure org details are available
+		if (!(state?.org?.id && state?.org?.instanceUrl && state?.org?.accessToken)) {
+			throw new Error('Org details not initialized. Please wait for server initialization.');
 		}
 
-		const useCurl = requestOptions.method === 'GET' && body;
-		if (useCurl) {
-			logger.debug(`Using curl for GET request with body to ${endpoint}`);
-		}
+		// Initialize cache manager
+		const cacheManager = new ApiCacheManager(config?.apiCache);
 
-		// Try cache for GET if not bypassed and globally enabled
-		const isGet = requestOptions.method === 'GET';
-		const bypassCache = options.bypassCache === true;
-		const cacheTtlMs = cacheManager.getCacheTtl(options.cacheTtlMs);
+		// Build the full endpoint based on API type
+		const apiVersion = state.org.apiVersion;
+		let endpoint;
 
-		const cachedResponse = cacheManager.getCachedResponse(cacheKey, isGet, bypassCache, cacheTtlMs);
-		if (cachedResponse) {
-			return cachedResponse;
-		}
-
-		const response = useCurl ? await curlAsFetch(endpoint, requestOptions) : await fetch(endpoint, requestOptions);
-
-		let logMessage = `${operation} request to ${apiType} API service ${service} ended ${response.statusText} (${response.status})`;
-
-		if (Object.keys(options.queryParams || {}).length) {
-			logMessage += `\n${JSON.stringify(options.queryParams, null, 3)}`;
-		}
-
-		if (Object.keys(requestOptions).length) {
-			// Remove sensitive headers before logging
-			const maskedRequestOptions = {
-				...requestOptions,
-				headers: {...(requestOptions.headers || {})}
+		// Check if a custom base URL is provided
+		if (options.baseUrl) {
+			endpoint = `${options.baseUrl}${service}`;
+		} else {
+			// Normalize base URL (remove trailing slashes) and service (ensure leading slash)
+			const baseUrl = String(state.org.instanceUrl || '').replace(/\/+$/, '');
+			const normalizedService = service.startsWith('/') ? service : `/${service}`;
+			const apiEndpoints = {
+				rest: `${baseUrl}/services/data/v${apiVersion}${normalizedService}`,
+				tooling: `${baseUrl}/services/data/v${apiVersion}/tooling${normalizedService}`,
+				ui: `${baseUrl}/services/data/v${apiVersion}/ui-api${normalizedService}`,
+				apex: `${baseUrl}/services/apexrest${normalizedService}`
 			};
-			if ('Authorization' in maskedRequestOptions.headers) {
-				delete maskedRequestOptions.headers.Authorization;
+			endpoint = apiEndpoints?.[apiType.toLowerCase()];
+			if (!endpoint) {
+				throw new Error(`Unsupported API type: ${apiType}`);
 			}
-			if ('authorization' in maskedRequestOptions.headers) {
-				delete maskedRequestOptions.headers.authorization;
-			}
-			logMessage += `\n${JSON.stringify(maskedRequestOptions, null, 3)}`;
 		}
-		logger.debug(logMessage);
 
-		if (!response.ok) {
-			let errorDetails;
-			try {
-				const errorBody = await response.text();
-				errorDetails = `Status: ${response.status} ${response.statusText}\nResponse body: ${errorBody}`;
+		// Handle query parameters if provided
+		if (options.queryParams && typeof options.queryParams === 'object') {
+			const queryString = new URLSearchParams(options.queryParams).toString();
+			queryString && (endpoint += `?${queryString}`);
+		}
 
-				// Check if this is an INVALID_SESSION_ID error
-				if (isInvalidSessionError(errorBody)) {
-					throw new Error('INVALID_SESSION_ID');
+		// Compose cache key (org + op + apiType + endpoint + extra)
+		const cacheKey = cacheManager.generateCacheKey(state.org.id, operation, apiType, endpoint, options.cacheKeyExtra);
+
+		// Helper function to check if response contains INVALID_SESSION_ID error
+		const isInvalidSessionError = (responseBody) => typeof responseBody === 'string' && responseBody.includes('INVALID_SESSION_ID');
+
+		// Helper function that performs a curl request but returns a fetch-like response
+		const curlAsFetch = async (endpointUrl, requestOptions) => {
+			// Build curl command
+			let curlCommand = `curl -s -w "HTTPSTATUS:%{http_code}" -X ${requestOptions.method} "${endpointUrl}"`;
+
+			// Add headers
+			if (requestOptions.headers) {
+				for (const [key, value] of Object.entries(requestOptions.headers)) {
+					if (key.toLowerCase() === 'authorization') {
+						// Use single quotes for Authorization header to avoid issues with special characters
+						curlCommand += ` -H '${key}: ${value}'`;
+					} else {
+						curlCommand += ` -H "${key}: ${value}"`;
+					}
 				}
-			} catch (parseError) {
-				if (parseError.message === 'INVALID_SESSION_ID') {
-					throw parseError;
-				}
-				errorDetails = `Status: ${response.status} ${response.statusText}\nCould not parse response body: ${parseError.message}`;
 			}
 
-			throw new Error(`Salesforce API call failed: ${operation} ${endpoint}\n${errorDetails}`);
-		}
+			// Add body - don't double-quote since body is already JSON stringified
+			if (requestOptions.body) {
+				curlCommand += ` -d '${requestOptions.body}'`;
+			}
 
-		try {
-			const data = await response.json();
-			// Store in cache for GET
-			cacheManager.storeInCache(cacheKey, data, isGet, bypassCache, cacheTtlMs);
-			return data;
-		} catch (parseError) {
-			logger.warn(`Could not parse JSON response: ${parseError.message}`);
-			const text = await response.text();
-			cacheManager.storeInCache(cacheKey, text, isGet, bypassCache, cacheTtlMs);
-			return text;
-		}
-	};
+			logger.debug(`Executing curl command: ${curlCommand}`);
 
-	// Try to make the API call, with automatic token refresh if needed
-	// Maximum retry attempts to prevent infinite loops
-	const maxRetries = 2; // Allow 1 token refresh + 1 retry
-	let retryCount = 0;
+			const {stdout} = await exec(curlCommand);
+			const httpStatusMatch = stdout.match(/HTTPSTATUS:(\d+)/);
+			const status = httpStatusMatch ? Number.parseInt(httpStatusMatch[1], 10) : 200;
+			const bodyText = stdout.replace(/HTTPSTATUS:\d+/, '').trim();
 
-	while (retryCount <= maxRetries) {
-		try {
-			const result = await makeApiCall();
-			// Invalidate cache on non-GET successful operations to avoid stale reads
-			cacheManager.invalidateCacheOnWrite(operation);
-			return result;
-		} catch (error) {
-			// Check if this is an INVALID_SESSION_ID error
-			if (error.message === 'INVALID_SESSION_ID' && retryCount < maxRetries) {
-				retryCount++;
-				const refreshSuccess = await refreshAccessToken();
+			return {
+				ok: status >= 200 && status < 300,
+				status,
+				statusText: status >= 200 && status < 300 ? 'OK' : 'Error',
+				async text() {
+					return bodyText;
+				},
+				async json() {
+					return JSON.parse(bodyText);
+				}
+			};
+		};
 
-				if (refreshSuccess) {
-					// Continue to next iteration to retry with new token
-					logger.debug('Token refreshed successfully, retrying API call...');
-					continue;
+		// Function to make the actual API call
+		const makeApiCall = async () => {
+			const requestOptions = {
+				method: operation.toUpperCase(),
+				headers: {
+					Authorization: `Bearer ${state.org.accessToken}`,
+					'Content-Type': 'application/json'
+				}
+			};
+
+			// Add custom headers if provided
+			if (options.headers && typeof options.headers === 'object') {
+				Object.assign(requestOptions.headers, options.headers);
+			}
+
+			// Add body for all methods (including GET for non-standard APIs)
+			if (body) {
+				// If body is already a string, assume it's JSON and use it directly
+				// Otherwise, stringify the object
+				if (typeof body === 'string') {
+					requestOptions.body = body;
 				} else {
-					throw new Error('Failed to refresh access token. Please re-authenticate with Salesforce CLI.');
+					requestOptions.body = JSON.stringify(body);
 				}
 			}
 
-			// If we've exhausted retries or it's not an INVALID_SESSION_ID error, throw the error
-			if (retryCount >= maxRetries && error.message === 'INVALID_SESSION_ID') {
-				throw new Error(`Maximum retry attempts (${maxRetries}) exceeded for INVALID_SESSION_ID. Please re-authenticate with Salesforce CLI.`);
+			const useCurl = requestOptions.method === 'GET' && body;
+			if (useCurl) {
+				logger.debug(`Using curl for GET request with body to ${endpoint}`);
 			}
 
-			// Re-throw other errors
-			logger.error(error, `Error calling Salesforce API: ${operation} ${endpoint}`);
-			throw error;
+			// Try cache for GET if not bypassed and globally enabled
+			const isGet = requestOptions.method === 'GET';
+			const bypassCache = options.bypassCache === true;
+			const cacheTtlMs = cacheManager.getCacheTtl(options.cacheTtlMs);
+
+			const cachedResponse = cacheManager.getCachedResponse(cacheKey, isGet, bypassCache, cacheTtlMs);
+			if (cachedResponse) {
+				return cachedResponse;
+			}
+
+			const response = useCurl ? await curlAsFetch(endpoint, requestOptions) : await fetch(endpoint, requestOptions);
+
+			let logMessage = `${operation} request to ${apiType} API service ${service} ended ${response.statusText} (${response.status})`;
+
+			if (Object.keys(options.queryParams || {}).length) {
+				logMessage += `\n${JSON.stringify(options.queryParams, null, 3)}`;
+			}
+
+			if (Object.keys(requestOptions).length) {
+				// Remove sensitive headers before logging
+				const maskedRequestOptions = {
+					...requestOptions,
+					headers: {...(requestOptions.headers || {})}
+				};
+				if ('Authorization' in maskedRequestOptions.headers) {
+					delete maskedRequestOptions.headers.Authorization;
+				}
+				if ('authorization' in maskedRequestOptions.headers) {
+					delete maskedRequestOptions.headers.authorization;
+				}
+				logMessage += `\n${JSON.stringify(maskedRequestOptions, null, 3)}`;
+			}
+			logger.debug(logMessage);
+
+			if (!response.ok) {
+				let errorDetails;
+				try {
+					const errorBody = await response.text();
+					errorDetails = `Status: ${response.status} ${response.statusText}\nResponse body: ${errorBody}`;
+
+					// Check if this is an INVALID_SESSION_ID error
+					if (isInvalidSessionError(errorBody)) {
+						throw new Error('INVALID_SESSION_ID');
+					}
+				} catch (parseError) {
+					if (parseError.message === 'INVALID_SESSION_ID') {
+						throw parseError;
+					}
+					errorDetails = `Status: ${response.status} ${response.statusText}\nCould not parse response body: ${parseError.message}`;
+				}
+
+				throw new Error(`Salesforce API call failed: ${operation} ${endpoint}\n${errorDetails}`);
+			}
+
+			try {
+				const data = await response.json();
+				// Store in cache for GET
+				cacheManager.storeInCache(cacheKey, data, isGet, bypassCache, cacheTtlMs);
+				return data;
+			} catch (parseError) {
+				logger.warn(`Could not parse JSON response: ${parseError.message}`);
+				const text = await response.text();
+				cacheManager.storeInCache(cacheKey, text, isGet, bypassCache, cacheTtlMs);
+				return text;
+			}
+		};
+
+		// Try to make the API call, with automatic token refresh if needed
+		// Maximum retry attempts to prevent infinite loops
+		const maxRetries = 2; // Allow 1 token refresh + 1 retry
+		let retryCount = 0;
+
+		while (retryCount <= maxRetries) {
+			try {
+				const result = await makeApiCall();
+				// Invalidate cache on non-GET successful operations to avoid stale reads
+				cacheManager.invalidateCacheOnWrite(operation);
+				return result;
+			} catch (error) {
+				// Check if this is an INVALID_SESSION_ID error
+				if (error.message === 'INVALID_SESSION_ID' && retryCount < maxRetries) {
+					retryCount++;
+					const refreshSuccess = await refreshAccessToken();
+
+					if (refreshSuccess) {
+						// Continue to next iteration to retry with new token
+						logger.debug('Token refreshed successfully, retrying API call...');
+						continue;
+					} else {
+						throw new Error('Failed to refresh access token. Please re-authenticate with Salesforce CLI.');
+					}
+				}
+
+				// If we've exhausted retries or it's not an INVALID_SESSION_ID error, throw the error
+				if (retryCount >= maxRetries && error.message === 'INVALID_SESSION_ID') {
+					throw new Error(`Maximum retry attempts (${maxRetries}) exceeded for INVALID_SESSION_ID. Please re-authenticate with Salesforce CLI.`);
+				}
+
+				// Re-throw other errors
+				logger.error(error, `Error calling Salesforce API: ${operation} ${endpoint}`);
+				throw error;
+			}
 		}
+
+	} catch (error) {
+		logger.error(error, `Error calling Salesforce API: ${operation} ${apiType} ${service}`);
+		return {
+			isError: true,
+			content: [{
+				type: 'text',
+				text: `❌ Error: ${error.message}`
+			}]
+		};
 	}
 }

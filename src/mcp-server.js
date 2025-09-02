@@ -151,8 +151,8 @@ const orgReadyPromise = new Promise((resolve) => (resolveOrgReady = resolve)); /
 
 //Server initialization function
 export async function setupServer() {
-	/*
-	// Load instructions lazily to avoid circular dependencies //TODO
+
+	// Load instructions lazily to avoid circular dependencies
 	try {
 		const {getAgentInstructions} = await import('./utils.js');
 		const instructions = await getAgentInstructions('agentInstruccions');
@@ -161,7 +161,6 @@ export async function setupServer() {
 	} catch (error) {
 		logger.warn(error, 'Failed to load agent instructions, using empty instructions');
 	}
-	*/
 
 	mcpServer.server.setNotificationHandler(RootsListChangedNotificationSchema, async (listRootsResult) => {
 		try {

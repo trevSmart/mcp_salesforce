@@ -164,8 +164,10 @@ export const testHelpers = {
 		const args = {};
 		for (const arg of process.argv.slice(2)) {
 			if (arg.startsWith('--')) {
-				const [key] = arg.substring(2).split('=');
-				args[key] = true;
+				const parts = arg.substring(2).split('=');
+				const key = parts[0];
+				const value = parts.length > 1 ? parts[1] : true;
+				args[key] = value;
 			}
 		}
 		return args;

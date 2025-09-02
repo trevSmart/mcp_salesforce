@@ -15,7 +15,7 @@ export const getSetupAuditTrailToolDefinition = {
 	title: 'Get the changes in the Salesforce org metadata performed in the last days from the Salesforce Setup Audit Trail data, filtered by allowed sections',
 	description: await textFileContent('tools/getSetupAuditTrail.md'),
 	inputSchema: {
-		lastDays: z.number().int().min(1).max(60).optional().default(30).describe('Number of days to query (between 1 and 90)'),
+		lastDays: z.number().int().min(1).max(90).optional().default(30).describe('Number of days to query (between 1 and 90)'),
 		user: z.string().optional().describe('Accepts a username or a name. Only the changes performed by this username will be returned. If not set the changes from all users will be returned'),
 		metadataName: z.string().optional().describe('Name of the metadata component to get the changes of (e.g. "FOO_AlertMessages_Controller", "FOO_AlertMessage__c", "FOO_AlertNessageList_LWC", etc.)')
 	},

@@ -21,8 +21,39 @@ class Client {
 		this.protocolVersion = params?.protocolVersion || '';
 	}
 
-	get isVsCode() {
-		return this.clientInfo?.name?.toLowerCase().includes('visual studio code');
+	/**
+	 * Get the friendly name of the client based on clientInfo.name
+	 * @returns {string} Friendly client name
+	 */
+	getClientName() {
+		const clientName = this.clientInfo?.name || 'unknown';
+
+		// Client name mapping
+		const clientMapping = {
+			'cursor-vscode': 'Cursor',
+			'Visual Studio Code': 'Visual Studio Code',
+			'Visual Studio Code - Insiders': 'Visual Studio Code - Insiders'
+		};
+
+		return clientMapping[clientName] || 'unknown';
+	}
+
+	getClientVersion() {
+		return this.clientInfo?.version;
+	}
+
+	/**
+	 * Check if the current client matches any of the provided client names
+	 * @param {string[]} clientNames - Array of client names to check against
+	 * @returns {boolean} True if current client matches any of the provided names
+	 */
+	is(clientNames) {
+		if (!Array.isArray(clientNames)) {
+			clientNames = [clientNames];
+		}
+
+		const currentClientName = this.getClientName().toLowerCase();
+		return clientNames.some(name => currentClientName.includes(name.toLowerCase()));
 	}
 
 	// Client support for the following features is not included in the capabilities
@@ -32,10 +63,10 @@ class Client {
 			case 'resources':
 			case 'embeddedResources':
 			case 'logging':
-				return Boolean(this.capabilities?.logging) || this.isVsCode || this.clientInfo.name === 'IBM Salesforce MCP Test Client';
+				return Boolean(this.capabilities?.logging) || this.is(['visual studio code', 'cursor']) || this.clientInfo.name === 'IBM Salesforce MCP Test Client';
 
 			case 'resource_links':
-				return this.isVsCode && semver.gte(this.clientInfo.version, '1.103.0');
+				return this.is(['visual studio code']) && semver.gte(this.clientInfo.version, '1.103.0');
 
 			default:
 				return Boolean(this.capabilities?.[capabilityName]);

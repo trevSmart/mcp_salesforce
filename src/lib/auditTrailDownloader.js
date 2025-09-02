@@ -1,10 +1,41 @@
+import {exec} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import {chromium} from 'playwright';
+import {promisify} from 'node:util';
+import {chromium, devices} from 'playwright';
 import {state} from '../mcp-server.js';
 import {createModuleLogger} from './logger.js';
 
 const logger = createModuleLogger(import.meta.url);
+const execAsync = promisify(exec);
+
+// Check if Playwright browsers are installed
+async function checkPlaywrightBrowsers() {
+	try {
+		// This will throw if browsers are not installed
+		await chromium.launch({headless: true});
+		return true;
+	} catch (error) {
+		if (error.message.includes("Executable doesn't exist") || error.message.includes('chromium') || error.message.includes('browser')) {
+			return false;
+		}
+		// Other errors, re-throw
+		throw error;
+	}
+}
+
+// Install Playwright browsers
+async function installPlaywrightBrowsers() {
+	try {
+		logger.info('Installing Playwright browsers...');
+		const {stdout, stderr} = await execAsync('npx playwright install chromium');
+		logger.info('Playwright browsers installed successfully');
+		return true;
+	} catch (error) {
+		logger.error('Failed to install Playwright browsers:', error.message);
+		throw new Error(`Failed to install Playwright browsers: ${error.message}`);
+	}
+}
 
 // Try clicking the first candidate link found across page and frames
 async function clickDownloadCandidate(page, timeoutPerClick = 1000) {
@@ -31,6 +62,20 @@ async function retrieveFile() {
 	let browser = null;
 	try {
 		const setupUrl = '/lightning/setup/SecurityEvents/home';
+
+		// Check if Playwright browsers are installed first
+		let hasPlaywrightBrowsers = await checkPlaywrightBrowsers();
+
+		if (!hasPlaywrightBrowsers) {
+			logger.warn('Playwright browsers not installed. Installing them automatically...');
+			await installPlaywrightBrowsers();
+			// Check again after installation
+			hasPlaywrightBrowsers = await checkPlaywrightBrowsers();
+			if (!hasPlaywrightBrowsers) {
+				throw new Error('Failed to install Playwright browsers. Please run manually: npx playwright install chromium');
+			}
+		}
+
 		browser = await chromium.launch({headless: true});
 
 		// Ensure tmp directory
@@ -83,7 +128,7 @@ async function retrieveFileWithRetry(maxRetries = 2) {
 	let lastError;
 	for (let attempt = 1; attempt <= maxRetries; attempt++) {
 		try {
-			logger.info(`Attempt ${attempt}/${maxRetries} to retrieve Setup Audit Trail file`);
+			logger.debug(`Attempt ${attempt}/${maxRetries} to retrieve Setup Audit Trail file`);
 			return await retrieveFile();
 		} catch (error) {
 			lastError = error;

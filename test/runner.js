@@ -538,6 +538,7 @@ async function showTestPlan(testsToRun, quiet) {
 // Main execution function
 async function main() {
 	const cmdArgs = testHelpers.parseCommandLineArgs();
+	console.log('Debug: cmdArgs =', JSON.stringify(cmdArgs, null, 2));
 	const LogLevel = cmdArgs.logLevel || TEST_CONFIG.mcpServer.defaultLogLevel;
 	const TestsToRun = cmdArgs.tests ? cmdArgs.tests.split(',').map((test) => test.trim()) : null;
 	const Compact = Boolean(cmdArgs.compact);

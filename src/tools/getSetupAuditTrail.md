@@ -15,7 +15,7 @@ You don't need to select an org -the tool will query the current target org-. Do
 The parameters allow you to retrieve only the records that match your criteria. You can use none and all the records will be returned.
 
 ### Parameters
-- **`lastDays`** (optional, default: 30): If set, only the changes from the last number of days will be returned (must be between 1 and 60)
+- **`lastDays`** (optional, default: 30): If set, only the changes from the last number of days will be returned (must be between 1 and 90)
 - **`user`** (optional): If set, only the changes performed by this user will be returned (if not set the changes from all users will be returned). **Note**: You can pass either a username (containing @) or a user name (without @). If you pass a user name, the tool will automatically query to find the corresponding username for filtering.
 - **`metadataName`** (optional): If set, only the changes performed in this metadata will be returned (if not set the changes from all metadata will be returned). **Note**: Uses exact word matching to avoid false positives (e.g., searching for "MyApexClass" won't return changes for "MyApexClassTest"). Query the metadata name first to ensure you are using the correct one.
 
