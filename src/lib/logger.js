@@ -89,7 +89,7 @@ function emitLog(data, logLevel = config.defaultLogLevel, context = null) {
 			}
 		}
 	} catch (error) {
-		console.error(`${config.logPrefix} | [${logPriority}] | ${JSON.stringify(error, null, 3)}`);
+		console.error(`${config.logPrefix} | [${logLevel}] | ${JSON.stringify(error, null, 3)}`);
 	}
 }
 
