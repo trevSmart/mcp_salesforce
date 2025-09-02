@@ -101,12 +101,12 @@ export async function invokeApexRestResourceToolHandler({apexClassOrRestResource
 		// Prepare request options
 		const requestOptions = {headers: headers || null, queryParams: urlParams || null};
 
-		logger.info(`Invoking Apex REST Resource "${apexClassOrRestResourceName}" (${operation}) and body ${body}`);
+		logger.debug(`Invoking Apex REST Resource "${apexClassOrRestResourceName}" (${operation}) and body ${body}`);
 
 		// Make the API call
 		const response = await callSalesforceApi(operation, 'APEX', apexClassOrRestResourceName, body, requestOptions);
 
-		logger.info(`Apex REST Resource "${apexClassOrRestResourceName}" (${operation}) call completed`);
+		logger.debug(`Apex REST Resource "${apexClassOrRestResourceName}" (${operation}) call completed`);
 
 		// Construct the endpoint URL
 		const endpoint = `${state.org.instanceUrl}/services/apexrest/${apexClassOrRestResourceName}`;

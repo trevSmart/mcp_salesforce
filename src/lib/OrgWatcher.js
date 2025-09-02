@@ -1,7 +1,6 @@
 import {EventEmitter} from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
-import {state} from '../mcp-server.js';
 import {createModuleLogger} from './logger.js';
 
 const logger = createModuleLogger(import.meta.url);
@@ -17,10 +16,10 @@ class TargetOrgWatcher extends EventEmitter {
 		this.debounceTimer = null;
 	}
 
-	async start(onChange) {
+	async start(onChange, currentOrgAlias = null) {
 		try {
 			this.configFilePath = path.join(process.cwd(), '.sf', 'config.json');
-			this.currentOrgAlias = state.org?.alias || null;
+			this.currentOrgAlias = currentOrgAlias;
 
 			if (this.isWatching || !this.currentOrgAlias || !fs.existsSync(this.configFilePath)) {
 				return;

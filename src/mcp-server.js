@@ -25,15 +25,6 @@ import {runApexTestToolDefinition} from './tools/runApexTest.js';
 import {salesforceMcpUtilsToolDefinition, salesforceMcpUtilsToolHandler} from './tools/salesforceMcpUtils.js';
 import {validateUserPermissions} from './utils.js';
 
-// import { chatWithAgentforceDefinition } from './tools/chatWithAgentforce.js';
-// import { triggerExecutionOrderToolDefinition } from './tools/triggerExecutionOrder.js';
-//import {generateSoqlQueryToolDefinition} from './tools/generateSoqlQuery.js';
-
-const logger = createModuleLogger(import.meta.url);
-export let resources = {};
-// Flag to track if workspace path has been set
-let workspacePathSet = false;
-
 // Define state object here instead of importing it
 export const state = {
 	org: {},
@@ -41,6 +32,15 @@ export const state = {
 	userValidated: true,
 	startedDate: new Date()
 };
+
+// import { chatWithAgentforceDefinition } from './tools/chatWithAgentforce.js';
+// import { triggerExecutionOrderToolDefinition } from './tools/triggerExecutionOrder.js';
+//import {generateSoqlQueryToolDefinition} from './tools/generateSoqlQuery.js';
+
+const logger = createModuleLogger(import.meta.url, 'app', state.currentLogLevel);
+export let resources = {};
+// Flag to track if workspace path has been set
+let workspacePathSet = false;
 
 async function setWorkspacePath(workspacePath) {
 
@@ -91,6 +91,10 @@ async function updateOrgAndUserDetails() {
 		if (currentUsername !== org?.user?.username) {
 			clearResources();
 			validateUserPermissions(org.user.username);
+		}
+		// Update the watcher with the new org alias
+		if (targetOrgWatcher && org?.alias) {
+			targetOrgWatcher.currentOrgAlias = org.alias;
 		}
 	} catch (error) {
 		logger.error(error, 'Error updating org and user details');
@@ -285,7 +289,7 @@ export async function setupServer() {
 				try {
 					// Start watching target org changes and perform initial fetch
 					// process.env.HOME = process.env.HOME ;
-					targetOrgWatcher.start(updateOrgAndUserDetails);
+					targetOrgWatcher.start(updateOrgAndUserDetails, state.org?.alias);
 					await updateOrgAndUserDetails();
 
 					logger.debug(`Server initialized and running. Target org: ${state.org.alias}`, 'init');
