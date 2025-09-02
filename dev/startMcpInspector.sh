@@ -20,7 +20,7 @@ cleanup
 echo ""
 
 printf "\033[1mLoading environment variables\033[0m...\n"
-MCP_SALESFORCE_PATH="/Users/marcpla/Documents/Feina/Projectes/mcp/ibm-salesforce-mcp/"
+ibm-salesforce-mcp_PATH="/Users/marcpla/Documents/Feina/Projectes/mcp/ibm-salesforce-mcp/"
 cd "$MCP_SALESFORCE_PATH"
 if [ -f ".env" ]; then
     # Load all variables at once
