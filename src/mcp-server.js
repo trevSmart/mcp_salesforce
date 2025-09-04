@@ -271,11 +271,22 @@ export async function setupServer() {
 			logger.info(`Current log level: ${state.currentLogLevel}`); //TODO: Remove this
 			logger.info('Log level management is now handled automatically by the SDK'); //TODO: Remove this
 
+			// if (process.env.WORKSPACE_FOLDER_PATHS) {
+			// 	setWorkspacePath(process.env.WORKSPACE_FOLDER_PATHS);
+			// } else if (client.supportsCapability('roots')) {
+			// 	await mcpServer.server.listRoots();
+			// }
+
 			if (process.env.WORKSPACE_FOLDER_PATHS) {
 				setWorkspacePath(process.env.WORKSPACE_FOLDER_PATHS);
 			} else if (client.supportsCapability('roots')) {
-				await mcpServer.server.listRoots();
+				try {
+					await mcpServer.server.listRoots();
+				} catch (error) {
+					logger.debug(`Requested roots list but client returned error: ${JSON.stringify(error, null, 3)}`);
+				}
 			}
+
 
 			//if (client.supportsCapability('sampling')) {
 			//	mcpServer.registerTool('generateSoqlQuery', generateSoqlQueryDefinition, generateSoqlQuery);

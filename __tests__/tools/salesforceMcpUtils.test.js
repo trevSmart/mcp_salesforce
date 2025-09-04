@@ -27,7 +27,7 @@ export class SalesforceMcpUtilsTestSuite {
 						action: 'getState'
 					});
 					const sc = result?.structuredContent;
-					if (!sc?.state || !sc?.client || !sc?.resources) {
+					if (!((sc?.state && sc?.client ) && sc?.resources)) {
 						throw new Error('salesforceMcpUtils getState: missing required fields');
 					}
 					return result;

@@ -5,6 +5,8 @@
 * For full license text, see LICENSE.txt file in the repo root or https://opensource.org/licenses/BSD-3-Clause
 */
 
+
+// biome-ignore-all lint: <file in progress>
 import {exec} from 'node:child_process';
 import {promisify} from 'node:util';
 import fs from 'fs-extra';
