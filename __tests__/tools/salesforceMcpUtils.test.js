@@ -1,4 +1,5 @@
 import {TEST_CONFIG} from '../../test/test-config.js';
+import {runSuite} from '../runSuite.js';
 
 export class SalesforceMcpUtilsTestSuite {
 	constructor(mcpClient, quiet = false) {
@@ -99,3 +100,7 @@ export class SalesforceMcpUtilsTestSuite {
 		return tests;
 	}
 }
+
+
+
+await runSuite('salesforceMcpUtils', SalesforceMcpUtilsTestSuite);

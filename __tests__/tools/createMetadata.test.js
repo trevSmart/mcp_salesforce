@@ -1,4 +1,5 @@
 import {TEST_CONFIG} from '../../test/test-config.js';
+import {runSuite} from '../runSuite.js';
 
 export class CreateMetadataTestSuite {
 	constructor(mcpClient, quiet = false) {
@@ -74,3 +75,7 @@ export class CreateMetadataTestSuite {
 		return tests;
 	}
 }
+
+
+
+await runSuite('createMetadata', CreateMetadataTestSuite);

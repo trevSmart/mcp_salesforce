@@ -1,4 +1,5 @@
 import {TEST_CONFIG} from '../../test/test-config.js';
+import {runSuite} from '../runSuite.js';
 
 export class ChatWithAgentforceTestSuite {
 	constructor(mcpClient, quiet = false) {
@@ -31,3 +32,7 @@ export class ChatWithAgentforceTestSuite {
 		return tests;
 	}
 }
+
+
+
+await runSuite('chatWithAgentforce', ChatWithAgentforceTestSuite);

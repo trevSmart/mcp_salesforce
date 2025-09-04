@@ -1,4 +1,5 @@
 import {TEST_CONFIG} from '../../test/test-config.js';
+import {runSuite} from '../runSuite.js';
 
 export class RunApexTestTestSuite {
 	constructor(mcpClient, quiet = false) {
@@ -48,3 +49,7 @@ export class RunApexTestTestSuite {
 		return tests;
 	}
 }
+
+
+
+await runSuite('runApexTest', RunApexTestTestSuite);

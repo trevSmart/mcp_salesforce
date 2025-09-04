@@ -1,7 +1,7 @@
 export default {
   testEnvironment: 'node',
   testMatch: [
-    '**/__tests__/**/*.js',
+    '**/__tests__/**/*.test.js',
     '**/src/**/*.test.js',
     '**/src/**/*.spec.js'
   ],
@@ -28,5 +28,6 @@ export default {
   transform: {},
   transformIgnorePatterns: [
     'node_modules/(?!(.*\\.mjs$))'
-  ]
+  ],
+  maxWorkers: 1
 };
