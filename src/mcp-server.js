@@ -342,12 +342,14 @@ export {orgReadyPromise};
 
 // Initialize task scheduler
 let taskScheduler;
+/*
 try {
 	taskScheduler = new TaskScheduler();
 	logger.info('Task scheduler initialized successfully');
 } catch (error) {
 	logger.error('Failed to initialize task scheduler:', error);
 }
+*/
 
 // Handle graceful shutdown
 process.on('SIGINT', () => {
