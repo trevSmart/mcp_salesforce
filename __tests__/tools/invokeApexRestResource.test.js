@@ -1,4 +1,5 @@
 import {TEST_CONFIG} from '../../test/test-config.js';
+import {runSuite} from '../runSuite.js';
 
 export class InvokeApexRestResourceTestSuite {
 	constructor(mcpClient, quiet = false) {
@@ -57,3 +58,7 @@ export class InvokeApexRestResourceTestSuite {
 		return tests;
 	}
 }
+
+
+
+await runSuite('invokeApexRestResource', InvokeApexRestResourceTestSuite);

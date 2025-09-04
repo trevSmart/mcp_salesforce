@@ -1,4 +1,5 @@
 import {TEST_CONFIG} from '../../test/test-config.js';
+import {runSuite} from '../runSuite.js';
 
 export class GetRecentlyViewedRecordsTestSuite {
 	constructor(mcpClient, quiet = false) {
@@ -31,3 +32,7 @@ export class GetRecentlyViewedRecordsTestSuite {
 		return tests;
 	}
 }
+
+
+
+await runSuite('getRecentlyViewedRecords', GetRecentlyViewedRecordsTestSuite);

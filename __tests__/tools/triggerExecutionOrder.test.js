@@ -1,4 +1,5 @@
 import {TEST_CONFIG} from '../../test/test-config.js';
+import {runSuite} from '../runSuite.js';
 
 export class TriggerExecutionOrderTestSuite {
 	constructor(mcpClient, quiet = false) {
@@ -28,3 +29,7 @@ export class TriggerExecutionOrderTestSuite {
 		return tests;
 	}
 }
+
+
+
+await runSuite('triggerExecutionOrder', TriggerExecutionOrderTestSuite);

@@ -1,4 +1,5 @@
 import {TEST_CONFIG} from '../../test/test-config.js';
+import {runSuite} from '../runSuite.js';
 
 export class ApexRunScriptPromptTestSuite {
 	constructor(mcpClient, quiet = false) {
@@ -34,3 +35,7 @@ export class ApexRunScriptPromptTestSuite {
 		return tests;
 	}
 }
+
+
+
+await runSuite('apex-run-script', ApexRunScriptPromptTestSuite);

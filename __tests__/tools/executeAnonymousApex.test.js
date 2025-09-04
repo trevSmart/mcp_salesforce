@@ -1,4 +1,5 @@
 import {TEST_CONFIG} from '../../test/test-config.js';
+import {runSuite} from '../runSuite.js';
 
 export class ExecuteAnonymousApexTestSuite {
 	constructor(mcpClient, quiet = false) {
@@ -44,3 +45,7 @@ export class ExecuteAnonymousApexTestSuite {
 		return tests;
 	}
 }
+
+
+
+await runSuite('executeAnonymousApex', ExecuteAnonymousApexTestSuite);
