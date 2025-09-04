@@ -8,7 +8,8 @@ import config from './config.js';
 import {createModuleLogger} from './lib/logger.js';
 import targetOrgWatcher from './lib/OrgWatcher.js';
 import {getOrgAndUserDetails} from './lib/salesforceServices.js';
-
+import TaskScheduler from './lib/taskScheduler.js';
+import {getAgentInstructions, validateUserPermissions} from './utils.js';
 //Prompts
 //import { codeModificationPromptDefinition, codeModificationPrompt } from './prompts/codeModificationPrompt.js';
 import {apexRunScriptPrompt, apexRunScriptPromptDefinition} from './prompts/apex-run-script.js';
@@ -29,7 +30,8 @@ import {getSetupAuditTrailToolDefinition} from './tools/getSetupAuditTrail.js';
 import {invokeApexRestResourceToolDefinition} from './tools/invokeApexRestResource.js';
 import {runApexTestToolDefinition} from './tools/runApexTest.js';
 import {salesforceMcpUtilsToolDefinition, salesforceMcpUtilsToolHandler} from './tools/salesforceMcpUtils.js';
-import {getAgentInstructions, validateUserPermissions} from './utils.js';
+
+
 
 // Define state object here instead of importing it
 export const state = {
@@ -326,5 +328,31 @@ export function sendProgressNotification(progressToken, progress, total, message
 //Export the ready promise for external use
 export {readyPromise};
 export {orgReadyPromise};
+
+// Initialize task scheduler
+let taskScheduler;
+try {
+	taskScheduler = new TaskScheduler();
+	logger.info('Task scheduler initialized successfully');
+} catch (error) {
+	logger.error('Failed to initialize task scheduler:', error);
+}
+
+// Handle graceful shutdown
+process.on('SIGINT', () => {
+	logger.info('Received SIGINT, shutting down gracefully...');
+	if (taskScheduler) {
+		taskScheduler.stop();
+	}
+	process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+	logger.info('Received SIGTERM, shutting down gracefully...');
+	if (taskScheduler) {
+		taskScheduler.stop();
+	}
+	process.exit(0);
+});
 
 export {mcpServer};

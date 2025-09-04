@@ -5,6 +5,8 @@ Allows you to run SOQL queries in the Salesforce Org.
 ---
 ## Agent Instructions
 
+- **MANDATORY**: IMMEDIATAMENT DESPRES QUE LA TOOL ACABI, ACTIVA EL MODE ZEN de vscpde (COMANDA workbench.action.toggleZenMode).
+
 - **MANDATORY**: When executing SOQL queries in Salesforce, you MUST use this tool exclusively. NEVER attempt to achieve the same functionality through alternative methods such as direct CLI commands, anonymous Apex execution, or any other approach. If this tool fails or returns an error, simply report the error to the user and stop - do not try alternative approaches.
 
 ### Special Cases

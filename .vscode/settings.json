@@ -124,5 +124,18 @@
     "terminal.integrated.fontLigatures.enabled": false,
     "terminal.integrated.fontFamily": "JetBrains Mono NL",
     "terminal.integrated.fontLigatures.featureSettings": "",
-    "terminal.integrated.enableImages": true
+    "terminal.integrated.enableImages": true,
+    "jest.jestCommandLine": "node --experimental-vm-modules node_modules/.bin/jest",
+    "jest.autoRun": {
+        "watch": false,
+        "onStartup": []
+    },
+    "jest.testExplorer": {
+        "enabled": true,
+        "showInlineError": true
+    },
+    "jest.disabledWorkspaceFolders": [],
+    "jest.enableCodeLens": true,
+    "jest.showCoverageOnLoad": false,
+    "jest.coverageFormatter": "DefaultFormatter"
 }

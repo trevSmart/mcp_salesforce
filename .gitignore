@@ -49,3 +49,6 @@ __pycache__/
 .Python
 *.so
 .npm-cache/*
+
+# Jest
+coverage/

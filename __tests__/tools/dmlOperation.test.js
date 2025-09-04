@@ -1,0 +1,64 @@
+import {TEST_CONFIG} from '../../test/test-config.js';
+
+export class DmlOperationTestSuite {
+	constructor(mcpClient, quiet = false) {
+		this.mcpClient = mcpClient;
+		this.quiet = quiet;
+	}
+
+	async runTests() {
+		const tests = [
+			{
+				name: 'dmlOperation create',
+				run: async () => {
+					const result = await this.mcpClient.callTool('dmlOperation', {
+						operations: {
+							create: [
+								{
+									sObjectName: 'Account',
+									fields: {
+										Name: 'Test MCP Tool Account',
+										Description: 'Account created by MCP tool test'
+									}
+								}
+							]
+						}
+					});
+					if (!result?.structuredContent?.outcome) {
+						throw new Error('dmlOperation: missing outcome');
+					}
+					if (!result.structuredContent.successes) {
+						throw new Error('dmlOperation: missing successes array');
+					}
+					return result;
+				},
+				canRunInParallel: false
+			},
+			{
+				name: 'dmlOperation update',
+				run: async () => {
+					const result = await this.mcpClient.callTool('dmlOperation', {
+						operations: {
+							update: [
+								{
+									sObjectName: 'Account',
+									recordId: TEST_CONFIG.salesforce.testAccountId,
+									fields: {
+										Description: `Updated by MCP Tool test at ${new Date().toISOString()}`
+									}
+								}
+							]
+						}
+					});
+					if (!result?.structuredContent?.outcome) {
+						throw new Error('dmlOperation: missing outcome');
+					}
+					return result;
+				},
+				canRunInParallel: false
+			}
+		];
+
+		return tests;
+	}
+}

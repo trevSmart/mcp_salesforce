@@ -119,7 +119,7 @@ export async function invokeApexRestResourceToolHandler({apexClassOrRestResource
 				headers: headers || {},
 				body: body || null
 			},
-			response: response,
+			responseBody: response,
 			status: 200 // Assuming success since callSalesforceApi throws on error
 		};
 

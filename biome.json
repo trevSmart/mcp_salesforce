@@ -28,7 +28,7 @@
 			"!*.swo",
 			"!*.sublime-*",
 			"!.DS_Store",
-			"!*copy*",
+			"!*copy.*",
 			"!Thumbs.db",
 			"!.sfdx/",
 			"!.sf/",
@@ -78,7 +78,8 @@
 			"!*.sqlite3",
 			"!*.lock",
 			"!yarn.lock",
-			"!pnpm-lock.yaml"
+			"!pnpm-lock.yaml",
+			"!coverage/*"
 		]
 	},
 	"formatter": {
@@ -323,7 +324,7 @@
 		"enabled": true,
 		"actions": {
 			"source": {
-				"organizeImports": "on"
+				"organizeImports": "off"
 			}
 		}
 	},

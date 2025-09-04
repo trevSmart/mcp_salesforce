@@ -79,6 +79,20 @@
 			}
 		},
 		{
+			"label": "Run all jest tests",
+			"type": "npm",
+			"script": "test:jest",
+			"group": {
+				"kind": "test"
+			},
+			"presentation": {
+				"showReuseMessage": false,
+				"close": false,
+				"panel": "new",
+				"focus": true
+			}
+		},
+		{
 			"type": "npm",
 			"script": "lint:fix",
 			"problemMatcher": [],
