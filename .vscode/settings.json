@@ -75,7 +75,7 @@
 				"command": ""
 			},
             {
-                "name": "$(edit) Lint",
+                "name": "$(lightbulb-autofix) Lint",
                 "useVsCodeApi": true,
                 "command": "workbench.action.tasks.runTask",
                 "args": ["npm: lint:fix"],
@@ -88,7 +88,7 @@
                 "color": "#bb9955"
             },
             {
-                "name": "$(send) Publish",
+                "name": "$(send) Publish server",
                 "useVsCodeApi": true,
                 "command": "workbench.action.tasks.runTask",
                 "args": ["npm: publish-package"],

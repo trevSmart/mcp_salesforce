@@ -1,4 +1,5 @@
 import {TEST_CONFIG} from '../../test/test-config.js';
+import {runSuite} from '../runSuite.js';
 
 export class DmlOperationTestSuite {
 	constructor(mcpClient, quiet = false) {
@@ -32,7 +33,6 @@ export class DmlOperationTestSuite {
 					}
 					return result;
 				},
-				canRunInParallel: false
 			},
 			{
 				name: 'dmlOperation update',
@@ -55,10 +55,13 @@ export class DmlOperationTestSuite {
 					}
 					return result;
 				},
-				canRunInParallel: false
 			}
 		];
 
 		return tests;
 	}
 }
+
+
+
+await runSuite('dmlOperation', DmlOperationTestSuite);

@@ -25,6 +25,21 @@ Thumbs.db
 # Salesforce
 .sfdx/
 .sf/
+sfdx-project.json
+
+# Environment variables and secrets
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+*.key
+*.pem
+*.p12
+*.pfx
+config/secrets.json
+credentials.json
+mcpInspectorConfig.json
 
 dist/
 tmp/

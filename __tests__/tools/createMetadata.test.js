@@ -1,76 +1,62 @@
-import {TEST_CONFIG} from '../../test/test-config.js';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { TestMcpClient } from 'ibm-test-mcp-client';
+import { TEST_CONFIG } from '../../test/test-config.js';
 
-export class CreateMetadataTestSuite {
-	constructor(mcpClient, quiet = false) {
-		this.mcpClient = mcpClient;
-		this.quiet = quiet;
-	}
+describe('createMetadata', () => {
+	let client;
 
-	async runTests() {
-		const tests = [
-			{
-				name: 'createMetadata Apex Class',
-				run: async () => {
-					const result = await this.mcpClient.callTool('createMetadata', {
-						type: 'apexClass',
-						name: 'TestMCPToolClass'
-					});
-					if (!result?.structuredContent?.success) {
-						throw new Error('createMetadata: creation failed');
-					}
-					if (!result.structuredContent.files) {
-						throw new Error('createMetadata: missing files array');
-					}
-					return result;
-				},
-				canRunInParallel: true
-			},
-			{
-				name: 'createMetadata Apex Test Class',
-				run: async () => {
-					const result = await this.mcpClient.callTool('createMetadata', {
-						type: 'apexTestClass',
-						name: 'TestMCPToolClassTest'
-					});
-					if (!result?.structuredContent?.success) {
-						throw new Error('createMetadata: creation failed');
-					}
-					return result;
-				},
-				canRunInParallel: true
-			},
-			{
-				name: 'createMetadata Apex Trigger',
-				run: async () => {
-					const result = await this.mcpClient.callTool('createMetadata', {
-						type: 'apexTrigger',
-						name: 'TestMCPToolTrigger',
-						triggerSObject: 'Account',
-						triggerEvent: ['after insert', 'before update']
-					});
-					if (!result?.structuredContent?.success) {
-						throw new Error('createMetadata: creation failed');
-					}
-					return result;
-				},
-				canRunInParallel: true
-			},
-			{
-				name: 'createMetadata LWC',
-				run: async () => {
-					const result = await this.mcpClient.callTool('createMetadata', {
-						type: 'lwc',
-						name: 'testMCPToolComponent'
-					});
-					if (!result?.structuredContent?.success) {
-						throw new Error('createMetadata: creation failed');
-					}
-					return result;
-				},
-				canRunInParallel: true
-			}
-		];
+	beforeAll(async () => {
+		const __filename = fileURLToPath(import.meta.url);
+		const __dirname = dirname(__filename);
+		const serverPath = resolve(__dirname, '../../../src/mcp-server.js');
+		client = new TestMcpClient();
+		await client.connect({
+			kind: 'script',
+			interpreter: 'node',
+			path: serverPath,
+			args: ['--stdio']
+		});
+	});
 
-		return tests;
-	}
-}
+	afterAll(async () => {
+		if (client) {
+			await client.disconnect();
+		}
+	});
+
+	test('createMetadata Apex Class', async () => {
+		const result = await client.callTool('createMetadata', {
+			type: 'apexClass',
+			name: 'TestMCPToolClass'
+		});
+		expect(result?.structuredContent?.success).toBe(true);
+		expect(result.structuredContent.files).toBeDefined();
+	});
+
+	test('createMetadata Apex Test Class', async () => {
+		const result = await client.callTool('createMetadata', {
+			type: 'apexTestClass',
+			name: 'TestMCPToolClassTest'
+		});
+		expect(result?.structuredContent?.success).toBe(true);
+	});
+
+	test('createMetadata Apex Trigger', async () => {
+		const result = await client.callTool('createMetadata', {
+			type: 'apexTrigger',
+			name: 'TestMCPToolTrigger',
+			triggerSObject: 'Account',
+			triggerEvent: ['after insert', 'before update']
+		});
+		expect(result?.structuredContent?.success).toBe(true);
+	});
+
+	test('createMetadata LWC', async () => {
+		const result = await client.callTool('createMetadata', {
+			type: 'lwc',
+			name: 'testMCPToolComponent'
+		});
+		expect(result?.structuredContent?.success).toBe(true);
+	});
+});

@@ -72,8 +72,8 @@ class TaskScheduler {
 		this.checkPendingTasks();
 
 		// Configurar tasques programades
-		this.scheduleTask('cliUpdate', this.updateSalesforceCli.bind(this));
-		this.scheduleTask('metadataSync', this.syncMetadata.bind(this));
+		// this.scheduleTask('cliUpdate', this.updateSalesforceCli.bind(this));
+		// this.scheduleTask('metadataSync', this.syncMetadata.bind(this));
 
 		logger.info(`Task scheduler initialized with ${this.jobs.size} active tasks`);
 	}

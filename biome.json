@@ -252,7 +252,7 @@
 				},
 				"useNodeAssertStrict": "error",
 				"useNumberNamespace": "error",
-				"useNumericSeparators": "error",
+				"useNumericSeparators": "off",
 				"useObjectSpread": "error",
 				"useShorthandAssign": "error",
 				"useSingleVarDeclarator": "error",

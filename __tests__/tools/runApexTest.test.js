@@ -1,50 +1,49 @@
-import {TEST_CONFIG} from '../../test/test-config.js';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { TestMcpClient } from 'ibm-test-mcp-client';
+import { TEST_CONFIG } from '../../test/test-config.js';
 
-export class RunApexTestTestSuite {
-	constructor(mcpClient, quiet = false) {
-		this.mcpClient = mcpClient;
-		this.quiet = quiet;
-	}
+describe('runApexTest', () => {
+	let client;
 
-	async runTests() {
-		const tests = [
-			{
-				name: 'runApexTest by class',
-				run: async () => {
-					const result = await this.mcpClient.callTool('runApexTest', {
-						classNames: ['TestMCPToolTest']
-					});
-					if (!result?.structuredContent?.result) {
-						throw new Error('runApexTest: missing result array');
-					}
-					if (!Array.isArray(result.structuredContent.result)) {
-						throw new Error('runApexTest: result must be an array');
-					}
-					if (result.structuredContent.result.length > 0) {
-						const testResult = result.structuredContent.result[0];
-						if (!(testResult.className && testResult.methodName && testResult.status)) {
-							throw new Error('runApexTest: missing required fields in test result');
-						}
-					}
-					return result;
-				},
-				canRunInParallel: true
-			},
-			{
-				name: 'runApexTest by method',
-				run: async () => {
-					const result = await this.mcpClient.callTool('runApexTest', {
-						methodNames: ['TestMCPToolTest.testMethod']
-					});
-					if (!result?.structuredContent?.result) {
-						throw new Error('runApexTest: missing result array');
-					}
-					return result;
-				},
-				canRunInParallel: true
-			}
-		];
+	beforeAll(async () => {
+		const __filename = fileURLToPath(import.meta.url);
+		const __dirname = dirname(__filename);
+		const serverPath = resolve(__dirname, '../../../src/mcp-server.js');
+		client = new TestMcpClient();
+		await client.connect({
+			kind: 'script',
+			interpreter: 'node',
+			path: serverPath,
+			args: ['--stdio']
+		});
+	});
 
-		return tests;
-	}
-}
+	afterAll(async () => {
+		if (client) {
+			await client.disconnect();
+		}
+	});
+
+	test('runApexTest by class', async () => {
+		const result = await client.callTool('runApexTest', {
+			classNames: ['TestMCPToolTest']
+		});
+		expect(result?.structuredContent?.result).toBeDefined();
+		expect(Array.isArray(result.structuredContent.result)).toBe(true);
+
+		if (result.structuredContent.result.length > 0) {
+			const testResult = result.structuredContent.result[0];
+			expect(testResult.className).toBeDefined();
+			expect(testResult.methodName).toBeDefined();
+			expect(testResult.status).toBeDefined();
+		}
+	});
+
+	test('runApexTest by method', async () => {
+		const result = await client.callTool('runApexTest', {
+			methodNames: ['TestMCPToolTest.testMethod']
+		});
+		expect(result?.structuredContent?.result).toBeDefined();
+	});
+});
