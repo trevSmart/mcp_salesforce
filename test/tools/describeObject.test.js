@@ -1,6 +1,6 @@
 
 
-import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
+import {createMcpClient, disconnectMcpClient} from '../mcpClient.js';
 
 describe('describeObject', () => {
 	let client;
@@ -12,6 +12,19 @@ describe('describeObject', () => {
 
 	afterAll(async () => {
 		await disconnectMcpClient(client);
+	});
+
+	describe.concurrent('reads', () => {
+		test('with non-existent object', async () => {
+			const result = await client.callTool('describeObject', {
+				sObjectName: 'NonExistentObject__c'
+			});
+			expect(result.isError).toBeTruthy();
+			expect(Array.isArray(result?.content)).toBe(true);
+			expect(result?.content?.length).toBeGreaterThan(0);
+			expect(result?.content?.[0]?.type).toBe('text');
+			expect(result?.content?.[0]?.text.toLowerCase()).toContain('error');
+		});
 	});
 
 	test('Account', async () => {
@@ -34,16 +47,5 @@ describe('describeObject', () => {
 		expect(result).toBeTruthy();
 		expect(result?.structuredContent).toBeTruthy();
 		expect(result?.structuredContent?.wasCached).toBeTruthy();
-	});
-
-	test('with non-existent object', async () => {
-		const result = await client.callTool('describeObject', {
-			sObjectName: 'NonExistentObject__c'
-		});
-		expect(result.isError).toBeTruthy();
-		expect(Array.isArray(result?.content)).toBe(true);
-		expect(result?.content?.length).toBeGreaterThan(0);
-		expect(result?.content?.[0]?.type).toBe('text');
-		expect(result?.content?.[0]?.text.toLowerCase()).toContain('error');
 	});
 });

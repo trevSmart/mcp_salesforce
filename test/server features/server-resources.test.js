@@ -1,4 +1,4 @@
-import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
+import {createMcpClient, disconnectMcpClient} from '../mcpClient.js';
 
 describe('Server Resources', () => {
 	let client;

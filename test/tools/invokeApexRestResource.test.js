@@ -1,18 +1,13 @@
 
-import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
+import {createMcpClient, disconnectMcpClient} from '../mcpClient.js';
 import {TestData} from '../test-data.js';
 
 describe('invokeApexRestResource', () => {
 	let client;
 
-	beforeAll(async () => {
-		// Create and connect to the MCP server
-		client = await createMcpClient();
-	});
+	beforeAll(async () => client = await createMcpClient());
 
-	afterAll(async () => {
-		await disconnectMcpClient(client);
-	});
+	afterAll(async () => await disconnectMcpClient(client));
 
 	test('GET', async () => {
 		const result = await client.callTool('invokeApexRestResource', {

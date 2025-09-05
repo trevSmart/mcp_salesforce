@@ -1,6 +1,6 @@
 
 
-import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
+import {createMcpClient, disconnectMcpClient} from '../mcpClient.js';
 
 describe('getApexClassCodeCoverage', () => {
 	let client;
@@ -14,7 +14,7 @@ describe('getApexClassCodeCoverage', () => {
 		await disconnectMcpClient(client);
 	});
 
-	test('basic coverage', async () => {
+	test('getApexClassCodeCoverage', async () => {
 		const result = await client.callTool('getApexClassCodeCoverage', {
 			classNames: ['TestMCPTool']
 		});

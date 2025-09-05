@@ -1,6 +1,6 @@
 
 
-import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
+import {createMcpClient, disconnectMcpClient} from '../mcpClient.js';
 
 describe('getRecentlyViewedRecords', () => {
 	let client;
@@ -14,7 +14,7 @@ describe('getRecentlyViewedRecords', () => {
 		await disconnectMcpClient(client);
 	});
 
-	test('basic functionality', async () => {
+	test('getRecentlyViewedRecords', async () => {
 		const result = await client.callTool('getRecentlyViewedRecords', {});
 		const sc = result?.structuredContent;
 		expect(sc?.records).toBeTruthy();

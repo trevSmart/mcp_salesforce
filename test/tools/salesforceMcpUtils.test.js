@@ -1,4 +1,4 @@
-import { createMcpClient, disconnectMcpClient } from '../helpers/mcpClient.js';
+import { createMcpClient, disconnectMcpClient } from '../mcpClient.js';
 
 describe('salesforceMcpUtils', () => {
 	let client;
@@ -11,42 +11,44 @@ describe('salesforceMcpUtils', () => {
 		await disconnectMcpClient(client);
 	});
 
-	test('getOrgAndUserDetails', async () => {
-		const result = await client.callTool('salesforceMcpUtils', {
-			action: 'getOrgAndUserDetails'
+	describe.concurrent('read-only', () => {
+		test('getOrgAndUserDetails', async () => {
+			const result = await client.callTool('salesforceMcpUtils', {
+				action: 'getOrgAndUserDetails'
+			});
+			expect(result?.structuredContent?.user?.id).toBeTruthyAndDump(result?.structuredContent);
 		});
-		expect(result?.structuredContent?.user?.id).toBeTruthyAndDump(result?.structuredContent);
-	});
 
-	test('getState', async () => {
-		const result = await client.callTool('salesforceMcpUtils', {action: 'getState'});
+		test('getState', async () => {
+			const result = await client.callTool('salesforceMcpUtils', {action: 'getState'});
 
-		// ÚS DEL MATCHER PERSONALITZAT
-		// Si no és true, escriu structuredContent a .test-artifacts/
-		expect(result?.structuredContent?.state?.org?.user?.id).toBeTruthyAndDump(result?.structuredContent);
-	});
-
-	test('loadRecordPrefixesResource', async () => {
-		const result = await client.callTool('salesforceMcpUtils', {
-			action: 'loadRecordPrefixesResource'
+			// ÚS DEL MATCHER PERSONALITZAT
+			// Si no és true, escriu structuredContent a .test-artifacts/
+			expect(result?.structuredContent?.state?.org?.user?.id).toBeTruthyAndDump(result?.structuredContent);
 		});
-		const content = result?.content;
-		expect(Array.isArray(content)).toBe(true);
-		expect(content.some(item => item.type === 'resource_link' && item.uri)).toBeTruthyAndDump(content);
 
-		const structuredContent = result?.structuredContent;
-		expect(structuredContent).toBeTruthy();
-		expect(typeof structuredContent).toBe('object');
-		expect(Array.isArray(structuredContent)).toBe(false);
-		expect(Object.keys(structuredContent).length).toBeGreaterThan(0);
-	});
+		test('loadRecordPrefixesResource', async () => {
+			const result = await client.callTool('salesforceMcpUtils', {
+				action: 'loadRecordPrefixesResource'
+			});
+			const content = result?.content;
+			expect(Array.isArray(content)).toBe(true);
+			expect(content.some(item => item.type === 'resource_link' && item.uri)).toBeTruthyAndDump(content);
 
-	test('getCurrentDatetime', async () => {
-		const result = await client.callTool('salesforceMcpUtils', {
-			action: 'getCurrentDatetime'
+			const structuredContent = result?.structuredContent;
+			expect(structuredContent).toBeTruthy();
+			expect(typeof structuredContent).toBe('object');
+			expect(Array.isArray(structuredContent)).toBe(false);
+			expect(Object.keys(structuredContent).length).toBeGreaterThan(0);
 		});
-		expect(result?.structuredContent?.now).toBeTruthy();
-		expect(result?.structuredContent?.timezone).toBeTruthy();
+
+		test('getCurrentDatetime', async () => {
+			const result = await client.callTool('salesforceMcpUtils', {
+				action: 'getCurrentDatetime'
+			});
+			expect(result?.structuredContent?.now).toBeTruthy();
+			expect(result?.structuredContent?.timezone).toBeTruthy();
+		});
 	});
 
 	test('clearCache', async () => {

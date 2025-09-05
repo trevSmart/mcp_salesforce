@@ -1,6 +1,6 @@
 
 
-import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
+import { createMcpClient, disconnectMcpClient } from '../mcpClient.js';
 
 describe('apexDebugLogs', () => {
 	let client;
@@ -15,18 +15,21 @@ describe('apexDebugLogs', () => {
 		await disconnectMcpClient(client);
 	});
 
-	test('status', async () => {
-		const result = await client.callTool('apexDebugLogs', {action: 'status'});
-		expect(result).toBeTruthy();
+	// status no depèn de res → pot córrer en paral·lel
+	describe.concurrent('read-only', () => {
+		test('status', async () => {
+			const result = await client.callTool('apexDebugLogs', { action: 'status' });
+			expect(result).toBeTruthy();
+		});
 	});
 
 	test('on', async () => {
-		const result = await client.callTool('apexDebugLogs', {action: 'on'});
+		const result = await client.callTool('apexDebugLogs', { action: 'on' });
 		expect(result).toBeTruthy();
 	});
 
 	test('list', async () => {
-		const result = await client.callTool('apexDebugLogs', {action: 'list'});
+		const result = await client.callTool('apexDebugLogs', { action: 'list' });
 		expect(result?.structuredContent?.logs).toBeTruthy();
 		expect(Array.isArray(result.structuredContent.logs)).toBe(true);
 
@@ -46,7 +49,7 @@ describe('apexDebugLogs', () => {
 		const logId = firstLog.Id;
 
 		// Now get the specific log content
-		const result = await client.callTool('apexDebugLogs', {action: 'get', logId: logId});
+		const result = await client.callTool('apexDebugLogs', { action: 'get', logId: logId });
 
 		// Check if result is defined and has the expected structure
 		expect(result).toBeTruthy();
@@ -61,7 +64,7 @@ describe('apexDebugLogs', () => {
 	});
 
 	test('off', async () => {
-		const result = await client.callTool('apexDebugLogs', {action: 'off'});
+		const result = await client.callTool('apexDebugLogs', { action: 'off' });
 		expect(result).toBeTruthy();
 	});
 });

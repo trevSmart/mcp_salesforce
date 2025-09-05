@@ -1,5 +1,5 @@
 
-import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
+import {createMcpClient, disconnectMcpClient} from '../mcpClient.js';
 import {TestData} from '../test-data.js';
 
 describe('dmlOperation', () => {

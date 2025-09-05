@@ -1,5 +1,5 @@
 
-import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
+import {createMcpClient, disconnectMcpClient} from '../mcpClient.js';
 import {TestData} from '../test-data.js';
 
 describe('getRecord', () => {
@@ -14,27 +14,28 @@ describe('getRecord', () => {
 		await disconnectMcpClient(client);
 	});
 
-	test('Account', async () => {
-		const result = await client.callTool('getRecord', {
-			sObjectName: 'Account',
-			recordId: TestData.salesforce.testAccountId
-		});
-		expect(result?.structuredContent).toBeTruthy();
-		expect(result.structuredContent.sObject).toBe('Account');
-		expect(result.structuredContent.fields).toBeTruthy();
-	});
-
-	test('with non-existent SObject should return error', async () => {
-		const result = await client.callTool('getRecord', {
-			sObjectName: 'NonExistentObject__c',
-			recordId: '001000000000000AAA'
+	describe.concurrent('read-only', () => {
+		test('Account', async () => {
+			const result = await client.callTool('getRecord', {
+				sObjectName: 'Account',
+				recordId: TestData.salesforce.testAccountId
+			});
+			expect(result?.structuredContent).toBeTruthy();
+			expect(result.structuredContent.sObject).toBe('Account');
+			expect(result.structuredContent.fields).toBeTruthy();
 		});
 
-		// Verify that the result indicates an error
-		expect(result.isError).toBe(true);
-		expect(result.content).toBeTruthy();
-		expect(result.content[0].type).toBe('text');
-		expect(result.content[0].text).toContain('error');
-	});
+		test('with non-existent SObject should return error', async () => {
+			const result = await client.callTool('getRecord', {
+				sObjectName: 'NonExistentObject__c',
+				recordId: '001000000000000AAA'
+			});
 
+			// Verify that the result indicates an error
+			expect(result.isError).toBe(true);
+			expect(result.content).toBeTruthy();
+			expect(result.content[0].type).toBe('text');
+			expect(result.content[0].text).toContain('error');
+		});
+	});
 });
