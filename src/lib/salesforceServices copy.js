@@ -378,6 +378,7 @@ export async function dmlOperation(operations, options = {}) {
 					type: 'Update',
 					records: operations.update.map((record) => ({
 						fields: {
+							// biome-ignore lint/style/useNamingConvention: Salesforce field names must be PascalCase
 							Id: record.recordId,
 							...record.fields
 						}
@@ -389,7 +390,10 @@ export async function dmlOperation(operations, options = {}) {
 				requestOperations.push({
 					type: 'Delete',
 					records: operations.delete.map((record) => ({
-						fields: {Id: record.recordId}
+						fields: {
+							// biome-ignore lint/style/useNamingConvention: Salesforce field names must be PascalCase
+							Id: record.recordId
+						}
 					}))
 				});
 			}
@@ -1099,6 +1103,7 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 		const requestOptions = {
 			method: operation.toUpperCase(),
 			headers: {
+				// biome-ignore lint/style/useNamingConvention: HTTP header names are case-sensitive
 				Authorization: `Bearer ${state.org.accessToken}`,
 				'Content-Type': 'application/json'
 			}

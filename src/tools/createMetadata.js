@@ -11,7 +11,6 @@ export const createMetadataToolDefinition = {
 		type: z.enum(['apexClass', 'apexTestClass', 'apexTrigger', 'lwc']).describe('The metadata type to generate: "apexClass", "apexTestClass", "apexTrigger" or "lwc".'),
 		name: z.string().describe('Name of the metadata to generate. For LWC, this will be the component folder name.'),
 		outputDir: z.string().optional().describe('Optional. Output directory relative to the workspace. Defaults depend on the type.'),
-		// biome-ignore lint/style/useNamingConvention: TODO
 		triggerSObject: z.string().optional().describe('Required for apexTrigger. The sObject API name the trigger is defined on. For LWC, this will be the component folder name.'),
 		triggerEvent: z
 			.array(z.enum(['before insert', 'before update', 'before delete', 'after insert', 'after update', 'after delete', 'after undelete']))
@@ -30,7 +29,6 @@ export const createMetadataToolDefinition = {
 export async function createMetadataToolHandler({type, name, outputDir, triggerSObject, triggerEvent = []}) {
 	const logger = createModuleLogger(import.meta.url);
 	try {
-		// biome-ignore lint/style/useNamingConvention: TODO
 		const result = await generateMetadata({type, name, outputDir, triggerSObject, triggerEvent});
 
 		return {

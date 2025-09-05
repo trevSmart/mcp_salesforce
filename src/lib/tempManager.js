@@ -86,7 +86,7 @@ export function cleanupObsoleteTempFiles(options = {}) {
 			try {
 				const dirEntries = fs.readdirSync(dirPath);
 				// Filter out dotfiles when checking if directory is empty
-				const nonDotFiles = dirEntries.filter(entry => !entry.startsWith('.'));
+				const nonDotFiles = dirEntries.filter((entry) => !entry.startsWith('.'));
 
 				if (nonDotFiles.length === 0) {
 					fs.rmSync(dirPath, {recursive: true, force: true});

@@ -1,17 +1,16 @@
-import { createMcpClient, disconnectMcpClient } from '../helpers/mcpClient.js';
-import { TEST_CONFIG } from '../../test/test-config.js';
+import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
 
 describe('apexDebugLogs', () => {
 	let client;
 	let logsList; // Variable compartida per dependències
 
-        beforeAll(async () => {
-                client = await createMcpClient();
-        });
+	beforeAll(async () => {
+		client = await createMcpClient();
+	});
 
-        afterAll(async () => {
-                await disconnectMcpClient(client);
-        });
+	afterAll(async () => {
+		await disconnectMcpClient(client);
+	});
 
 	test('apexDebugLogs status', async () => {
 		const result = await client.callTool('apexDebugLogs', {action: 'status'});

@@ -1,16 +1,15 @@
-import { createMcpClient, disconnectMcpClient } from '../helpers/mcpClient.js';
-import { TEST_CONFIG } from '../../test/test-config.js';
+import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
 
 describe('salesforceMcpUtils', () => {
 	let client;
 
-        beforeAll(async () => {
-                client = await createMcpClient();
-        });
+	beforeAll(async () => {
+		client = await createMcpClient();
+	});
 
-        afterAll(async () => {
-                await disconnectMcpClient(client);
-        });
+	afterAll(async () => {
+		await disconnectMcpClient(client);
+	});
 
 	test('salesforceMcpUtils getOrgAndUserDetails', async () => {
 		const result = await client.callTool('salesforceMcpUtils', {

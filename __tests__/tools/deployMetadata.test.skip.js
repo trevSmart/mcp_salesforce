@@ -1,4 +1,3 @@
-import {TEST_CONFIG} from '../../test/test-config.js';
 import {runSuite} from '../runSuite.js';
 
 export class DeployMetadataTestSuite {
@@ -21,14 +20,12 @@ export class DeployMetadataTestSuite {
 						throw new Error('deployMetadata: tool call failed');
 					}
 					return result;
-				},
+				}
 			}
 		];
 
 		return tests;
 	}
 }
-
-
 
 await runSuite('deployMetadata', DeployMetadataTestSuite);

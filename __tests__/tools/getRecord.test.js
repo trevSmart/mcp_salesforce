@@ -1,16 +1,16 @@
-import { createMcpClient, disconnectMcpClient } from '../helpers/mcpClient.js';
-import { TEST_CONFIG } from '../../test/test-config.js';
+import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
+import {TEST_CONFIG} from '../../test/test-config.js';
 
 describe('getRecord', () => {
 	let client;
 
-        beforeAll(async () => {
-                client = await createMcpClient();
-        });
+	beforeAll(async () => {
+		client = await createMcpClient();
+	});
 
-        afterAll(async () => {
-                await disconnectMcpClient(client);
-        });
+	afterAll(async () => {
+		await disconnectMcpClient(client);
+	});
 
 	test('getRecord Account', async () => {
 		const result = await client.callTool('getRecord', {

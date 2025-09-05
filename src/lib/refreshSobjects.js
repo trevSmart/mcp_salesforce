@@ -1,10 +1,9 @@
 /*
-* Copyright (c) 2019, salesforce.com, inc.
-* All rights reserved.
-* Licensed under the BSD 3-Clause license.
-* For full license text, see LICENSE.txt file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-*/
-
+ * Copyright (c) 2019, salesforce.com, inc.
+ * All rights reserved.
+ * Licensed under the BSD 3-Clause license.
+ * For full license text, see LICENSE.txt file in the repo root or https://opensource.org/licenses/BSD-3-Clause
+ */
 
 // biome-ignore-all lint: <file in progress>
 import {exec} from 'node:child_process';
@@ -216,8 +215,8 @@ const commentToString = (comment) => {
 
 const generateFauxClassText = (definition) => {
 	const declarations = Array.from(definition.fields || [])
-	.sort((first, second) => (first.name || first.type > second.name || second.type ? 1 : -1))
-	.filter((value, index, array) => !index || value.name !== array[index - 1].name);
+		.sort((first, second) => (first.name || first.type > second.name || second.type ? 1 : -1))
+		.filter((value, index, array) => !index || value.name !== array[index - 1].name);
 
 	const className = definition.name;
 	const classDeclaration = `public class ${className} {\n`;

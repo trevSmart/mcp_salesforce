@@ -8,7 +8,6 @@ import config from './config.js';
 import {createModuleLogger} from './lib/logger.js';
 import targetOrgWatcher from './lib/OrgWatcher.js';
 import {getOrgAndUserDetails} from './lib/salesforceServices.js';
-import TaskScheduler from './lib/taskScheduler.js'; //TODO: Remove this
 import {getAgentInstructions, validateUserPermissions} from './utils.js';
 //Prompts
 //import { codeModificationPromptDefinition, codeModificationPrompt } from './prompts/codeModificationPrompt.js';
@@ -335,7 +334,7 @@ export {readyPromise};
 export {orgReadyPromise};
 
 // Initialize task scheduler
-let taskScheduler;
+let _taskScheduler;
 /*
 try {
 	taskScheduler = new TaskScheduler();

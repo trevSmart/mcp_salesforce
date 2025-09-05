@@ -18,7 +18,9 @@ export class DmlOperationTestSuite {
 								{
 									sObjectName: 'Account',
 									fields: {
+										// biome-ignore lint/style/useNamingConvention: Salesforce field names must be PascalCase
 										Name: 'Test MCP Tool Account',
+										// biome-ignore lint/style/useNamingConvention: Salesforce field names must be PascalCase
 										Description: 'Account created by MCP tool test'
 									}
 								}
@@ -32,7 +34,7 @@ export class DmlOperationTestSuite {
 						throw new Error('dmlOperation: missing successes array');
 					}
 					return result;
-				},
+				}
 			},
 			{
 				name: 'dmlOperation update',
@@ -44,6 +46,7 @@ export class DmlOperationTestSuite {
 									sObjectName: 'Account',
 									recordId: TEST_CONFIG.salesforce.testAccountId,
 									fields: {
+										// biome-ignore lint/style/useNamingConvention: Salesforce field names must be PascalCase
 										Description: `Updated by MCP Tool test at ${new Date().toISOString()}`
 									}
 								}
@@ -54,14 +57,12 @@ export class DmlOperationTestSuite {
 						throw new Error('dmlOperation: missing outcome');
 					}
 					return result;
-				},
+				}
 			}
 		];
 
 		return tests;
 	}
 }
-
-
 
 await runSuite('dmlOperation', DmlOperationTestSuite);

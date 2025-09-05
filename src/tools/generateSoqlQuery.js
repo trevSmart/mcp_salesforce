@@ -112,11 +112,11 @@ export async function generateSoqlQueryToolHandler({soqlQueryDescription, involv
 
 			// biome-ignore-start lint/style/useNamingConvention: A la resposta de la API no estan en camelCase
 			const fieldGroups = {
-				'Lookup': [],
-				'Text': [],
-				'Numeric': [],
-				'Picklist': [],
-				'Boolean': [],
+				Lookup: [],
+				Text: [],
+				Numeric: [],
+				Picklist: [],
+				Boolean: [],
 				'Date/Time': []
 			};
 			// biome-ignore-end lint/style/useNamingConvention: A la resposta de la API no estan en camelCase

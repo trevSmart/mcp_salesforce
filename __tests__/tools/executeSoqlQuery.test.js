@@ -1,15 +1,15 @@
-import { createMcpClient, disconnectMcpClient } from '../helpers/mcpClient.js';
+import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
 
 describe('executeSoqlQuery', () => {
 	let client;
 
-        beforeAll(async () => {
-                client = await createMcpClient();
-        });
+	beforeAll(async () => {
+		client = await createMcpClient();
+	});
 
-        afterAll(async () => {
-                await disconnectMcpClient(client);
-        });
+	afterAll(async () => {
+		await disconnectMcpClient(client);
+	});
 
 	test('executeSoqlQuery', async () => {
 		const result = await client.callTool('executeSoqlQuery', {

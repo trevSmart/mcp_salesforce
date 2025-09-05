@@ -4,7 +4,7 @@ import Conf from 'conf';
 import schedule from 'node-schedule';
 import {createModuleLogger} from './logger.js';
 
-const execAsync = promisify(exec);
+const _execAsync = promisify(exec);
 const logger = createModuleLogger(import.meta.url);
 
 /**
@@ -134,7 +134,7 @@ class TaskScheduler {
 		}
 	}
 
-		/**
+	/**
 	 * Sync metadata from Salesforce org
 	 * Equivalent to "Refresh SObject Definitions" command
 	 */

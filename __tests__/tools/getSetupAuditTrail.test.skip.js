@@ -25,7 +25,7 @@ export class GetSetupAuditTrailTestSuite {
 						throw new Error('getSetupAuditTrail: records must be an array');
 					}
 					return result;
-				},
+				}
 			},
 			{
 				name: 'getSetupAuditTrail with user filter',
@@ -41,14 +41,12 @@ export class GetSetupAuditTrailTestSuite {
 						throw new Error('getSetupAuditTrail: user filter not applied correctly');
 					}
 					return result;
-				},
+				}
 			}
 		];
 
 		return tests;
 	}
 }
-
-
 
 await runSuite('getSetupAuditTrail', GetSetupAuditTrailTestSuite);

@@ -62,11 +62,14 @@ function emitLog(data, logLevel = config.defaultLogLevel, context = null) {
 			const sessionId = mcp.server.transport?.getCurrentSessionId?.();
 
 			// Use sendLoggingMessage which respects the client's log level settings
-			mcp.server.sendLoggingMessage({
-				level: logLevel,
-				logger,
-				data: logData
-			}, sessionId);
+			mcp.server.sendLoggingMessage(
+				{
+					level: logLevel,
+					logger,
+					data: logData
+				},
+				sessionId
+			);
 		} else {
 			// Fallback to console for errors or when MCP is not available
 			const errorPriority = 3; // error level

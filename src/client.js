@@ -53,7 +53,7 @@ class Client {
 		}
 
 		const currentClientName = this.getClientName().toLowerCase();
-		return clientNames.some(name => currentClientName.includes(name.toLowerCase()));
+		return clientNames.some((name) => currentClientName.includes(name.toLowerCase()));
 	}
 
 	// Client support for the following features is not included in the capabilities
