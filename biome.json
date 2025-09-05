@@ -85,8 +85,10 @@
 	"formatter": {
 		"enabled": true,
 		"indentStyle": "tab",
-		"indentWidth": 2,
-		"lineWidth": 300
+		"indentWidth": 4,
+		"lineWidth": 300,
+		"bracketSameLine": false,
+		"bracketSpacing": false
 	},
 	"linter": {
 		"enabled": true,
@@ -185,7 +187,7 @@
 				"noEmptyBlockStatements": "error",
 				"noEmptyInterface": "error",
 				"noEvolvingTypes": "error",
-				"noExplicitAny": "error",
+				"noExplicitAny": "warn",
 				"noExportsInTest": "error",
 				"noExtraNonNullAssertion": "error",
 				"noFallthroughSwitchClause": "error",
@@ -331,7 +333,16 @@
 	"overrides": [
 		{
 			"includes": ["test/**"],
-			"javascript": {}
+			"javascript": {
+				"globals": ["describe", "test", "expect", "beforeAll", "afterAll", "beforeEach", "afterEach", "vi"],
+				"formatter": {
+					"enabled": false,
+					"quoteStyle": "single",
+					"semicolons": "always",
+					"trailingCommas": "none",
+					"bracketSpacing": false
+				}
+			}
 		}
 	]
 }

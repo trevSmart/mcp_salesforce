@@ -1,8 +1,47 @@
+// biome-ignore-all lint/style/useNamingConvention: A la resposta de la API no estan en camelCase
 import {z} from 'zod';
 import {createModuleLogger} from '../lib/logger.js';
-import {describeObject} from '../lib/salesforceServices.js';
+import {callSalesforceApi} from '../lib/salesforceServices.js';
 import {mcpServer} from '../mcp-server.js';
 import {getAgentInstructions, textFileContent} from '../utils.js';
+
+// Helper functions for UI API data transformation
+function mapDataType(uiDataType) {
+	// Map UI API data types to describe object format
+	const typeMapping = {
+		Text: 'string',
+		TextArea: 'textarea',
+		LongTextArea: 'textarea',
+		RichTextArea: 'textarea',
+		Email: 'email',
+		Phone: 'phone',
+		Url: 'url',
+		Checkbox: 'boolean',
+		Currency: 'currency',
+		Number: 'double',
+		Percent: 'percent',
+		Date: 'date',
+		DateTime: 'datetime',
+		Time: 'time',
+		Picklist: 'picklist',
+		MultiselectPicklist: 'multipicklist',
+		Reference: 'reference',
+		MasterDetail: 'reference',
+		Lookup: 'reference',
+		AutoNumber: 'string',
+		Formula: 'string'
+	};
+
+	return typeMapping[uiDataType] || uiDataType?.toLowerCase() || 'string';
+}
+
+function extractReferenceTo(fieldInfo) {
+	if (!fieldInfo.referenceToInfos || fieldInfo.referenceToInfos.length === 0) {
+		return [];
+	}
+
+	return fieldInfo.referenceToInfos.map((ref) => ref.apiName);
+}
 
 export const generateSoqlQueryToolDefinition = {
 	name: 'generateSoqlQuery',
@@ -49,44 +88,53 @@ export async function generateSoqlQueryToolHandler({soqlQueryDescription, involv
 
 		const descObjResults = await Promise.all(
 			sObjectNames.map(async (sObjectName) => {
-				const descObjResult = (await describeObject(sObjectName)).result;
+				const uiApiResponse = await callSalesforceApi('GET', 'UI', `/object-info/${sObjectName}`);
 
-				if (!descObjResult?.fields) {
+				if (!uiApiResponse?.fields) {
 					throw new Error(`The 'fields' property was not found in the object description for ${sObjectName}`);
 				}
-				const childRelationships = descObjResult.childRelationships.map((childRelationship) => ({
-					childSObject: childRelationship.childSObject,
-					field: childRelationship.field
+
+				// Transform child relationships from UI API format
+				const childRelationships = (uiApiResponse.childRelationships || []).map((childRelationship) => ({
+					childSObject: childRelationship.childObjectApiName || '',
+					field: childRelationship.fieldName || ''
 				}));
 
+				// Transform fields from UI API format
 				const fields = [];
-				for (const f of descObjResult.fields) {
+				for (const [fieldName, fieldInfo] of Object.entries(uiApiResponse.fields)) {
 					const field = {
-						label: f.label,
-						name: f.name,
-						type: f.type,
-						referenceTo: f.referenceTo,
-						relationshipName: f.relationshipName,
-						calculated: f.calculated,
-						sortable: f.sortable,
-						encrypted: f.encrypted,
-						filterable: f.filterable,
-						polymorphic: f.polymorphicForeignKey
+						label: fieldInfo.label || '',
+						name: fieldInfo.apiName || fieldName,
+						type: mapDataType(fieldInfo.dataType),
+						referenceTo: extractReferenceTo(fieldInfo),
+						relationshipName: fieldInfo.relationshipName || null,
+						calculated: fieldInfo.calculated,
+						sortable: fieldInfo.sortable,
+						encrypted: fieldInfo.encrypted,
+						filterable: fieldInfo.filterable,
+						polymorphic: fieldInfo.polymorphicForeignKey
 					};
-					f.picklistValues.length && (field.picklistValues = f.picklistValues);
+					if (fieldInfo.picklistValues?.length) {
+						field.picklistValues = fieldInfo.picklistValues;
+					}
 					fields.push(field);
 				}
 
-				const recordTypeInfos = descObjResult.recordTypeInfos
-					.filter((recordType) => recordType.active)
-					.map((recordType) => ({
-						name: recordType.name,
-						developerName: recordType.developerName
-					}));
+				// Transform record types from UI API format
+				const recordTypeInfos = [];
+				for (const [, recordTypeInfo] of Object.entries(uiApiResponse.recordTypeInfos || {})) {
+					if (recordTypeInfo.available) {
+						recordTypeInfos.push({
+							name: recordTypeInfo.name || '',
+							developerName: recordTypeInfo.developerName || ''
+						});
+					}
+				}
 
 				return {
-					name: descObjResult.name,
-					label: descObjResult.label,
+					name: uiApiResponse.apiName,
+					label: uiApiResponse.label || '',
 					childRelationships,
 					fields,
 					recordTypeInfos
@@ -110,7 +158,6 @@ export async function generateSoqlQueryToolHandler({soqlQueryDescription, involv
 
 			samplingPrompt += '\n\n### Fields ###';
 
-			// biome-ignore-start lint/style/useNamingConvention: A la resposta de la API no estan en camelCase
 			const fieldGroups = {
 				Lookup: [],
 				Text: [],
@@ -119,7 +166,6 @@ export async function generateSoqlQueryToolHandler({soqlQueryDescription, involv
 				Boolean: [],
 				'Date/Time': []
 			};
-			// biome-ignore-end lint/style/useNamingConvention: A la resposta de la API no estan en camelCase
 
 			//Group fields by type
 			for (const field of describeResult.fields) {

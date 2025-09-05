@@ -1,12 +1,21 @@
-describe('createMetadata', () => {
-		//TODO borrar fitxers (i carpetes)
-		let client;
 
-		beforeAll(() => {
-			// Utilitzar el client global compartit
-			client = global.sharedMcpClient;
-			// No fem assert aquí, ho farem al primer test
-		});
+
+import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
+
+describe('createMetadata', () => {
+	//TODO borrar fitxers (i carpetes)
+	let client;
+
+	beforeAll(async () => {
+		// Create and connect to the MCP server
+		client = await createMcpClient();
+	});
+
+	afterAll(async () => {
+		await disconnectMcpClient(client);
+		// Additional cleanup time
+		await new Promise((resolve) => setTimeout(resolve, 2000));
+	});
 
 		test('createMetadata Apex Class', async () => {
 			const result = await client.callTool('createMetadata', {
@@ -14,7 +23,7 @@ describe('createMetadata', () => {
 				name: 'TestMCPToolClass'
 			});
 			expect(result?.structuredContent?.success).toBe(true);
-			expect(result.structuredContent.files).toBeDefined();
+			expect(result.structuredContent.files).toBeTruthy();
 		});
 
 		test('createMetadata Apex Test Class', async () => {

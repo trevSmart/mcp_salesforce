@@ -1,21 +1,30 @@
+
+
+import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
+
 describe('executeAnonymousApex', () => {
 	let client;
 
-	beforeAll(() => {
-		// Utilitzar el client global compartit
-		client = global.sharedMcpClient;
-		// No fem assert aquí, ho farem al primer test
+	beforeAll(async () => {
+		// Create and connect to the MCP server
+		client = await createMcpClient();
+	});
+
+	afterAll(async () => {
+		await disconnectMcpClient(client);
+		// Additional cleanup time
+		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
 	test('executeAnonymousApex simple', async () => {
 		// Verificar que el client està definit
-		expect(client).toBeDefined();
+		expect(client).toBeTruthy();
 
 		const result = await client.callTool('executeAnonymousApex', {
 			apexCode: "System.debug('Hello from MCP tool test');\nSystem.debug('Current time: ' + Datetime.now());",
 			mayModify: false
 		});
-		expect(result).toBeDefined();
+		expect(result).toBeTruthy();
 
 		// Comprovem que el resultat té l'estructura esperada
 		if (result?.structuredContent?.success !== undefined) {

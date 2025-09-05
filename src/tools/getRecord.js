@@ -30,6 +30,14 @@ export async function getRecordToolHandler({sObjectName, recordId}) {
 		// Retrieve raw record from Salesforce
 		const rawRecord = await getRecord(sObjectName, recordId);
 
+		// Check if the response is an error
+		if (rawRecord?.isError) {
+			return {
+				isError: true,
+				content: rawRecord.content
+			};
+		}
+
 		// Normalize into the tool's documented output schema
 		const id = rawRecord?.Id || rawRecord?.id || recordId;
 		const fields = {};

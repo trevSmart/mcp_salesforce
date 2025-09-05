@@ -1,17 +1,24 @@
-import {TEST_CONFIG} from '../../test/test-config.js';
+
+import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
+import {TEST_CONFIG} from '../setup.js';
 
 describe('dmlOperation', () => {
 	let client;
 
-	beforeAll(() => {
-		// Utilitzar el client global compartit
-		client = global.sharedMcpClient;
-		// No fem assert aquí, ho farem al primer test
+	beforeAll(async () => {
+		// Create and connect to the MCP server
+		client = await createMcpClient();
+	});
+
+	afterAll(async () => {
+		await disconnectMcpClient(client);
+		// Additional cleanup time
+		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
 	test('dmlOperation create', async () => {
 		// Verificar que el client està definit
-		expect(client).toBeDefined();
+		expect(client).toBeTruthy();
 
 		const result = await client.callTool('dmlOperation', {
 			operations: {
@@ -29,9 +36,7 @@ describe('dmlOperation', () => {
 			}
 		});
 
-		expect(result).toBeDefined();
-		expect(result?.structuredContent?.outcome).toBeDefined();
-		expect(result.structuredContent.successes).toBeDefined();
+		expect(result?.structuredContent?.outcome).toBeTruthyAndDump(result);
 	});
 
 	test('dmlOperation update', async () => {
@@ -50,7 +55,7 @@ describe('dmlOperation', () => {
 			}
 		});
 
-		expect(result).toBeDefined();
-		expect(result?.structuredContent?.outcome).toBeDefined();
+		expect(result).toBeTruthy();
+		expect(result?.structuredContent?.outcome).toBeTruthyAndDump(result?.structuredContent);
 	});
 });

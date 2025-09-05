@@ -1,12 +1,19 @@
-import {TEST_CONFIG} from '../../test/test-config.js';
+
+import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
+import {TEST_CONFIG} from '../setup.js';
 
 describe('invokeApexRestResource', () => {
 	let client;
 
-	beforeAll(() => {
-		// Utilitzar el client global compartit
-		client = global.sharedMcpClient;
-		// No fem assert aquí, ho farem al primer test
+	beforeAll(async () => {
+		// Create and connect to the MCP server
+		client = await createMcpClient();
+	});
+
+	afterAll(async () => {
+		await disconnectMcpClient(client);
+		// Additional cleanup time
+		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
 	afterEach(async () => {
@@ -19,9 +26,9 @@ describe('invokeApexRestResource', () => {
 			apexClassOrRestResourceName: TEST_CONFIG.salesforce.testApexRestResourceData.apexClassOrRestResourceName,
 			operation: 'GET'
 		});
-		expect(result?.structuredContent?.endpoint).toBeDefined();
-		expect(result.structuredContent.request).toBeDefined();
-		expect(result.structuredContent.responseBody).toBeDefined();
+		expect(result?.structuredContent?.endpoint).toBeTruthy();
+		expect(result.structuredContent.request).toBeTruthy();
+		expect(result.structuredContent.responseBody).toBeTruthy();
 		expect(result.structuredContent.request.method).toBe('GET');
 		expect(typeof result.structuredContent.status).toBe('number');
 	});
@@ -32,8 +39,8 @@ describe('invokeApexRestResource', () => {
 			operation: 'POST',
 			bodyObject: {test: 'data'}
 		});
-		expect(result?.structuredContent?.endpoint).toBeDefined();
+		expect(result?.structuredContent?.endpoint).toBeTruthy();
 		expect(result.structuredContent.request.method).toBe('POST');
-		expect(result.structuredContent.responseBody).toBeDefined();
+		expect(result.structuredContent.responseBody).toBeTruthy();
 	});
 });

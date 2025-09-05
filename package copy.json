@@ -15,10 +15,12 @@
 		"publish-package-skip-tests": "sh dev/publish-package.sh --skip-tests",
 		"test salesforceMcpUtils getState": "node test/runner.js --tests=\"salesforceMcpUtils getState\"",
 		"test salesforceMcpUtils": "node test/runner.js --tests=\"salesforceMcpUtils\"",
-		"test": "vitest",
-		"test:watch": "vitest --watch",
-		"coverage": "vitest run --coverage",
-		"lint:fix": "biome check . --write --reporter=summary",
+		"test:jest:tools": "node --experimental-vm-modules node_modules/.bin/jest __tests__/tools/",
+		"test:jest:prompts": "node --experimental-vm-modules node_modules/.bin/jest __tests__/prompts/",
+		"test:jest": "node --experimental-vm-modules node_modules/.bin/jest",
+		"test:jest:watch": "node --experimental-vm-modules node_modules/.bin/jest --watch",
+		"test:jest:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage",
+		"lint:fix": "biome lint --write --reporter=summary .",
 		"startMcpInspector": "sh dev/startMcpInspector.sh"
 	},
 	"keywords": [
@@ -44,10 +46,9 @@
 	"devDependencies": {
 		"@biomejs/biome": "^2.2.2",
 		"@modelcontextprotocol/inspector": "^0.16.5",
-		"@vitest/coverage-v8": "^3.2.4",
 		"globals": "^16.3.0",
-		"ibm-test-mcp-client": "^0.0.51",
+		"ibm-test-mcp-client": "^0.0.50",
 		"javascript-obfuscator": "^4.1.0",
-		"vitest": "^3.2.4"
+		"jest": "^29.7.0"
 	}
 }

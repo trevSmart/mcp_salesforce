@@ -35,7 +35,7 @@ class Client {
 			'Visual Studio Code - Insiders': 'Visual Studio Code - Insiders'
 		};
 
-		return clientMapping[clientName] || 'unknown';
+		return clientMapping[clientName] || clientName;
 	}
 
 	getClientVersion() {
@@ -63,10 +63,10 @@ class Client {
 			case 'resources':
 			case 'embeddedResources':
 			case 'logging':
-				return Boolean(this.capabilities?.logging) || this.is(['visual studio code', 'cursor']) || this.clientInfo.name === 'IBM Salesforce MCP Test Client';
+				return Boolean(this.capabilities?.logging) || this.is(['Visual Studio Code', 'Cursor', 'IBM MCP Test Client']);
 
 			case 'resource_links':
-				return this.is(['visual studio code']) && semver.gte(this.clientInfo.version, '1.103.0');
+				return this.is(['IBM MCP Test Client']) || (this.is(['Visual Studio Code']) && semver.gte(this.clientInfo.version, '1.103.0'));
 
 			default:
 				return Boolean(this.capabilities?.[capabilityName]);

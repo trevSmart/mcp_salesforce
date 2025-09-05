@@ -1,10 +1,19 @@
+
+
+import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
+
 describe('runApexTest', () => {
 	let client;
 
-	beforeAll(() => {
-		// Utilitzar el client global compartit
-		client = global.sharedMcpClient;
-		// No fem assert aquí, ho farem al primer test
+	beforeAll(async () => {
+		// Create and connect to the MCP server
+		client = await createMcpClient();
+	});
+
+	afterAll(async () => {
+		await disconnectMcpClient(client);
+		// Additional cleanup time
+		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
 	test('runApexTest by class', async () => {
@@ -33,16 +42,16 @@ describe('runApexTest', () => {
 		if (result.isError) {
 			console.log('Test execution failed:', result.content[0].text);
 			// For now, just check that we got a response
-			expect(result).toBeDefined();
+			expect(result).toBeTruthy();
 		} else {
-			expect(result?.structuredContent?.result).toBeDefined();
+			expect(result?.structuredContent?.result).toBeTruthy();
 			expect(Array.isArray(result.structuredContent.result)).toBe(true);
 
 			if (result.structuredContent.result.length > 0) {
 				const testResult = result.structuredContent.result[0];
-				expect(testResult.className).toBeDefined();
-				expect(testResult.methodName).toBeDefined();
-				expect(testResult.status).toBeDefined();
+				expect(testResult.className).toBeTruthy();
+				expect(testResult.methodName).toBeTruthy();
+				expect(testResult.status).toBeTruthy();
 			}
 		}
 	});
@@ -55,7 +64,7 @@ describe('runApexTest', () => {
 		console.log('Debug - runApexTest by method result:', JSON.stringify(result, null, 2));
 
 		// The tool should respond (even if with an error)
-		expect(result).toBeDefined();
+		expect(result).toBeTruthy();
 		expect(result.isError).toBe(true);
 	});
 });

@@ -54,8 +54,11 @@ export async function describeObjectToolHandler({sObjectName, includeFields = tr
 			// Use Tooling API for Tooling objects
 			const response = await callSalesforceApi('GET', 'TOOLING', `/sobjects/${sObjectName}/describe`);
 
-			if (!response || response.error) {
-				throw new Error(response?.error?.message || 'Unknown error calling Tooling API');
+			if (!response || response.isError || response.error) {
+				const errorMessage = response?.error?.message ||
+									response?.content?.[0]?.text ||
+									'Unknown error calling Tooling API';
+				throw new Error(errorMessage);
 			}
 
 			// Transform Tooling API response to match our expected format
@@ -64,8 +67,11 @@ export async function describeObjectToolHandler({sObjectName, includeFields = tr
 			// Use UI API for standard objects
 			const response = await callSalesforceApi('GET', 'UI', `/object-info/${sObjectName}`);
 
-			if (!response || response.error) {
-				throw new Error(response?.error?.message || 'Unknown error calling UI API');
+			if (!response || response.isError || response.error) {
+				const errorMessage = response?.error?.message ||
+									response?.content?.[0]?.text ||
+									'Unknown error calling UI API';
+				throw new Error(errorMessage);
 			}
 
 			// Transform UI API response to match our expected format
@@ -89,16 +95,14 @@ export async function describeObjectToolHandler({sObjectName, includeFields = tr
 		};
 	} catch (error) {
 		logger.error(error);
-		const errorContent = {error: true, message: error.message};
+
 		return {
 			isError: true,
-			content: [
-				{
-					type: 'text',
-					text: JSON.stringify(errorContent)
-				}
-			],
-			structuredContent: errorContent
+			content: [{
+				type: 'text',
+				text: error.message
+			}],
+			structuredContent: {error: true, message: error.message}
 		};
 	}
 }
@@ -321,7 +325,6 @@ function transformFields(uiFields, includePicklistValues) {
 
 		transformedFields.push(transformedField);
 	}
-
 	return transformedFields;
 }
 
@@ -335,7 +338,6 @@ function transformRecordTypes(uiRecordTypes) {
 			available: recordTypeInfo.available
 		});
 	}
-
 	return transformedRecordTypes;
 }
 

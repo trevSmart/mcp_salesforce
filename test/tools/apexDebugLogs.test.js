@@ -1,11 +1,20 @@
+
+
+import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
+
 describe('apexDebugLogs', () => {
 	let client;
 	let logsList; // Variable compartida per dependències
 
-	beforeAll(() => {
-		// Utilitzar el client global compartit
-		client = global.sharedMcpClient;
-		// No fem assert aquí, ho farem al primer test
+	beforeAll(async () => {
+		// Create and connect to the MCP server
+		client = await createMcpClient();
+	});
+
+	afterAll(async () => {
+		await disconnectMcpClient(client);
+		// Additional cleanup time
+		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
 
@@ -16,17 +25,17 @@ describe('apexDebugLogs', () => {
 
 	test('apexDebugLogs status', async () => {
 		const result = await client.callTool('apexDebugLogs', {action: 'status'});
-		expect(result).toBeDefined();
+		expect(result).toBeTruthy();
 	});
 
 	test('apexDebugLogs on', async () => {
 		const result = await client.callTool('apexDebugLogs', {action: 'on'});
-		expect(result).toBeDefined();
+		expect(result).toBeTruthy();
 	});
 
 	test('apexDebugLogs list', async () => {
 		const result = await client.callTool('apexDebugLogs', {action: 'list'});
-		expect(result?.structuredContent?.logs).toBeDefined();
+		expect(result?.structuredContent?.logs).toBeTruthy();
 		expect(Array.isArray(result.structuredContent.logs)).toBe(true);
 
 		// Guardar el resultat per altres tests
@@ -48,12 +57,12 @@ describe('apexDebugLogs', () => {
 		const result = await client.callTool('apexDebugLogs', {action: 'get', logId: logId});
 
 		// Check if result is defined and has the expected structure
-		expect(result).toBeDefined();
-		expect(result.structuredContent).toBeDefined();
+		expect(result).toBeTruthy();
+		expect(result.structuredContent).toBeTruthy();
 
 		// Log content might be undefined if the log is empty or not available yet
 		if (result.structuredContent.logContent !== undefined) {
-			expect(result.structuredContent.logContent).toBeDefined();
+			expect(result.structuredContent.logContent).toBeTruthy();
 		} else {
 			console.log('Log content is not available yet (log might be empty or still processing)');
 		}
@@ -61,6 +70,6 @@ describe('apexDebugLogs', () => {
 
 	test('apexDebugLogs off', async () => {
 		const result = await client.callTool('apexDebugLogs', {action: 'off'});
-		expect(result).toBeDefined();
+		expect(result).toBeTruthy();
 	});
 });

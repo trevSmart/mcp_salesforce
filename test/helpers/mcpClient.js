@@ -89,6 +89,7 @@ export async function createMcpClient() {
 		};
 
 		await client.connect(serverTarget, {quiet: true});
+		await new Promise((resolve) => setTimeout(resolve, 1000));
 
 		// Store server process reference for cleanup
 		client._serverProcess = serverProcess;
@@ -128,6 +129,10 @@ export async function disconnectMcpClient(client) {
 		}
 
 		// Give some time for cleanup
-		await new Promise(resolve => setTimeout(resolve, 1000));
+		await new Promise((resolve) => setTimeout(resolve, 1000));
 	}
+}
+
+export async function listTools(client) {
+	return await client.getTools();
 }

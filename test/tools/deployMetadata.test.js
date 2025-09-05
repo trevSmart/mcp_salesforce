@@ -1,15 +1,24 @@
+
+
+import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
+
 describe('deployMetadata', () => {
 	let client;
 
-	beforeAll(() => {
-		// Utilitzar el client global compartit
-		client = global.sharedMcpClient;
-		// No fem assert aquí, ho farem al primer test
+	beforeAll(async () => {
+		// Create and connect to the MCP server
+		client = await createMcpClient();
+	});
+
+	afterAll(async () => {
+		await disconnectMcpClient(client);
+		// Additional cleanup time
+		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
 	test('deployMetadata validation only', async () => {
 		// Verificar que el client està definit
-		expect(client).toBeDefined();
+		expect(client).toBeTruthy();
 
 		// This test only validates the tool exists and can be called
 		// Actual deployment is not tested to avoid destructive operations
@@ -17,6 +26,6 @@ describe('deployMetadata', () => {
 			sourceDir: 'force-app/main/default/classes/TestClass.cls'
 		});
 
-		expect(result).toBeDefined();
+		expect(result).toBeTruthy();
 	});
 });

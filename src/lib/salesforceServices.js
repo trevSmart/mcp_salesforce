@@ -474,29 +474,6 @@ export async function getRecord(sObjectName, recordId) {
 	}
 }
 
-export async function describeObject(sObjectName) {
-	try {
-		if (!sObjectName || typeof sObjectName !== 'string') {
-			throw new Error('sObjectName is required and must be a string');
-		}
-		const command = `sf sobject describe --sobject ${sObjectName} --json`;
-		logger.debug(`Executing describe object command: ${command}`);
-
-		const responseString = await runCliCommand(command);
-		let response;
-		try {
-			response = JSON.parse(responseString);
-		} catch {
-			throw new Error(`Error parsing JSON response: ${responseString}`);
-		}
-
-		return response;
-	} catch (error) {
-		logger.error(error, `Error describing object ${sObjectName}`);
-		throw error;
-	}
-}
-
 export async function runApexTest(classNames = [], methodNames = [], suiteNames = [], codeCoverage = false, synchronous = false) {
 	try {
 		let command = 'sf apex run test';
@@ -695,7 +672,8 @@ export async function getApexClassCodeCoverage(classNames = []) {
 		const classesWithCoverage = classes.filter((c) => c.aggregateFound && c.totalLines > 0).length;
 		const classesWithoutCoverage = classes.filter((c) => c.coverageStatus !== 'class not found' && (!c.aggregateFound || c.totalLines === 0)).length;
 		const missingClasses = classes.filter((c) => c.coverageStatus === 'class not found').length;
-		const averagePercentage = classes.filter((c) => c.coverageStatus !== 'class not found').length > 0 ? Math.round(classes.filter((c) => c.coverageStatus !== 'class not found').reduce((s, c) => s + (c.percentage || 0), 0) / classes.filter((c) => c.coverageStatus !== 'class not found').length) : 0;
+		const averagePercentage =
+			classes.filter((c) => c.coverageStatus !== 'class not found').length > 0 ? Math.round(classes.filter((c) => c.coverageStatus !== 'class not found').reduce((s, c) => s + (c.percentage || 0), 0) / classes.filter((c) => c.coverageStatus !== 'class not found').length) : 0;
 
 		const result = {
 			success: true,
@@ -1214,15 +1192,16 @@ export async function callSalesforceApi(operation, apiType, service, body = null
 				throw error;
 			}
 		}
-
 	} catch (error) {
 		logger.error(error, `Error calling Salesforce API: ${operation} ${apiType} ${service}`);
 		return {
 			isError: true,
-			content: [{
-				type: 'text',
-				text: `❌ Error: ${error.message}`
-			}]
+			content: [
+				{
+					type: 'text',
+					text: `❌ Error: ${error.message}`
+				}
+			]
 		};
 	}
 }

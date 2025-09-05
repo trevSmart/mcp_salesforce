@@ -1,12 +1,12 @@
 import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
 
-describe('Server Tools List', () => {
+describe('Server tools', () => {
 	let client;
 
 	afterEach(async () => {
 		await disconnectMcpClient(client);
 		// Additional cleanup time
-		await new Promise(resolve => setTimeout(resolve, 2000));
+		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
 	test('should retrieve the list of available tools from the server', async () => {
@@ -14,13 +14,13 @@ describe('Server Tools List', () => {
 		client = await createMcpClient();
 
 		// Verify the client is defined
-		expect(client).toBeDefined();
+		expect(client).toBeTruthy();
 
 		// Get the list of available tools from the server
-		const toolsList = await client.getToolsList();
+		const toolsList = await client.listTools();
 
 		// Verify we received a tools list
-		expect(toolsList).toBeDefined();
+		expect(toolsList).toBeTruthy();
 		expect(Array.isArray(toolsList)).toBe(true);
 		expect(toolsList.length).toBeGreaterThan(0);
 
@@ -31,7 +31,7 @@ describe('Server Tools List', () => {
 		expect(firstTool).toHaveProperty('parameters');
 
 		// Verify some expected tools are present
-		const toolNames = toolsList.map(tool => tool.name);
+		const toolNames = toolsList.map((tool) => tool.name);
 		expect(toolNames).toContain('salesforceMcpUtils');
 		expect(toolNames).toContain('executeAnonymousApex');
 		expect(toolNames).toContain('describeObject');
