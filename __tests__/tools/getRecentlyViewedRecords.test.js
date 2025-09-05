@@ -1,38 +1,35 @@
-import {TEST_CONFIG} from '../../test/test-config.js';
-import {runSuite} from '../runSuite.js';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { TestMcpClient } from 'ibm-test-mcp-client';
+import { TEST_CONFIG } from '../../test/test-config.js';
 
-export class GetRecentlyViewedRecordsTestSuite {
-	constructor(mcpClient, quiet = false) {
-		this.mcpClient = mcpClient;
-		this.quiet = quiet;
-	}
+describe('getRecentlyViewedRecords', () => {
+	let client;
 
-	async runTests() {
-		const tests = [
-			{
-				name: 'getRecentlyViewedRecords',
-				run: async () => {
-					const result = await this.mcpClient.callTool('getRecentlyViewedRecords', {});
-					const sc = result?.structuredContent;
-					if (!sc?.records) {
-						throw new Error('getRecentlyViewedRecords: missing records in response');
-					}
-					if (!Array.isArray(sc.records)) {
-						throw new Error('getRecentlyViewedRecords: records must be an array');
-					}
-					if (typeof sc.totalSize !== 'number') {
-						throw new Error('getRecentlyViewedRecords: totalSize must be a number');
-					}
-					return result;
-				},
-				canRunInParallel: true
-			}
-		];
+	beforeAll(async () => {
+		const __filename = fileURLToPath(import.meta.url);
+		const __dirname = dirname(__filename);
+		const serverPath = resolve(__dirname, '../../../src/mcp-server.js');
+		client = new TestMcpClient();
+		await client.connect({
+			kind: 'script',
+			interpreter: 'node',
+			path: serverPath,
+			args: ['--stdio']
+		});
+	});
 
-		return tests;
-	}
-}
+	afterAll(async () => {
+		if (client) {
+			await client.disconnect();
+		}
+	});
 
-
-
-await runSuite('getRecentlyViewedRecords', GetRecentlyViewedRecordsTestSuite);
+	test('getRecentlyViewedRecords', async () => {
+		const result = await client.callTool('getRecentlyViewedRecords', {});
+		const sc = result?.structuredContent;
+		expect(sc?.records).toBeDefined();
+		expect(Array.isArray(sc.records)).toBe(true);
+		expect(typeof sc.totalSize).toBe('number');
+	});
+});

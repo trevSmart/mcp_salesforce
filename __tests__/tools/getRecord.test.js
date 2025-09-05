@@ -1,57 +1,46 @@
-import {TEST_CONFIG} from '../../test/test-config.js';
-import {runSuite} from '../runSuite.js';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { TestMcpClient } from 'ibm-test-mcp-client';
+import { TEST_CONFIG } from '../../test/test-config.js';
 
-export class GetRecordTestSuite {
-	constructor(mcpClient, quiet = false) {
-		this.mcpClient = mcpClient;
-		this.quiet = quiet;
-	}
+describe('getRecord', () => {
+	let client;
 
-	async runTests() {
-		const tests = [
-			{
-				name: 'getRecord Account',
-				run: async () => {
-					const result = await this.mcpClient.callTool('getRecord', {
-						sObjectName: 'Account',
-						recordId: TEST_CONFIG.salesforce.testAccountId
-					});
-					if (!result?.structuredContent) {
-						throw new Error('getRecord: missing structuredContent');
-					}
-					if (result.structuredContent.sObject !== 'Account') {
-						throw new Error(`getRecord: expected sObject Account, got ${result.structuredContent.sObject}`);
-					}
-					if (!result.structuredContent.fields) {
-						throw new Error('getRecord: missing fields');
-					}
-					return result;
-				},
-				canRunInParallel: true
-			},
-			{
-				name: 'getRecord Contact',
-				run: async () => {
-					const result = await this.mcpClient.callTool('getRecord', {
-						sObjectName: 'Contact',
-						recordId: TEST_CONFIG.salesforce.testContactId
-					});
-					if (!result?.structuredContent) {
-						throw new Error('getRecord: missing structuredContent');
-					}
-					if (result.structuredContent.sObject !== 'Contact') {
-						throw new Error(`getRecord: expected sObject Contact, got ${result.structuredContent.sObject}`);
-					}
-					return result;
-				},
-				canRunInParallel: true
-			}
-		];
+	beforeAll(async () => {
+		const __filename = fileURLToPath(import.meta.url);
+		const __dirname = dirname(__filename);
+		const serverPath = resolve(__dirname, '../../../src/mcp-server.js');
+		client = new TestMcpClient();
+		await client.connect({
+			kind: 'script',
+			interpreter: 'node',
+			path: serverPath,
+			args: ['--stdio']
+		});
+	});
 
-		return tests;
-	}
-}
+	afterAll(async () => {
+		if (client) {
+			await client.disconnect();
+		}
+	});
 
+	test('getRecord Account', async () => {
+		const result = await client.callTool('getRecord', {
+			sObjectName: 'Account',
+			recordId: TEST_CONFIG.salesforce.testAccountId
+		});
+		expect(result?.structuredContent).toBeDefined();
+		expect(result.structuredContent.sObject).toBe('Account');
+		expect(result.structuredContent.fields).toBeDefined();
+	});
 
-
-await runSuite('getRecord', GetRecordTestSuite);
+	test('getRecord Contact', async () => {
+		const result = await client.callTool('getRecord', {
+			sObjectName: 'Contact',
+			recordId: TEST_CONFIG.salesforce.testContactId
+		});
+		expect(result?.structuredContent).toBeDefined();
+		expect(result.structuredContent.sObject).toBe('Contact');
+	});
+});

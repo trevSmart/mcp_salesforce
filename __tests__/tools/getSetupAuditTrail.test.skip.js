@@ -26,7 +26,6 @@ export class GetSetupAuditTrailTestSuite {
 					}
 					return result;
 				},
-				canRunInParallel: true
 			},
 			{
 				name: 'getSetupAuditTrail with user filter',
@@ -43,7 +42,6 @@ export class GetSetupAuditTrailTestSuite {
 					}
 					return result;
 				},
-				canRunInParallel: true
 			}
 		];
 

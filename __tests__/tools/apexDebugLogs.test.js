@@ -1,66 +1,72 @@
-import {TEST_CONFIG} from '../../test/test-config.js';
-import {runSuite} from '../runSuite.js';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { TestMcpClient } from 'ibm-test-mcp-client';
+import { TEST_CONFIG } from '../../test/test-config.js';
 
-export class ApexDebugLogsTestSuite {
-	constructor(mcpClient, quiet = false) {
-		this.mcpClient = mcpClient;
-		this.quiet = quiet;
-	}
+describe('apexDebugLogs', () => {
+	let client;
+	let logsList; // Variable compartida per dependències
 
-	async runTests() {
-		const tests = [
-			{
-				name: 'apexDebugLogs status',
-				run: async () => {
-					return await this.mcpClient.callTool('apexDebugLogs', {action: 'status'});
-				},
-				canRunInParallel: true
-			},
-			{
-				name: 'apexDebugLogs on',
-				run: async () => {
-					return await this.mcpClient.callTool('apexDebugLogs', {action: 'on'});
-				},
-				canRunInParallel: false
-			},
-			{
-				name: 'apexDebugLogs list',
-				run: async (context) => {
-					const result = await this.mcpClient.callTool('apexDebugLogs', {action: 'list'});
-					if (!result?.structuredContent?.logs) {
-						throw new Error('apexDebugLogs list: missing logs in response');
-					}
-					if (!Array.isArray(result.structuredContent.logs)) {
-						throw new Error('apexDebugLogs list: logs must be an array');
-					}
-					return result;
-				},
-				canRunInParallel: true
-			},
-			{
-				name: 'apexDebugLogs get',
-				run: async (context) => {
-					const result = await this.mcpClient.callTool('apexDebugLogs', {action: 'get'});
-					if (!result?.structuredContent?.logContent) {
-						throw new Error('apexDebugLogs get: missing logContent in response');
-					}
-					return result;
-				},
-				canRunInParallel: true
-			},
-			{
-				name: 'apexDebugLogs off',
-				run: async () => {
-					return await this.mcpClient.callTool('apexDebugLogs', {action: 'off'});
-				},
-				canRunInParallel: false
-			}
-		];
+	beforeAll(async () => {
+		const __filename = fileURLToPath(import.meta.url);
+		const __dirname = dirname(__filename);
+		const serverPath = resolve(__dirname, '../../../src/mcp-server.js');
+		client = new TestMcpClient();
+		await client.connect({
+			kind: 'script',
+			interpreter: 'node',
+			path: serverPath,
+			args: ['--stdio']
+		});
+	});
 
-		return tests;
-	}
-}
+	afterAll(async () => {
+		if (client) {
+			await client.disconnect();
+		}
+	});
 
+	test('apexDebugLogs status', async () => {
+		const result = await client.callTool('apexDebugLogs', {action: 'status'});
+		expect(result).toBeDefined();
+	});
 
+	test('apexDebugLogs on', async () => {
+		const result = await client.callTool('apexDebugLogs', {action: 'on'});
+		expect(result).toBeDefined();
+	});
 
-await runSuite('apexDebugLogs', ApexDebugLogsTestSuite);
+	test('apexDebugLogs list', async () => {
+		const result = await client.callTool('apexDebugLogs', {action: 'list'});
+		expect(result?.structuredContent?.logs).toBeDefined();
+		expect(Array.isArray(result.structuredContent.logs)).toBe(true);
+
+		// Guardar el resultat per altres tests
+		logsList = result.structuredContent.logs;
+	});
+
+	test('apexDebugLogs get', async () => {
+		// Utilitzar la variable compartida del test anterior
+		expect(logsList).toBeDefined();
+		expect(Array.isArray(logsList)).toBe(true);
+
+		// If no logs available, skip the test
+		if (logsList.length === 0) {
+			console.log('No logs available for apexDebugLogs get test, skipping...');
+			return;
+		}
+
+		// Use the first available log
+		const firstLog = logsList[0];
+		const logId = firstLog.Id;
+
+		// Now get the specific log content
+		const result = await client.callTool('apexDebugLogs', {action: 'get', logId: logId});
+		expect(result?.structuredContent?.logContent).toBeDefined();
+	});
+
+	test('apexDebugLogs off', async () => {
+		const result = await client.callTool('apexDebugLogs', {action: 'off'});
+		expect(result).toBeDefined();
+	});
+});

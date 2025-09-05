@@ -1,106 +1,79 @@
-import {TEST_CONFIG} from '../../test/test-config.js';
-import {runSuite} from '../runSuite.js';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { TestMcpClient } from 'ibm-test-mcp-client';
+import { TEST_CONFIG } from '../../test/test-config.js';
 
-export class SalesforceMcpUtilsTestSuite {
-	constructor(mcpClient, quiet = false) {
-		this.mcpClient = mcpClient;
-		this.quiet = quiet;
-	}
+describe('salesforceMcpUtils', () => {
+	let client;
 
-	async runTests() {
-		const tests = [
-			{
-				name: 'salesforceMcpUtils getOrgAndUserDetails',
-				run: async () => {
-					return await this.mcpClient.callTool('salesforceMcpUtils', {
-						action: 'getOrgAndUserDetails'
-					});
-				},
-				required: true,
-				canRunInParallel: false,
-				priority: 'high'
-			},
-			{
-				name: 'salesforceMcpUtils getState',
-				run: async () => {
-					const result = await this.mcpClient.callTool('salesforceMcpUtils', {
-						action: 'getState'
-					});
-					const sc = result?.structuredContent;
-					if (!((sc?.state && sc?.client ) && sc?.resources)) {
-						throw new Error('salesforceMcpUtils getState: missing required fields');
-					}
-					return result;
-				},
-				canRunInParallel: true
-			},
-			{
-				name: 'salesforceMcpUtils loadRecordPrefixesResource',
-				run: async () => {
-					const result = await this.mcpClient.callTool('salesforceMcpUtils', {
-						action: 'loadRecordPrefixesResource'
-					});
-					const sc = result?.structuredContent;
-					if (!sc || typeof sc !== 'object' || Array.isArray(sc)) {
-						throw new Error('salesforceMcpUtils loadRecordPrefixesResource: invalid response format');
-					}
-					if (Object.keys(sc).length === 0) {
-						throw new Error('salesforceMcpUtils loadRecordPrefixesResource: empty response');
-					}
-					return result;
-				},
-				canRunInParallel: true
-			},
-			{
-				name: 'salesforceMcpUtils getCurrentDatetime',
-				run: async () => {
-					const result = await this.mcpClient.callTool('salesforceMcpUtils', {
-						action: 'getCurrentDatetime'
-					});
-					if (!result?.structuredContent?.datetime) {
-						throw new Error('salesforceMcpUtils getCurrentDatetime: missing datetime');
-					}
-					return result;
-				},
-				canRunInParallel: true
-			},
-			{
-				name: 'salesforceMcpUtils clearCache',
-				run: async () => {
-					const result = await this.mcpClient.callTool('salesforceMcpUtils', {
-						action: 'clearCache'
-					});
-					if (!result?.structuredContent?.success) {
-						throw new Error('salesforceMcpUtils clearCache: cache clear failed');
-					}
-					return result;
-				},
-				canRunInParallel: false
-			},
-			{
-				name: 'salesforceMcpUtils reportIssue',
-				run: async () => {
-					const result = await this.mcpClient.callTool('salesforceMcpUtils', {
-						action: 'reportIssue',
-						issueDescription: 'Test issue for validation',
-						issueToolName: 'testTool'
-					});
-					if (!result?.structuredContent?.success) {
-						throw new Error('salesforceMcpUtils reportIssue: issue report failed');
-					}
-					if (!result.structuredContent.issueId) {
-						throw new Error('salesforceMcpUtils reportIssue: missing issue ID');
-					}
-					return result;
-				},
-				canRunInParallel: true
-			}
-		];
+	beforeAll(async () => {
+		const __filename = fileURLToPath(import.meta.url);
+		const __dirname = dirname(__filename);
+		const serverPath = resolve(__dirname, '../../../src/mcp-server.js');
+		client = new TestMcpClient();
+		await client.connect({
+			kind: 'script',
+			interpreter: 'node',
+			path: serverPath,
+			args: ['--stdio']
+		});
+	});
 
-		return tests;
-	}
-}
+	afterAll(async () => {
+		if (client) {
+			await client.disconnect();
+		}
+	});
 
+	test('salesforceMcpUtils getOrgAndUserDetails', async () => {
+		const result = await client.callTool('salesforceMcpUtils', {
+			action: 'getOrgAndUserDetails'
+		});
+		expect(result).toBeDefined();
+	});
 
+	test('salesforceMcpUtils getState', async () => {
+		const result = await client.callTool('salesforceMcpUtils', {
+			action: 'getState'
+		});
+		const sc = result?.structuredContent;
+		expect(sc?.state).toBeDefined();
+		expect(sc?.client).toBeDefined();
+		expect(sc?.resources).toBeDefined();
+	});
 
-await runSuite('salesforceMcpUtils', SalesforceMcpUtilsTestSuite);
+	test('salesforceMcpUtils loadRecordPrefixesResource', async () => {
+		const result = await client.callTool('salesforceMcpUtils', {
+			action: 'loadRecordPrefixesResource'
+		});
+		const sc = result?.structuredContent;
+		expect(sc).toBeDefined();
+		expect(typeof sc).toBe('object');
+		expect(Array.isArray(sc)).toBe(false);
+		expect(Object.keys(sc).length).toBeGreaterThan(0);
+	});
+
+	test('salesforceMcpUtils getCurrentDatetime', async () => {
+		const result = await client.callTool('salesforceMcpUtils', {
+			action: 'getCurrentDatetime'
+		});
+		expect(result?.structuredContent?.datetime).toBeDefined();
+	});
+
+	test('salesforceMcpUtils clearCache', async () => {
+		const result = await client.callTool('salesforceMcpUtils', {
+			action: 'clearCache'
+		});
+		expect(result?.structuredContent?.success).toBe(true);
+	});
+
+	test('salesforceMcpUtils reportIssue', async () => {
+		const result = await client.callTool('salesforceMcpUtils', {
+			action: 'reportIssue',
+			issueDescription: 'Test issue for validation',
+			issueToolName: 'testTool'
+		});
+		expect(result?.structuredContent?.success).toBe(true);
+		expect(result.structuredContent.issueId).toBeDefined();
+	});
+});

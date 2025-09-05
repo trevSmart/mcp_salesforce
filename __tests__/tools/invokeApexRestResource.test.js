@@ -1,64 +1,49 @@
-import {TEST_CONFIG} from '../../test/test-config.js';
-import {runSuite} from '../runSuite.js';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { TestMcpClient } from 'ibm-test-mcp-client';
+import { TEST_CONFIG } from '../../test/test-config.js';
 
-export class InvokeApexRestResourceTestSuite {
-	constructor(mcpClient, quiet = false) {
-		this.mcpClient = mcpClient;
-		this.quiet = quiet;
-	}
+describe('invokeApexRestResource', () => {
+	let client;
 
-	async runTests() {
-		const tests = [
-			{
-				name: 'invokeApexRestResource GET',
-				run: async () => {
-					const result = await this.mcpClient.callTool('invokeApexRestResource', {
-						apexClassOrRestResourceName: TEST_CONFIG.salesforce.testApexRestResourceData.apexClassOrRestResourceName,
-						operation: 'GET'
-					});
-					if (!result?.structuredContent?.endpoint) {
-						throw new Error('invokeApexRestResource: missing endpoint');
-					}
-					if (!result.structuredContent.request) {
-						throw new Error('invokeApexRestResource: missing request details');
-					}
-					if (!result.structuredContent.response) {
-						throw new Error('invokeApexRestResource: missing response');
-					}
-					if (result.structuredContent.request.method !== 'GET') {
-						throw new Error('invokeApexRestResource: expected GET method in request');
-					}
-					if (typeof result.structuredContent.status !== 'number') {
-						throw new Error('invokeApexRestResource: status must be a number');
-					}
-					return result;
-				},
-				canRunInParallel: true
-			},
-			{
-				name: 'invokeApexRestResource POST',
-				run: async () => {
-					const result = await this.mcpClient.callTool('invokeApexRestResource', {
-						apexClassOrRestResourceName: TEST_CONFIG.salesforce.testApexRestResourceData.apexClassOrRestResourceName,
-						operation: 'POST',
-						bodyObject: {test: 'data'}
-					});
-					if (!result?.structuredContent?.endpoint) {
-						throw new Error('invokeApexRestResource: missing endpoint');
-					}
-					if (result.structuredContent.request.method !== 'POST') {
-						throw new Error('invokeApexRestResource: expected POST method in request');
-					}
-					return result;
-				},
-				canRunInParallel: true
-			}
-		];
+	beforeAll(async () => {
+		const __filename = fileURLToPath(import.meta.url);
+		const __dirname = dirname(__filename);
+		const serverPath = resolve(__dirname, '../../../src/mcp-server.js');
+		client = new TestMcpClient();
+		await client.connect({
+			kind: 'script',
+			interpreter: 'node',
+			path: serverPath,
+			args: ['--stdio']
+		});
+	});
 
-		return tests;
-	}
-}
+	afterAll(async () => {
+		if (client) {
+			await client.disconnect();
+		}
+	});
 
+	test('invokeApexRestResource GET', async () => {
+		const result = await client.callTool('invokeApexRestResource', {
+			apexClassOrRestResourceName: TEST_CONFIG.salesforce.testApexRestResourceData.apexClassOrRestResourceName,
+			operation: 'GET'
+		});
+		expect(result?.structuredContent?.endpoint).toBeDefined();
+		expect(result.structuredContent.request).toBeDefined();
+		expect(result.structuredContent.response).toBeDefined();
+		expect(result.structuredContent.request.method).toBe('GET');
+		expect(typeof result.structuredContent.status).toBe('number');
+	});
 
-
-await runSuite('invokeApexRestResource', InvokeApexRestResourceTestSuite);
+	test('invokeApexRestResource POST', async () => {
+		const result = await client.callTool('invokeApexRestResource', {
+			apexClassOrRestResourceName: TEST_CONFIG.salesforce.testApexRestResourceData.apexClassOrRestResourceName,
+			operation: 'POST',
+			bodyObject: {test: 'data'}
+		});
+		expect(result?.structuredContent?.endpoint).toBeDefined();
+		expect(result.structuredContent.request.method).toBe('POST');
+	});
+});

@@ -1,55 +1,53 @@
-import {TEST_CONFIG} from '../../test/test-config.js';
-import {runSuite} from '../runSuite.js';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { TestMcpClient } from 'ibm-test-mcp-client';
 
-export class ExecuteSoqlQueryTestSuite {
-	constructor(mcpClient, quiet = false) {
-		this.mcpClient = mcpClient;
-		this.quiet = quiet;
-	}
+describe('executeSoqlQuery', () => {
+	let client;
 
-	async runTests() {
-		const tests = [
-			{
-				name: 'executeSoqlQuery',
-				run: async () => {
-					const result = await this.mcpClient.callTool('executeSoqlQuery', {
-						query: 'SELECT Id, Name FROM Account LIMIT 3'
-					});
-					const sc = result?.structuredContent;
-					if (!(sc && Array.isArray(sc.records))) {
-						throw new Error('executeSoqlQuery: records must be an array');
-					}
-					if (sc.records.length > 0) {
-						const r = sc.records[0];
-						if (!(r.Id && r.Name)) {
-							throw new Error('executeSoqlQuery: first record must include Id and Name');
-						}
-					}
-					return result;
-				},
-				canRunInParallel: true
-			},
-			{
-				name: 'executeSoqlQuery with Tooling API',
-				run: async () => {
-					const result = await this.mcpClient.callTool('executeSoqlQuery', {
-						query: 'SELECT Id, Name FROM ApexClass LIMIT 3',
-						useToolingApi: true
-					});
-					const sc = result?.structuredContent;
-					if (!(sc && Array.isArray(sc.records))) {
-						throw new Error('executeSoqlQuery Tooling API: records must be an array');
-					}
-					return result;
-				},
-				canRunInParallel: true
-			}
-		];
+	beforeAll(async () => {
+		const __filename = fileURLToPath(import.meta.url);
+		const __dirname = dirname(__filename);
+		const serverPath = resolve(__dirname, '../../src/mcp-server.js');
+		client = new TestMcpClient();
+		await client.connect({
+			kind: 'script',
+			interpreter: 'node',
+			path: serverPath,
+			args: ['--stdio']
+		});
+		// Wait for server to initialize
+		await new Promise(resolve => setTimeout(resolve, 2000));
+	});
 
-		return tests;
-	}
-}
+	afterAll(async () => {
+		if (client) {
+			await client.disconnect();
+		}
+	});
 
+	test('executeSoqlQuery', async () => {
+		const result = await client.callTool('executeSoqlQuery', {
+			query: 'SELECT Id, Name FROM Account LIMIT 3'
+		});
+		const sc = result?.structuredContent;
+		expect(sc).toBeDefined();
+		expect(Array.isArray(sc.records)).toBe(true);
 
+		if (sc.records.length > 0) {
+			const r = sc.records[0];
+			expect(r.Id).toBeDefined();
+			expect(r.Name).toBeDefined();
+		}
+	});
 
-await runSuite('executeSoqlQuery', ExecuteSoqlQueryTestSuite);
+	test('executeSoqlQuery with Tooling API', async () => {
+		const result = await client.callTool('executeSoqlQuery', {
+			query: 'SELECT Id, Name FROM ApexClass LIMIT 3',
+			useToolingApi: true
+		});
+		const sc = result?.structuredContent;
+		expect(sc).toBeDefined();
+		expect(Array.isArray(sc.records)).toBe(true);
+	});
+});

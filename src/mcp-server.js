@@ -8,7 +8,7 @@ import config from './config.js';
 import {createModuleLogger} from './lib/logger.js';
 import targetOrgWatcher from './lib/OrgWatcher.js';
 import {getOrgAndUserDetails} from './lib/salesforceServices.js';
-import TaskScheduler from './lib/taskScheduler.js';
+import TaskScheduler from './lib/taskScheduler.js'; //TODO: Remove this
 import {getAgentInstructions, validateUserPermissions} from './utils.js';
 //Prompts
 //import { codeModificationPromptDefinition, codeModificationPrompt } from './prompts/codeModificationPrompt.js';
@@ -30,8 +30,6 @@ import {getSetupAuditTrailToolDefinition} from './tools/getSetupAuditTrail.js';
 import {invokeApexRestResourceToolDefinition} from './tools/invokeApexRestResource.js';
 import {runApexTestToolDefinition} from './tools/runApexTest.js';
 import {salesforceMcpUtilsToolDefinition, salesforceMcpUtilsToolHandler} from './tools/salesforceMcpUtils.js';
-
-
 
 // Define state object here instead of importing it
 export const state = {
@@ -107,11 +105,16 @@ async function updateOrgAndUserDetails() {
 		state.org = org;
 		if (currentUsername !== org?.user?.username) {
 			clearResources();
-			validateUserPermissions(org.user.username);
+			await validateUserPermissions(org.user.username);
 		}
 		// Update the watcher with the new org alias
 		if (targetOrgWatcher && org?.alias) {
 			targetOrgWatcher.currentOrgAlias = org.alias;
+		}
+
+		logger.info(`Server initialized and running. Target org: ${state.org.alias}`, 'init');
+		if (typeof resolveOrgReady === 'function') {
+			resolveOrgReady();
 		}
 	} catch (error) {
 		logger.error(error, 'Error updating org and user details');
@@ -287,31 +290,22 @@ export async function setupServer() {
 				}
 			}
 
-
 			//if (client.supportsCapability('sampling')) {
 			//	mcpServer.registerTool('generateSoqlQuery', generateSoqlQueryDefinition, generateSoqlQuery);
 			//}
 
-			//Execute org setup and validation after directory change is complete
-			(async () => {
-				try {
-					// Start watching target org changes and perform initial fetch
-					// process.env.HOME = process.env.HOME ;
-					targetOrgWatcher.start(updateOrgAndUserDetails, state.org?.alias);
-					await updateOrgAndUserDetails();
-
-					logger.debug(`Server initialized and running. Target org: ${state.org.alias}`, 'init');
-					if (typeof resolveOrgReady === 'function') {
-						resolveOrgReady();
-					}
-				} catch (error) {
-					logger.error(error, 'Error during async org setup');
-					// Swallow to avoid unhandled rejection; initialization continues and tools will gate on validation
-					if (typeof resolveOrgReady === 'function') {
-						resolveOrgReady();
-					}
+			// Esperar a que es recuperin les dades de l'organització abans de retornar la resposta
+			try {
+				// Start watching target org changes and perform initial fetch
+				targetOrgWatcher.start(updateOrgAndUserDetails, state.org?.alias);
+				await updateOrgAndUserDetails();
+			} catch (error) {
+				logger.error(error, 'Error during org setup');
+				// Swallow to avoid unhandled rejection; initialization continues and tools will gate on validation
+				if (typeof resolveOrgReady === 'function') {
+					resolveOrgReady();
 				}
-			})();
+			}
 
 			return {protocolVersion, serverInfo, capabilities};
 		} catch (error) {
@@ -350,22 +344,5 @@ try {
 	logger.error('Failed to initialize task scheduler:', error);
 }
 */
-
-// Handle graceful shutdown
-process.on('SIGINT', () => {
-	logger.info('Received SIGINT, shutting down gracefully...');
-	if (taskScheduler) {
-		taskScheduler.stop();
-	}
-	process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-	logger.info('Received SIGTERM, shutting down gracefully...');
-	if (taskScheduler) {
-		taskScheduler.stop();
-	}
-	process.exit(0);
-});
 
 export {mcpServer};

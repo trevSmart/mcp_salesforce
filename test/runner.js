@@ -107,7 +107,7 @@ class TestRunner {
 		}
 	}
 
-	// Dependency-aware scheduler honoring canRunInParallel
+	// Dependency-aware scheduler
 	async runTestsWithDependencies(tests, mcpToolsSuite) {
 		const maxConcurrency = 7;
 		// const nameToTest = new Map(tests.map(t => [t.name, t]));
@@ -160,7 +160,7 @@ class TestRunner {
 			candidates = [...highPriority, ...regular];
 
 			// If any exclusive test is ready, run it alone (prefer high-priority exclusives)
-			const exclusive = candidates.find((t) => !t.canRunInParallel);
+			const exclusive = candidates.find((t) => t.priority === 'high' && t.required);
 			if (exclusive) {
 				// Wait for current running tests to finish
 				while (running.size > 0) {
@@ -177,9 +177,6 @@ class TestRunner {
 				if (running.size >= maxConcurrency) {
 					break;
 				}
-				if (!t.canRunInParallel) {
-					continue;
-				} // handled above
 				started.add(t.name);
 				startedAny = true;
 				// Fire and forget; scheduler will poll

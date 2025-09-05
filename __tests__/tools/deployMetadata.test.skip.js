@@ -22,7 +22,6 @@ export class DeployMetadataTestSuite {
 					}
 					return result;
 				},
-				canRunInParallel: true
 			}
 		];
 

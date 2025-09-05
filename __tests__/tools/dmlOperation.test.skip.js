@@ -33,7 +33,6 @@ export class DmlOperationTestSuite {
 					}
 					return result;
 				},
-				canRunInParallel: false
 			},
 			{
 				name: 'dmlOperation update',
@@ -56,7 +55,6 @@ export class DmlOperationTestSuite {
 					}
 					return result;
 				},
-				canRunInParallel: false
 			}
 		];
 
