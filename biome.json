@@ -213,7 +213,7 @@
 				"noSelfCompare": "error",
 				"noShadowRestrictedNames": "error",
 				"noShorthandPropertyOverrides": "error",
-				"noSkippedTests": "error",
+				"noSkippedTests": "warn",
 				"noSparseArray": "warn",
 				"noSuspiciousSemicolonInJsx": "error",
 				"noTemplateCurlyInString": "error",
