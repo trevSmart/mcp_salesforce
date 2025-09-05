@@ -1,7 +1,7 @@
 import {fileURLToPath} from 'node:url';
 import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
-import {InitializeRequestSchema, ListResourcesRequestSchema, ListResourceTemplatesRequestSchema, ReadResourceRequestSchema, RootsListChangedNotificationSchema} from '@modelcontextprotocol/sdk/types.js';
+import {InitializeRequestSchema, ListResourcesRequestSchema, ListResourceTemplatesRequestSchema, ReadResourceRequestSchema, RootsListChangedNotificationSchema, SetLevelRequestSchema} from '@modelcontextprotocol/sdk/types.js';
 
 import client from './client.js';
 import config from './config.js';
@@ -33,17 +33,16 @@ import {salesforceMcpUtilsToolDefinition, salesforceMcpUtilsToolHandler} from '.
 // Define state object here instead of importing it
 export const state = {
 	org: {},
-	// currentLogLevel is no longer needed as the SDK handles log levels automatically
+	startedDate: new Date(),
 	userValidated: true,
-	startedDate: new Date()
+	currentLogLevel: process.env.LOG_LEVEL || 'info'
 };
 
 // import { chatWithAgentforceDefinition } from './tools/chatWithAgentforce.js';
 // import { triggerExecutionOrderToolDefinition } from './tools/triggerExecutionOrder.js';
 //import {generateSoqlQueryToolDefinition} from './tools/generateSoqlQuery.js';
 
-//const logger = createModuleLogger(import.meta.url, 'app', state.currentLogLevel); //TODO: Remove this
-const logger = createModuleLogger(import.meta.url, 'app'); //TODO: Remove this
+const logger = createModuleLogger(import.meta.url, 'app', state.currentLogLevel);
 
 export let resources = {};
 // Flag to track if workspace path has been set
@@ -257,6 +256,11 @@ export async function setupServer() {
 	// mcpServer.registerTool('triggerExecutionOrder', triggerExecutionOrderDefinition, callToolHandler('triggerExecutionOrder'));
 	// mcpServer.registerTool('generateSoqlQuery', generateSoqlQueryDefinition, callToolHandler('generateSoqlQuery'));
 
+	mcpServer.server.setRequestHandler(SetLevelRequestSchema, async ({params}) => {
+		state.currentLogLevel = params.level;
+		return {};
+	});
+
 	mcpServer.server.setRequestHandler(InitializeRequestSchema, async ({params}) => {
 		try {
 			const {clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion} = params;
@@ -269,9 +273,7 @@ export async function setupServer() {
 			logger.info(`IBM Salesforce MCP server (v${config.serverConstants.serverInfo.version})`);
 			const clientCapabilitiesString = `Capabilities: ${JSON.stringify(client.capabilities, null, 3)}`;
 			logger.info(`Connecting with client "${client.clientInfo.name}" (v${client.clientInfo.version}). ${clientCapabilitiesString}`);
-
-			logger.info(`Current log level: ${state.currentLogLevel}`); //TODO: Remove this
-			logger.info('Log level management is now handled automatically by the SDK'); //TODO: Remove this
+			logger.info(`Current log level: ${state.currentLogLevel}`);
 
 			// if (process.env.WORKSPACE_FOLDER_PATHS) {
 			// 	setWorkspacePath(process.env.WORKSPACE_FOLDER_PATHS);

@@ -45,6 +45,9 @@ dist/
 tmp/
 ibm-salesforce-mcp.code-workspace
 *.old*
+*old.*
+*.new*
+*new.*
 .cursor/
 .nvmrc
 

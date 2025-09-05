@@ -49,7 +49,12 @@
         }
     ],
     "workbench.editor.highlightModifiedTabs": true,
-    "chat.mcp.discovery.enabled": false,
+    "chat.mcp.discovery.enabled": {
+        "claude-desktop": false,
+        "windsurf": false,
+        "cursor-global": false,
+        "cursor-workspace": false
+    },
     "search.exclude": {
         "**/dist/*": true,
         "**/node_modules/**": true
@@ -64,21 +69,23 @@
     "actionButtons": {
         "commands": [
             {
-				"name": "$(terminal)",
-				"useVsCodeApi": true,
-				"command": "workbench.action.terminal.toggleTerminal",
-				"color": "#e3e3e3"
-			},
+                "name": "$(terminal)",
+                "useVsCodeApi": true,
+                "command": "workbench.action.terminal.toggleTerminal",
+                "color": "#e3e3e3"
+            },
             {
-				"name": ".",
-				"color": "#00000000",
-				"command": ""
-			},
+                "name": ".",
+                "color": "#00000000",
+                "command": ""
+            },
             {
                 "name": "$(lightbulb-autofix) Lint",
                 "useVsCodeApi": true,
                 "command": "workbench.action.tasks.runTask",
-                "args": ["npm: lint:fix"],
+                "args": [
+                    "npm: lint:fix"
+                ],
                 "color": "#6D81fA"
             },
             {
@@ -91,7 +98,9 @@
                 "name": "$(send) Publish server",
                 "useVsCodeApi": true,
                 "command": "workbench.action.tasks.runTask",
-                "args": ["npm: publish-package"],
+                "args": [
+                    "npm: publish-package"
+                ],
                 "color": "#cc8888"
             }
         ],

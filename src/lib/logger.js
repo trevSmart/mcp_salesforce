@@ -3,8 +3,9 @@ import {fileURLToPath} from 'node:url';
 import client from '../client.js';
 import config from '../config.js';
 
-function getLogLevelPrefix(logLevel) {
-	const logLevelPrefixes = {
+// Internal: builds log prefix with emoji and optional config prefix
+function getLogPrefix(logLevel) {
+	const logLevelEmojis = {
 		emergency: '🔥',
 		alert: '⛔️',
 		critical: '❗️',
@@ -14,14 +15,39 @@ function getLogLevelPrefix(logLevel) {
 		info: '💡',
 		debug: '🐞'
 	};
-	return logLevelPrefixes[logLevel] || '❓';
+	const emoji = logLevelEmojis[logLevel] || '❓';
+	const logLevelPrefix = emoji.repeat(3);
+	if (config.logPrefix) {
+		return `(${config.logPrefix} · ${logLevelPrefix})`;
+	}
+	return `(${logLevelPrefix})`;
 }
 
 // Base sink: sends logs to MCP if available, or stderr fallback
-// The SDK now handles log level filtering automatically based on client-set levels
-function emitLog(data, logLevel = config.defaultLogLevel, context = null) {
+function emitLog(data, logLevel = config.defaultLogLevel, context = null, currentLogLevel = 'info') {
 	try {
-		// Format the log data
+		const LevelPriorities = {
+			emergency: 0,
+			alert: 1,
+			critical: 2,
+			error: 3,
+			warning: 4,
+			notice: 5,
+			info: 6,
+			debug: 7
+		};
+
+		const logPriority = LevelPriorities[logLevel] ?? LevelPriorities.info;
+		const currentPriority = LevelPriorities[currentLogLevel] ?? LevelPriorities.info;
+		const errorPriority = LevelPriorities.error;
+		const loggingSupported = client?.supportsCapability('logging');
+		const shouldLog = loggingSupported && logPriority <= currentPriority;
+		const shouldError = logPriority <= errorPriority || (!loggingSupported && logPriority <= currentPriority);
+
+		if (!(shouldLog || shouldError)) {
+			return;
+		}
+
 		let logData = data;
 
 		if (data instanceof Error) {
@@ -42,7 +68,6 @@ function emitLog(data, logLevel = config.defaultLogLevel, context = null) {
 			}
 		}
 
-		// Truncate long log messages
 		if (typeof logData === 'string' && logData.length > 5000) {
 			logData = `${logData.slice(0, 4997)}...`;
 		}
@@ -50,61 +75,28 @@ function emitLog(data, logLevel = config.defaultLogLevel, context = null) {
 			logData = `\n${logData}\n`;
 		}
 
-		const logPrefix = config.logPrefix ?? '';
-		const logLevelPrefix = getLogLevelPrefix(logLevel);
+		const logPrefix = getLogPrefix(logLevel);
 		const mcp = globalThis.__mcpServer;
-
-		// Always attempt to send via MCP if available
-		// The SDK will automatically filter based on the client's set log level
-		if (mcp?.isConnected() && client?.supportsCapability('logging')) {
-			const logger = `${logPrefix}MCP server (${logLevelPrefix})`;
-			// Get the current session ID if available
-			const sessionId = mcp.server.transport?.getCurrentSessionId?.();
-
-			// Use sendLoggingMessage which respects the client's log level settings
-			mcp.server.sendLoggingMessage(
-				{
-					level: logLevel,
-					logger,
-					data: logData
-				},
-				sessionId
-			);
-		} else {
-			// Fallback to console for errors or when MCP is not available
-			const errorPriority = 3; // error level
-			const LevelPriorities = {
-				emergency: 0,
-				alert: 1,
-				critical: 2,
-				error: 3,
-				warning: 4,
-				notice: 5,
-				info: 6,
-				debug: 7
-			};
-			const logPriority = LevelPriorities[logLevel] ?? LevelPriorities.info;
-
-			if (logPriority <= errorPriority) {
-				console.error(`${logPrefix} | ${logLevel} | ${logData}`);
-			} else {
-				console.log(`${logPrefix} | ${logLevel} | ${logData}`);
-			}
+		if (shouldLog && mcp?.isConnected()) {
+			const logger = `(${logPrefix} MCP server)`;
+			mcp.server.sendLoggingMessage({level: logLevel, logger, data: logData});
+		} else if (shouldError) {
+			console.error(`${logPrefix} | ${logLevel} | ${logData}`);
 		}
 	} catch (error) {
-		console.error(`${config.logPrefix} | [${logLevel}] | ${JSON.stringify(error, null, 3)}`);
+		console.error(`${getLogPrefix('error')} ${JSON.stringify(error, null, 3)}`);
 	}
 }
 
 // Simple logger wrapper to standardize severities across the codebase.
 // Usage: const logger = createLogger('mcp-server'); logger.info('message', 'event');
-export function createLogger(component = 'app') {
+export function createLogger(component = 'app', currentLogLevel = 'info') {
 	const map = {error: 'error', warn: 'warning', info: 'info', debug: 'debug'};
 	const wrap =
 		(level) =>
 		(data, event = null) => {
 			const context = event ? `${component} · ${event}` : `(${component})`;
-			emitLog(data, map[level], context);
+			emitLog(data, map[level], context, currentLogLevel);
 		};
 	return {
 		error: wrap('error'),
@@ -114,19 +106,19 @@ export function createLogger(component = 'app') {
 		log(level = 'info', data, event = null) {
 			const mapped = map[level] || 'info';
 			const context = event ? `${component} · ${event}` : component;
-			emitLog(data, mapped, context);
+			emitLog(data, mapped, context, currentLogLevel);
 		}
 	};
 }
 
 // Helper to create a logger using the current module's file name as component
 // Example: const logger = createModuleLogger(import.meta.url)
-export function createModuleLogger(moduleUrl, fallback = 'app') {
+export function createModuleLogger(moduleUrl, fallback = 'app', currentLogLevel = 'info') {
 	try {
 		const filePath = fileURLToPath(moduleUrl);
 		const base = path.basename(filePath).replace(/\.[^.]+$/, '');
-		return createLogger(base || fallback);
+		return createLogger(base || fallback, currentLogLevel);
 	} catch {
-		return createLogger(fallback);
+		return createLogger(fallback, currentLogLevel);
 	}
 }

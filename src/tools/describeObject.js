@@ -55,9 +55,7 @@ export async function describeObjectToolHandler({sObjectName, includeFields = tr
 			const response = await callSalesforceApi('GET', 'TOOLING', `/sobjects/${sObjectName}/describe`);
 
 			if (!response || response.isError || response.error) {
-				const errorMessage = response?.error?.message ||
-									response?.content?.[0]?.text ||
-									'Unknown error calling Tooling API';
+				const errorMessage = response?.error?.message || response?.content?.[0]?.text || 'Unknown error calling Tooling API';
 				throw new Error(errorMessage);
 			}
 
@@ -68,9 +66,7 @@ export async function describeObjectToolHandler({sObjectName, includeFields = tr
 			const response = await callSalesforceApi('GET', 'UI', `/object-info/${sObjectName}`);
 
 			if (!response || response.isError || response.error) {
-				const errorMessage = response?.error?.message ||
-									response?.content?.[0]?.text ||
-									'Unknown error calling UI API';
+				const errorMessage = response?.error?.message || response?.content?.[0]?.text || 'Unknown error calling UI API';
 				throw new Error(errorMessage);
 			}
 
@@ -98,10 +94,12 @@ export async function describeObjectToolHandler({sObjectName, includeFields = tr
 
 		return {
 			isError: true,
-			content: [{
-				type: 'text',
-				text: error.message
-			}],
+			content: [
+				{
+					type: 'text',
+					text: error.message
+				}
+			],
 			structuredContent: {error: true, message: error.message}
 		};
 	}
