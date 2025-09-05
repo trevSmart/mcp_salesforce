@@ -6,8 +6,6 @@ describe('Server Startup', () => {
 
 	afterEach(async () => {
 		await disconnectMcpClient(client);
-		// Additional cleanup time
-		await new Promise(resolve => setTimeout(resolve, 2000));
 	});
 
 	test('should start the MCP server successfully', async () => {

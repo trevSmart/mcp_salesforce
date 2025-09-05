@@ -140,7 +140,15 @@ export async function salesforceMcpUtilsToolHandler({action, issueDescription, i
 			}
 
 			if (client.supportsCapability('resource_links')) {
-				content.push({type: 'resource_link', uri: resourceUri});
+				// Include required fields for ResourceLink per MCP schema
+				const res = resources[resourceUri];
+				content.push({
+					type: 'resource_link',
+					uri: resourceUri,
+					name: res?.name || 'recordPrefixes.json',
+					mimeType: res?.mimeType || 'application/json',
+					description: res?.description || 'SObject record prefixes list'
+				});
 			}
 
 			//This should only be necessary if client does not support resource_links

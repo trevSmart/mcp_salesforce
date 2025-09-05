@@ -5,8 +5,6 @@ describe('Server Resources', () => {
 
 	afterEach(async () => {
 		await disconnectMcpClient(client);
-		// Additional cleanup time
-		await new Promise(resolve => setTimeout(resolve, 2000));
 	});
 
 	test('should list server resources', async () => {

@@ -12,11 +12,9 @@ describe('deployMetadata', () => {
 
 	afterAll(async () => {
 		await disconnectMcpClient(client);
-		// Additional cleanup time
-		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
-	test('deployMetadata validation only', async () => {
+	test('validation only', async () => {
 		// Verificar que el client està definit
 		expect(client).toBeTruthy();
 

@@ -1,6 +1,6 @@
 
 import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
-import {TEST_CONFIG} from '../setup.js';
+import {TestData} from '../test-data.js';
 
 describe('invokeApexRestResource', () => {
 	let client;
@@ -12,18 +12,11 @@ describe('invokeApexRestResource', () => {
 
 	afterAll(async () => {
 		await disconnectMcpClient(client);
-		// Additional cleanup time
-		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
-	afterEach(async () => {
-		// Clean up after each test
-		await new Promise(resolve => setTimeout(resolve, 500));
-	});
-
-	test('invokeApexRestResource GET', async () => {
+	test('GET', async () => {
 		const result = await client.callTool('invokeApexRestResource', {
-			apexClassOrRestResourceName: TEST_CONFIG.salesforce.testApexRestResourceData.apexClassOrRestResourceName,
+			apexClassOrRestResourceName: TestData.salesforce.testApexRestResourceData.apexClassOrRestResourceName,
 			operation: 'GET'
 		});
 		expect(result?.structuredContent?.endpoint).toBeTruthy();
@@ -33,9 +26,9 @@ describe('invokeApexRestResource', () => {
 		expect(typeof result.structuredContent.status).toBe('number');
 	});
 
-	test('invokeApexRestResource POST', async () => {
+	test('POST', async () => {
 		const result = await client.callTool('invokeApexRestResource', {
-			apexClassOrRestResourceName: TEST_CONFIG.salesforce.testApexRestResourceData.apexClassOrRestResourceName,
+			apexClassOrRestResourceName: TestData.salesforce.testApexRestResourceData.apexClassOrRestResourceName,
 			operation: 'POST',
 			bodyObject: {test: 'data'}
 		});

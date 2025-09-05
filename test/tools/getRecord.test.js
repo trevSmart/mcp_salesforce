@@ -1,6 +1,6 @@
 
 import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
-import {TEST_CONFIG} from '../setup.js';
+import {TestData} from '../test-data.js';
 
 describe('getRecord', () => {
 	let client;
@@ -12,21 +12,19 @@ describe('getRecord', () => {
 
 	afterAll(async () => {
 		await disconnectMcpClient(client);
-		// Additional cleanup time
-		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
-	test('getRecord Account', async () => {
+	test('Account', async () => {
 		const result = await client.callTool('getRecord', {
 			sObjectName: 'Account',
-			recordId: TEST_CONFIG.salesforce.testAccountId
+			recordId: TestData.salesforce.testAccountId
 		});
 		expect(result?.structuredContent).toBeTruthy();
 		expect(result.structuredContent.sObject).toBe('Account');
 		expect(result.structuredContent.fields).toBeTruthy();
 	});
 
-	test('getRecord with non-existent SObject should return error', async () => {
+	test('with non-existent SObject should return error', async () => {
 		const result = await client.callTool('getRecord', {
 			sObjectName: 'NonExistentObject__c',
 			recordId: '001000000000000AAA'

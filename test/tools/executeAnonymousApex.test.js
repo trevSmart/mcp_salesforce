@@ -12,11 +12,9 @@ describe('executeAnonymousApex', () => {
 
 	afterAll(async () => {
 		await disconnectMcpClient(client);
-		// Additional cleanup time
-		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
-	test('executeAnonymousApex simple', async () => {
+	test('simple', async () => {
 		// Verificar que el client està definit
 		expect(client).toBeTruthy();
 
@@ -36,7 +34,7 @@ describe('executeAnonymousApex', () => {
 		}
 	});
 
-	test('executeAnonymousApex with modification', async () => {
+	test('with modification', async () => {
 		const result = await client.callTool('executeAnonymousApex', {
 			apexCode: "Account acc = new Account(Name='Test Account');\ninsert acc;\nSystem.debug('Created account: ' + acc.Id);",
 			mayModify: true

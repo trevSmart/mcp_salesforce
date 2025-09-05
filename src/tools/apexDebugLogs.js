@@ -723,11 +723,19 @@ export async function apexDebugLogsToolHandler({action, logId}) {
 			];
 
 			const uri = `mcp://apexLogs/${logId}.log`;
-			newResource(uri, `${logId}.log`, `Apex debug log ${logId}`, 'text/plain', apexLog, {
+			const name = `${logId}.log`;
+			const description = `Apex debug log ${logId}`;
+			newResource(uri, name, description, 'text/plain', apexLog, {
 				audience: ['user']
 			});
 			if (client.supportsCapability('resource_links')) {
-				content.push({type: 'resource_link', uri});
+				content.push({
+					type: 'resource_link',
+					uri,
+					name,
+					mimeType: 'text/plain',
+					description
+				});
 			}
 
 			return {

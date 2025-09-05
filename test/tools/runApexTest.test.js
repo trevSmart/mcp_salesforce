@@ -12,11 +12,9 @@ describe('runApexTest', () => {
 
 	afterAll(async () => {
 		await disconnectMcpClient(client);
-		// Additional cleanup time
-		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
-	test('runApexTest by class', async () => {
+	test('by class', async () => {
 		// First, let's find available test classes
 		const queryResult = await client.callTool('executeSoqlQuery', {
 			query: "SELECT Id, Name FROM ApexClass WHERE Name LIKE '%Test%' LIMIT 5",
@@ -56,7 +54,7 @@ describe('runApexTest', () => {
 		}
 	});
 
-	test('runApexTest by method', async () => {
+	test('by method', async () => {
 		// For now, just test that the tool responds (even if with error)
 		const result = await client.callTool('runApexTest', {
 			methodNames: ['NonExistentClass.nonExistentMethod']

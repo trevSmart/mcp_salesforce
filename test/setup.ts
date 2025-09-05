@@ -2,22 +2,6 @@ import { beforeAll, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 
-// ⚠️ Aquest fitxer és només per a setup de tests. No hi fem gestió del client MCP global.
-
-// Si realment vols tenir dades comunes, millor tenir-les en un mòdul separat
-// (p. ex. `test-config.ts`) i importar-les als tests. Ho deixo aquí com a exemple,
-// però recomanable moure-ho fora d'aquest setup.
-export const TEST_CONFIG = {
-	salesforce: {
-		testAccountId: '001KN00000Ilrd9YAB',
-		testContactId: '003KN00000abcdeYAB',
-		testApexRestResourceData: {
-			apexClassOrRestResourceName: 'TestRestResource'
-		},
-		testUser: 'u0190347@cc-caixabank.com.devservice'
-	}
-};
-
 beforeAll(async () => {
 	const artifactsDir = path.join(process.cwd(), '.test-artifacts');
 	try {

@@ -2,6 +2,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import client from '../client.js';
 import config from '../config.js';
+import {state} from '../mcp-server.js';
 
 // Internal: builds log prefix with emoji and optional config prefix
 function getLogPrefix(logLevel) {
@@ -24,7 +25,7 @@ function getLogPrefix(logLevel) {
 }
 
 // Base sink: sends logs to MCP if available, or stderr fallback
-function emitLog(data, logLevel = config.defaultLogLevel, context = null, currentLogLevel = 'info') {
+function emitLog(data, logLevel = config.defaultLogLevel, context = null, currentLogLevel = state.currentLogLevel) {
 	try {
 		const LevelPriorities = {
 			emergency: 0,
@@ -78,7 +79,7 @@ function emitLog(data, logLevel = config.defaultLogLevel, context = null, curren
 		const logPrefix = getLogPrefix(logLevel);
 		const mcp = globalThis.__mcpServer;
 		if (shouldLog && mcp?.isConnected()) {
-			const logger = `(${logPrefix} MCP server)`;
+			const logger = `${logPrefix} MCP server`;
 			mcp.server.sendLoggingMessage({level: logLevel, logger, data: logData});
 		} else if (shouldError) {
 			console.error(`${logPrefix} | ${logLevel} | ${logData}`);

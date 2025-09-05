@@ -12,11 +12,9 @@ describe('getApexClassCodeCoverage', () => {
 
 	afterAll(async () => {
 		await disconnectMcpClient(client);
-		// Additional cleanup time
-		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
-	test('getApexClassCodeCoverage', async () => {
+	test('basic coverage', async () => {
 		const result = await client.callTool('getApexClassCodeCoverage', {
 			classNames: ['TestMCPTool']
 		});

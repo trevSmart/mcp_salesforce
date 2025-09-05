@@ -51,7 +51,7 @@ let workspacePathSet = false;
 // Load agent instructions before creating the server
 let serverInstructions = '';
 try {
-	serverInstructions = await getAgentInstructions('agentInstruccions');
+	serverInstructions = getAgentInstructions('agentInstruccions');
 } catch (error) {
 	logger.warn(error, 'Failed to load agent instructions, using empty instructions');
 }
@@ -258,6 +258,7 @@ export async function setupServer() {
 
 	mcpServer.server.setRequestHandler(SetLevelRequestSchema, async ({params}) => {
 		state.currentLogLevel = params.level;
+		logger.debug(`Setting log level to ${params.level}`);
 		return {};
 	});
 
@@ -270,10 +271,14 @@ export async function setupServer() {
 				protocolVersion: clientProtocolVersion
 			});
 
+			// Wait 3 seconds
+
 			logger.info(`IBM Salesforce MCP server (v${config.serverConstants.serverInfo.version})`);
 			const clientCapabilitiesString = `Capabilities: ${JSON.stringify(client.capabilities, null, 3)}`;
 			logger.info(`Connecting with client "${client.clientInfo.name}" (v${client.clientInfo.version}). ${clientCapabilitiesString}`);
 			logger.info(`Current log level: ${state.currentLogLevel}`);
+
+			logger.info(`🔥Resource links: ${client.supportsCapability('resource_links')}`);
 
 			// if (process.env.WORKSPACE_FOLDER_PATHS) {
 			// 	setWorkspacePath(process.env.WORKSPACE_FOLDER_PATHS);

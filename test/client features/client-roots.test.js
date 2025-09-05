@@ -5,8 +5,6 @@ describe('Server tools', () => {
 
 	afterEach(async () => {
 		await disconnectMcpClient(client);
-		// Additional cleanup time
-		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
 	test('should retrieve the list of available tools from the server', async () => {

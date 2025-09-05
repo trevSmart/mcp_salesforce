@@ -88,9 +88,16 @@ export async function executeAnonymousApexToolHandler({apexCode, mayModify}) {
 		if (result?.logs) {
 			const logFileName = `apex_run_${getTimestamp(true)}.log`;
 			const uri = `mcp://apex/${logFileName}`;
-			newResource(uri, logFileName, `${getTimestamp(true)} - ${username} - ${logSize}KB`, 'text/plain', result.logs, {audience: ['user', 'assistant']});
+			const description = `${getTimestamp(true)} - ${username} - ${logSize}KB`;
+			newResource(uri, logFileName, description, 'text/plain', result.logs, {audience: ['user', 'assistant']});
 			if (client.supportsCapability('resource_links')) {
-				content.push({type: 'resource_link', uri});
+				content.push({
+					type: 'resource_link',
+					uri,
+					name: logFileName,
+					mimeType: 'text/plain',
+					description
+				});
 			}
 		}
 

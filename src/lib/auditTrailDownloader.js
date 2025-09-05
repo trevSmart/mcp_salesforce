@@ -135,7 +135,7 @@ async function retrieveFileWithRetry(maxRetries = 2) {
 			const transient = typeof error?.message === 'string' && (error.message.includes('Frame was detached') || error.message.includes('Target page, context or browser has been closed'));
 			if (transient && attempt < maxRetries) {
 				logger.warn(`Transient error on attempt ${attempt}, retrying...`);
-				await new Promise((r) => setTimeout(r, 2000));
+				await new Promise((r) => setTimeout(r, 1000));
 				continue;
 			}
 			break;

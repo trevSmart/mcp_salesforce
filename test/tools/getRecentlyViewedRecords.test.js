@@ -12,11 +12,9 @@ describe('getRecentlyViewedRecords', () => {
 
 	afterAll(async () => {
 		await disconnectMcpClient(client);
-		// Additional cleanup time
-		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
-	test('getRecentlyViewedRecords', async () => {
+	test('basic functionality', async () => {
 		const result = await client.callTool('getRecentlyViewedRecords', {});
 		const sc = result?.structuredContent;
 		expect(sc?.records).toBeTruthy();

@@ -1,43 +1,52 @@
 
 import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
-import {TEST_CONFIG} from '../setup.js';
+import {TestData} from '../test-data.js';
+import fs from 'node:fs';
+import path from 'node:path';
 
 describe('getSetupAuditTrail', () => {
 	let client;
 
+	function deleteAuditTrailFile() {
+		// Delete tmp/SetupAuditTrail.csv if it exists
+		const tmpFilePath = path.join('tmp', 'SetupAuditTrail.csv');
+		try {
+			fs.unlinkSync(tmpFilePath);
+		} catch {
+			// File doesn't exist or other error, continue
+		}
+	}
+
 	beforeAll(async () => {
-		// Create and connect to the MCP server
 		client = await createMcpClient();
+		deleteAuditTrailFile();
 	});
 
 	afterAll(async () => {
 		await disconnectMcpClient(client);
-		// Additional cleanup time
-		await new Promise((resolve) => setTimeout(resolve, 2000));
+		deleteAuditTrailFile();
 	});
 
-	test('getSetupAuditTrail basic', async () => {
+	test('basic', async () => {
 		// Verificar que el client està definit
 		expect(client).toBeTruthy();
 
-		const result = await client.callTool('getSetupAuditTrail', {
-			lastDays: 7
-		});
+		const result = await client.callTool('getSetupAuditTrail', {lastDays: 7});
 
 		expect(result).toBeTruthy();
 		expect(result?.structuredContent?.filters).toBeTruthy();
 		expect(typeof result.structuredContent.setupAuditTrailFileTotalRecords).toBe('number');
 		expect(Array.isArray(result.structuredContent.records)).toBe(true);
-	});
+	}, 22_000);
 
-	test('getSetupAuditTrail with user filter', async () => {
+	test('cached with user filter', async () => {
 		const result = await client.callTool('getSetupAuditTrail', {
 			lastDays: 14,
-			user: TEST_CONFIG.salesforce.testUser
+			user: TestData.salesforce.testUser
 		});
 
 		expect(result).toBeTruthy();
 		expect(result?.structuredContent?.filters).toBeTruthy();
-		expect(result.structuredContent.filters.user).toBe(TEST_CONFIG.salesforce.testUser);
-	});
+		expect(result.structuredContent.filters.user).toBe(TestData.salesforce.testUser);
+	}, 2_000);
 });

@@ -12,11 +12,9 @@ describe('executeSoqlQuery', () => {
 
 	afterAll(async () => {
 		await disconnectMcpClient(client);
-		// Additional cleanup time
-		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
-	test('executeSoqlQuery', async () => {
+	test('basic query', async () => {
 		const result = await client.callTool('executeSoqlQuery', {
 			query: 'SELECT Id, Name FROM Account LIMIT 3'
 		});
@@ -30,7 +28,7 @@ describe('executeSoqlQuery', () => {
 		expect(r.Name).toBeTruthy();
 	});
 
-	test('executeSoqlQuery with no results', async () => {
+	test('with no results', async () => {
 		const result = await client.callTool('executeSoqlQuery', {
 			query: 'SELECT Id, Name FROM Account WHERE Name = \'NonExistentAccount12345\' LIMIT 1'
 		});
@@ -40,7 +38,7 @@ describe('executeSoqlQuery', () => {
 		expect(sc.records.length).toBe(0);
 	});
 
-	test('executeSoqlQuery with Tooling API', async () => {
+	test('with Tooling API', async () => {
 		const result = await client.callTool('executeSoqlQuery', {
 			query: 'SELECT Id, Name FROM ApexClass LIMIT 3',
 			useToolingApi: true
@@ -50,7 +48,7 @@ describe('executeSoqlQuery', () => {
 		expect(Array.isArray(sc.records)).toBe(true);
 	});
 
-	test('executeSoqlQuery with Tooling API and no results', async () => {
+	test('with Tooling API and no results', async () => {
 		const result = await client.callTool('executeSoqlQuery', {
 			query: 'SELECT Id, Name FROM ApexClass WHERE Name = \'NonExistentApexClass12345\' LIMIT 1',
 			useToolingApi: true

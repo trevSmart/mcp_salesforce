@@ -12,11 +12,9 @@ describe('apex-run-script', () => {
 
 	afterAll(async () => {
 		await disconnectMcpClient(client);
-		// Additional cleanup time
-		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
-	test('apex-run-script prompt', async () => {
+	test('prompt', async () => {
 		const result = await client.callTool('apex-run-script', {
 			currentBehavior: 'Current code does nothing',
 			desiredBehavior: 'Code should return a greeting message',

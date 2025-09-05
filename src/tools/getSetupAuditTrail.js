@@ -509,7 +509,13 @@ export async function getSetupAuditTrailToolHandler({lastDays = 30, user = null,
 		];
 
 		if (client.supportsCapability('resource_links')) {
-			content.push({type: 'resource_link', uri: resourceUri});
+			content.push({
+				type: 'resource_link',
+				uri: resourceUri,
+				name: 'Setup audit trail CSV',
+				mimeType: 'text/csv',
+				description: 'Setup audit trail CSV'
+			});
 		}
 
 		return {

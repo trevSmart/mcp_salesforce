@@ -12,11 +12,9 @@ describe('describeObject', () => {
 
 	afterAll(async () => {
 		await disconnectMcpClient(client);
-		// Additional cleanup time
-		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
-	test('describeObject Account', async () => {
+	test('Account', async () => {
 		const result = await client.callTool('describeObject', {
 			sObjectName: 'Account'
 		});
@@ -28,7 +26,7 @@ describe('describeObject', () => {
 		expect(result.structuredContent.fields.length).toBeGreaterThan(0);
 	});
 
-	test('describeObject with includeFields false', async () => {
+	test('with includeFields false', async () => {
 		const result = await client.callTool('describeObject', {
 			sObjectName: 'Account',
 			includeFields: false
@@ -38,7 +36,7 @@ describe('describeObject', () => {
 		expect(result?.structuredContent?.wasCached).toBeTruthy();
 	});
 
-	test('describeObject with non-existent object', async () => {
+	test('with non-existent object', async () => {
 		const result = await client.callTool('describeObject', {
 			sObjectName: 'NonExistentObject__c'
 		});

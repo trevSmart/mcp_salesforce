@@ -9,7 +9,7 @@ const pkg = require('../package.json');
  */
 export default {
 	logPrefix: '👁🐝Ⓜ️',
-	defaultLogLevel: 'info',
+	defaultLogLevel: 'debug',
 	tempDir: {
 		// Subfolder under workspace to store temp artifacts
 		baseSubdir: 'tmp',

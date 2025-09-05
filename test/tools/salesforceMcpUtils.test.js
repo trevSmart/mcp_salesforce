@@ -9,21 +9,16 @@ describe('salesforceMcpUtils', () => {
 
 	afterAll(async () => {
 		await disconnectMcpClient(client);
-		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
-	afterEach(async () => {
-		await new Promise((resolve) => setTimeout(resolve, 500));
-	});
-
-	test('salesforceMcpUtils getOrgAndUserDetails', async () => {
+	test('getOrgAndUserDetails', async () => {
 		const result = await client.callTool('salesforceMcpUtils', {
 			action: 'getOrgAndUserDetails'
 		});
 		expect(result?.structuredContent?.user?.id).toBeTruthyAndDump(result?.structuredContent);
 	});
 
-	test('salesforceMcpUtils getState', async () => {
+	test('getState', async () => {
 		const result = await client.callTool('salesforceMcpUtils', {action: 'getState'});
 
 		// ÚS DEL MATCHER PERSONALITZAT
@@ -31,7 +26,7 @@ describe('salesforceMcpUtils', () => {
 		expect(result?.structuredContent?.state?.org?.user?.id).toBeTruthyAndDump(result?.structuredContent);
 	});
 
-	test('salesforceMcpUtils loadRecordPrefixesResource', async () => {
+	test('loadRecordPrefixesResource', async () => {
 		const result = await client.callTool('salesforceMcpUtils', {
 			action: 'loadRecordPrefixesResource'
 		});
@@ -46,7 +41,7 @@ describe('salesforceMcpUtils', () => {
 		expect(Object.keys(structuredContent).length).toBeGreaterThan(0);
 	});
 
-	test('salesforceMcpUtils getCurrentDatetime', async () => {
+	test('getCurrentDatetime', async () => {
 		const result = await client.callTool('salesforceMcpUtils', {
 			action: 'getCurrentDatetime'
 		});
@@ -54,7 +49,7 @@ describe('salesforceMcpUtils', () => {
 		expect(result?.structuredContent?.timezone).toBeTruthy();
 	});
 
-	test('salesforceMcpUtils clearCache', async () => {
+	test('clearCache', async () => {
 		const result = await client.callTool('salesforceMcpUtils', {
 			action: 'clearCache'
 		});
@@ -62,7 +57,7 @@ describe('salesforceMcpUtils', () => {
 		expect(result?.structuredContent?.action).toBe('clearCache');
 	});
 
-	test('salesforceMcpUtils reportIssue', async () => {
+	test('reportIssue', async () => {
 		const result = await client.callTool('salesforceMcpUtils', {
 			action: 'reportIssue',
 			issueDescription: 'Test issue for validation',

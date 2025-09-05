@@ -125,6 +125,7 @@ export async function runApexTestToolHandler({classNames = [], methodNames = [],
 			}
 			//const progress = testRunResult.MethodsCompleted + testRunResult.MethodsFailed;
 			//notifyProgressChange(progressToken, testRunResult.MethodsEnqueued, progress, 'Running the test...');
+
 			await new Promise((resolve) => setTimeout(resolve, 8000)); //Polling every 8 seconds
 		}
 

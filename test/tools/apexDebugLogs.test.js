@@ -13,27 +13,19 @@ describe('apexDebugLogs', () => {
 
 	afterAll(async () => {
 		await disconnectMcpClient(client);
-		// Additional cleanup time
-		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
-
-	afterEach(async () => {
-		// Clean up after each test
-		await new Promise((resolve) => setTimeout(resolve, 500));
-	});
-
-	test('apexDebugLogs status', async () => {
+	test('status', async () => {
 		const result = await client.callTool('apexDebugLogs', {action: 'status'});
 		expect(result).toBeTruthy();
 	});
 
-	test('apexDebugLogs on', async () => {
+	test('on', async () => {
 		const result = await client.callTool('apexDebugLogs', {action: 'on'});
 		expect(result).toBeTruthy();
 	});
 
-	test('apexDebugLogs list', async () => {
+	test('list', async () => {
 		const result = await client.callTool('apexDebugLogs', {action: 'list'});
 		expect(result?.structuredContent?.logs).toBeTruthy();
 		expect(Array.isArray(result.structuredContent.logs)).toBe(true);
@@ -42,7 +34,7 @@ describe('apexDebugLogs', () => {
 		logsList = result.structuredContent.logs;
 	});
 
-	test('apexDebugLogs get', async () => {
+	test('get', async () => {
 		// If logsList is not defined or empty, skip the test
 		if (!(logsList && Array.isArray(logsList)) || logsList.length === 0) {
 			console.log('No logs available for apexDebugLogs get test, skipping...');
@@ -68,7 +60,7 @@ describe('apexDebugLogs', () => {
 		}
 	});
 
-	test('apexDebugLogs off', async () => {
+	test('off', async () => {
 		const result = await client.callTool('apexDebugLogs', {action: 'off'});
 		expect(result).toBeTruthy();
 	});

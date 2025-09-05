@@ -1,6 +1,6 @@
 
 import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
-import {TEST_CONFIG} from '../setup.js';
+import {TestData} from '../test-data.js';
 
 describe('dmlOperation', () => {
 	let client;
@@ -12,11 +12,9 @@ describe('dmlOperation', () => {
 
 	afterAll(async () => {
 		await disconnectMcpClient(client);
-		// Additional cleanup time
-		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
-	test('dmlOperation create', async () => {
+	test('create', async () => {
 		// Verificar que el client està definit
 		expect(client).toBeTruthy();
 
@@ -39,13 +37,13 @@ describe('dmlOperation', () => {
 		expect(result?.structuredContent?.outcome).toBeTruthyAndDump(result);
 	});
 
-	test('dmlOperation update', async () => {
+	test('update', async () => {
 		const result = await client.callTool('dmlOperation', {
 			operations: {
 				update: [
 					{
 						sObjectName: 'Account',
-						recordId: TEST_CONFIG.salesforce.testAccountId,
+						recordId: TestData.salesforce.testAccountId,
 						fields: {
 							// biome-ignore lint/style/useNamingConvention: Salesforce field names must be PascalCase
 							Description: `Updated by MCP Tool test at ${new Date().toISOString()}`
