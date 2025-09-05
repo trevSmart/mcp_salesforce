@@ -10,17 +10,21 @@ global.sharedMcpClient = null;
 
 // Setup global MCP client before all tests
 beforeAll(async () => {
+	console.log('=== GLOBAL SETUP: Creating shared MCP client ===');
 	// Create a single shared MCP client instance
 	global.sharedMcpClient = await createMcpClient();
-	console.log('Created shared MCP client for all tests');
+	console.log('=== GLOBAL SETUP: Shared MCP client created successfully ===');
 });
 
 // Global cleanup after all tests
 afterAll(async () => {
+	console.log('=== GLOBAL TEARDOWN: Disconnecting shared MCP client ===');
 	// Disconnect the shared MCP client
 	if (global.sharedMcpClient) {
 		await disconnectMcpClient(global.sharedMcpClient);
-		console.log('Disconnected shared MCP client');
+		console.log('=== GLOBAL TEARDOWN: Shared MCP client disconnected successfully ===');
+		// Clear the reference
+		global.sharedMcpClient = null;
 	}
 
 	// Give some time for cleanup
