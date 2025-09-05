@@ -14,6 +14,8 @@ export const TEST_CONFIG = {
 		// Test Apex REST Resource configuration
 		testApexRestResourceData: {
 			apexClassOrRestResourceName: 'TestRestResource'
-		}
+		},
+
+		testUser: 'u0190347@cc-caixabank.com.devservice'
 	}
 };
