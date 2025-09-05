@@ -1,5 +1,5 @@
 export default {
-  testEnvironment: 'node',
+  testEnvironment: '<rootDir>/__tests__/mcpEnvironment.cjs',
   testMatch: [
     '**/__tests__/**/*.test.js',
     '**/src/**/*.test.js',
@@ -35,5 +35,5 @@ export default {
   detectOpenHandles: true,
   forceExit: true, // Force exit after tests complete
   // Add setup and teardown
-  setupFilesAfterEnv: ['<rootDir>/__tests__/setup.js']
+  setupFilesAfterEnv: ['<rootDir>/__tests__/setupAfterEnv.js']
 };
