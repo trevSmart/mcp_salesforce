@@ -1,30 +1,17 @@
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { TestMcpClient } from 'ibm-test-mcp-client';
+import { createMcpClient, disconnectMcpClient } from '../helpers/mcpClient.js';
 import { TEST_CONFIG } from '../../test/test-config.js';
 
 describe('apexDebugLogs', () => {
 	let client;
 	let logsList; // Variable compartida per dependències
 
-	beforeAll(async () => {
-		const __filename = fileURLToPath(import.meta.url);
-		const __dirname = dirname(__filename);
-		const serverPath = resolve(__dirname, '../../../src/mcp-server.js');
-		client = new TestMcpClient();
-		await client.connect({
-			kind: 'script',
-			interpreter: 'node',
-			path: serverPath,
-			args: ['--stdio']
-		});
-	});
+        beforeAll(async () => {
+                client = await createMcpClient();
+        });
 
-	afterAll(async () => {
-		if (client) {
-			await client.disconnect();
-		}
-	});
+        afterAll(async () => {
+                await disconnectMcpClient(client);
+        });
 
 	test('apexDebugLogs status', async () => {
 		const result = await client.callTool('apexDebugLogs', {action: 'status'});

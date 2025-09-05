@@ -1,30 +1,15 @@
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { TestMcpClient } from 'ibm-test-mcp-client';
+import { createMcpClient, disconnectMcpClient } from '../helpers/mcpClient.js';
 
 describe('executeSoqlQuery', () => {
 	let client;
 
-	beforeAll(async () => {
-		const __filename = fileURLToPath(import.meta.url);
-		const __dirname = dirname(__filename);
-		const serverPath = resolve(__dirname, '../../src/mcp-server.js');
-		client = new TestMcpClient();
-		await client.connect({
-			kind: 'script',
-			interpreter: 'node',
-			path: serverPath,
-			args: ['--stdio']
-		});
-		// Wait for server to initialize
-		await new Promise(resolve => setTimeout(resolve, 2000));
-	});
+        beforeAll(async () => {
+                client = await createMcpClient();
+        });
 
-	afterAll(async () => {
-		if (client) {
-			await client.disconnect();
-		}
-	});
+        afterAll(async () => {
+                await disconnectMcpClient(client);
+        });
 
 	test('executeSoqlQuery', async () => {
 		const result = await client.callTool('executeSoqlQuery', {
