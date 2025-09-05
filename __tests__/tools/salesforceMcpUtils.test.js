@@ -1,14 +1,15 @@
-import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
-
 describe('salesforceMcpUtils', () => {
 	let client;
 
-	beforeAll(async () => {
-		client = await createMcpClient();
+	beforeAll(() => {
+		// Utilitzar el client global compartit
+		client = global.sharedMcpClient;
+		// No fem assert aquí, ho farem al primer test
 	});
 
-	afterAll(async () => {
-		await disconnectMcpClient(client);
+	afterEach(async () => {
+		// Clean up after each test
+		await new Promise(resolve => setTimeout(resolve, 500));
 	});
 
 	test('salesforceMcpUtils getOrgAndUserDetails', async () => {
@@ -43,14 +44,16 @@ describe('salesforceMcpUtils', () => {
 		const result = await client.callTool('salesforceMcpUtils', {
 			action: 'getCurrentDatetime'
 		});
-		expect(result?.structuredContent?.datetime).toBeDefined();
+		expect(result?.structuredContent?.now).toBeDefined();
+		expect(result?.structuredContent?.timezone).toBeDefined();
 	});
 
 	test('salesforceMcpUtils clearCache', async () => {
 		const result = await client.callTool('salesforceMcpUtils', {
 			action: 'clearCache'
 		});
-		expect(result?.structuredContent?.success).toBe(true);
+		expect(result?.structuredContent?.status).toBe('success');
+		expect(result?.structuredContent?.action).toBe('clearCache');
 	});
 
 	test('salesforceMcpUtils reportIssue', async () => {

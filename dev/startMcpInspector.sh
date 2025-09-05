@@ -20,7 +20,7 @@ cleanup
 echo ""
 
 printf "\033[1mLoading environment variables\033[0m...\n"
-ibm-salesforce-mcp_PATH="/Users/marcpla/Documents/Feina/Projectes/mcp/ibm-salesforce-mcp/"
+MCP_SALESFORCE_PATH="/Users/marcpla/Documents/Feina/Projectes/mcp/ibm-salesforce-mcp/"
 cd "$MCP_SALESFORCE_PATH"
 if [ -f ".env" ]; then
     # Load all variables at once
@@ -222,7 +222,7 @@ for var in "${INSPECTOR_ENV_VARS[@]}"; do
 done
 
 export MCP_AUTO_OPEN_ENABLED=false
-npx @modelcontextprotocol/inspector --config $MCP_SALESFORCE_PATH/dev/mcpInspectorConfig.json --server ibm-salesforce-mcp > "$temp_file" 2>&1 &
+npx @modelcontextprotocol/inspector --config "$MCP_SALESFORCE_PATH/dev/mcpInspectorConfig.json" --server ibm-salesforce-mcp > "$temp_file" 2>&1 &
 # npx @modelcontextprotocol/inspector $SERVER_COMMAND $INSPECTOR_ARGS > "$temp_file" 2>&1 &
 
 # Save process PID

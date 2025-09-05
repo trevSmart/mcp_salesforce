@@ -93,6 +93,34 @@
 			}
 		},
 		{
+			"label": "Run all jest tools tests",
+			"type": "npm",
+			"script": "test:jest:tools",
+			"group": {
+				"kind": "test"
+			},
+			"presentation": {
+				"showReuseMessage": false,
+				"close": false,
+				"panel": "new",
+				"focus": true
+			}
+		},
+		{
+			"label": "Run all jest prompts tests",
+			"type": "npm",
+			"script": "test:jest:prompts",
+			"group": {
+				"kind": "test"
+			},
+			"presentation": {
+				"showReuseMessage": false,
+				"close": false,
+				"panel": "new",
+				"focus": true
+			}
+		},
+		{
 			"type": "npm",
 			"script": "lint:fix",
 			"problemMatcher": [],

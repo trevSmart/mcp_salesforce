@@ -1,48 +1,45 @@
-import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
-
 describe('createMetadata', () => {
-	let client;
+		//TODO borrar fitxers (i carpetes)
+		let client;
 
-	beforeAll(async () => {
-		client = await createMcpClient();
-	});
-
-	afterAll(async () => {
-		await disconnectMcpClient(client);
-	});
-
-	test('createMetadata Apex Class', async () => {
-		const result = await client.callTool('createMetadata', {
-			type: 'apexClass',
-			name: 'TestMCPToolClass'
+		beforeAll(() => {
+			// Utilitzar el client global compartit
+			client = global.sharedMcpClient;
+			// No fem assert aquí, ho farem al primer test
 		});
-		expect(result?.structuredContent?.success).toBe(true);
-		expect(result.structuredContent.files).toBeDefined();
-	});
 
-	test('createMetadata Apex Test Class', async () => {
-		const result = await client.callTool('createMetadata', {
-			type: 'apexTestClass',
-			name: 'TestMCPToolClassTest'
+		test('createMetadata Apex Class', async () => {
+			const result = await client.callTool('createMetadata', {
+				type: 'apexClass',
+				name: 'TestMCPToolClass'
+			});
+			expect(result?.structuredContent?.success).toBe(true);
+			expect(result.structuredContent.files).toBeDefined();
 		});
-		expect(result?.structuredContent?.success).toBe(true);
-	});
 
-	test('createMetadata Apex Trigger', async () => {
-		const result = await client.callTool('createMetadata', {
-			type: 'apexTrigger',
-			name: 'TestMCPToolTrigger',
-			triggerSObject: 'Account',
-			triggerEvent: ['after insert', 'before update']
+		test('createMetadata Apex Test Class', async () => {
+			const result = await client.callTool('createMetadata', {
+				type: 'apexTestClass',
+				name: 'TestMCPToolClassTest'
+			});
+			expect(result?.structuredContent?.success).toBe(true);
 		});
-		expect(result?.structuredContent?.success).toBe(true);
-	});
 
-	test('createMetadata LWC', async () => {
-		const result = await client.callTool('createMetadata', {
-			type: 'lwc',
-			name: 'testMCPToolComponent'
+		test('createMetadata Apex Trigger', async () => {
+			const result = await client.callTool('createMetadata', {
+				type: 'apexTrigger',
+				name: 'TestMCPToolTrigger',
+				triggerSObject: 'Account',
+				triggerEvent: ['after insert', 'before update']
+			});
+			expect(result?.structuredContent?.success).toBe(true);
 		});
-		expect(result?.structuredContent?.success).toBe(true);
+
+		test('createMetadata LWC', async () => {
+			const result = await client.callTool('createMetadata', {
+				type: 'lwc',
+				name: 'testMCPToolComponent'
+			});
+			expect(result?.structuredContent?.success).toBe(true);
+		});
 	});
-});

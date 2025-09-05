@@ -29,5 +29,11 @@ export default {
   transformIgnorePatterns: [
     'node_modules/(?!(.*\\.mjs$))'
   ],
-  maxWorkers: 1
+  maxWorkers: 1,
+  // Add timeout and handle detection
+  testTimeout: 30000, // 30 seconds timeout for tests
+  detectOpenHandles: true,
+  forceExit: true, // Force exit after tests complete
+  // Add setup and teardown
+  setupFilesAfterEnv: ['<rootDir>/__tests__/setup.js']
 };

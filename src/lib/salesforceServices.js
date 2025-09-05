@@ -374,6 +374,7 @@ export async function dmlOperation(operations, options = {}) {
 					type: 'Update',
 					records: operations.update.map((record) => ({
 						fields: {
+							// biome-ignore lint/style/useNamingConvention: Id is the correct Salesforce API field name
 							Id: record.recordId,
 							...record.fields
 						}
@@ -385,6 +386,7 @@ export async function dmlOperation(operations, options = {}) {
 				requestOperations.push({
 					type: 'Delete',
 					records: operations.delete.map((record) => ({
+						// biome-ignore lint/style/useNamingConvention: Id is the correct Salesforce API field name
 						fields: {Id: record.recordId}
 					}))
 				});

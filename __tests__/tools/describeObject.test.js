@@ -1,14 +1,10 @@
-import {createMcpClient, disconnectMcpClient} from '../helpers/mcpClient.js';
-
 describe('describeObject', () => {
 	let client;
 
-	beforeAll(async () => {
-		client = await createMcpClient();
-	});
-
-	afterAll(async () => {
-		await disconnectMcpClient(client);
+	beforeAll(() => {
+		// Utilitzar el client global compartit
+		client = global.sharedMcpClient;
+		// No fem assert aquí, ho farem al primer test
 	});
 
 	test('describeObject Account', async () => {
