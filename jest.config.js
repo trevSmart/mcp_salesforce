@@ -5,6 +5,7 @@ export default {
     '**/src/**/*.test.js',
     '**/src/**/*.spec.js'
   ],
+  testSequencer: '<rootDir>/__tests__/testSequencer.js',
   testPathIgnorePatterns: [
     '/node_modules/',
     '/coverage/',
@@ -15,7 +16,8 @@ export default {
     '/bin/',
     '/dev/',
     '/docs/',
-    '/test/suites/'
+    '/test/suites/',
+    '/force-app/'
   ],
   collectCoverageFrom: [
     'src/**/*.js',
