@@ -168,7 +168,7 @@ let resolveOrgReady;
 const orgReadyPromise = new Promise((resolve) => (resolveOrgReady = resolve)); // org details loaded/attempted
 
 //Server initialization function
-export async function setupServer() {
+export async function setupServer(transport = new StdioServerTransport()) {
 	mcpServer.server.setNotificationHandler(RootsListChangedNotificationSchema, async (listRootsResult) => {
 		try {
 			if (client.supportsCapability('roots')) {
@@ -321,9 +321,11 @@ export async function setupServer() {
 		}
 	});
 
-	await mcpServer.connect(new StdioServerTransport()).then(() => new Promise((r) => setTimeout(r, 400)));
-	if (typeof resolveServerReady === 'function') {
-		resolveServerReady();
+	if (transport) {
+		await mcpServer.connect(transport).then(() => new Promise((r) => setTimeout(r, 400)));
+		if (typeof resolveServerReady === 'function') {
+			resolveServerReady();
+		}
 	}
 
 	return {protocolVersion, serverInfo, capabilities};
@@ -339,6 +341,12 @@ export function sendProgressNotification(progressToken, progress, total, message
 //Export the ready promise for external use
 export {readyPromise};
 export {orgReadyPromise};
+
+export function markServerReady() {
+	if (typeof resolveServerReady === 'function') {
+		resolveServerReady();
+	}
+}
 
 // Initialize task scheduler
 let _taskScheduler;
