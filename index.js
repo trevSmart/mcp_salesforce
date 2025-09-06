@@ -1,9 +1,10 @@
 import {createLogger} from './src/lib/logger.js';
 import {mcpServer, setupServer} from './src/mcp-server.js';
 
-export async function main(transport) {
+export async function main(rawTransport) {
 	try {
-		if (transport.toLowerCase() !== 'stdio' && transport.toLowerCase() !== 'http') {
+		const transport = (rawTransport || 'stdio').replace(/^--/, '').toLowerCase();
+		if (transport !== 'stdio' && transport !== 'http') {
 			return;
 		}
 		await setupServer(transport);
@@ -15,6 +16,5 @@ export async function main(transport) {
 	}
 }
 
-// Get transport from command line arguments or default to 'stdio'
-const transport = process.argv[2] || 'stdio';
-main(transport);
+// Pass raw CLI argument; main() handles defaults and normalization
+main(process.argv[2]);
