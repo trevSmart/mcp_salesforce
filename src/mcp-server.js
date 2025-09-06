@@ -326,9 +326,6 @@ export async function setupServer(transport) {
 		// Importem dinàmicament només el transport que necessitem
 		const { StdioServerTransport } = await import('@modelcontextprotocol/sdk/server/stdio.js');
 		await mcpServer.connect(new StdioServerTransport()).then(() => new Promise((r) => setTimeout(r, 400)));
-		if (typeof resolveServerReady === 'function') {
-			resolveServerReady();
-		}
 
 	} else if (transport === 'http') {
 		// Importem dinàmicament els mòduls necessaris per HTTP
@@ -393,6 +390,11 @@ export async function setupServer(transport) {
 		});
 	}
 
+	if (typeof resolveServerReady === 'function') {
+		resolveServerReady();
+	}
+
+	logger.info(`Connected to ${transport} transport and ready`);
 	return { protocolVersion, serverInfo, capabilities };
 }
 
