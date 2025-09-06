@@ -30,7 +30,10 @@
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "1.17.4",
 		"conf": "^14.0.0",
+		"crypto": "^1.0.1",
+		"dotenv": "^17.2.2",
 		"env-paths": "^3.0.0",
+		"express": "^5.1.0",
 		"fs-extra": "^11.3.1",
 		"node-fetch": "^3.3.2",
 		"node-schedule": "^2.1.1",

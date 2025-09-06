@@ -1,6 +1,10 @@
 import { fileURLToPath } from 'node:url';
+import { randomUUID } from "node:crypto";
+import express, { Request, Response } from "express";
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { InitializeRequestSchema, ListResourcesRequestSchema, ListResourceTemplatesRequestSchema, ReadResourceRequestSchema, RootsListChangedNotificationSchema, SetLevelRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { InitializeRequestSchema, ListResourcesRequestSchema, ListResourceTemplatesRequestSchema, ReadResourceRequestSchema, RootsListChangedNotificationSchema, SetLevelRequestSchema, isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 
 import client from './client.js';
 import config from './config.js';
@@ -167,8 +171,6 @@ let resolveOrgReady;
 const orgReadyPromise = new Promise((resolve) => (resolveOrgReady = resolve)); // org details loaded/attempted
 
 //Server initialization function
-// This server supports both stdio and HTTP transports
-// 'transport' parameter can be either 'stdio' or 'http'
 export async function setupServer(transport) {
 	mcpServer.server.setNotificationHandler(RootsListChangedNotificationSchema, async (listRootsResult) => {
 		try {
@@ -323,74 +325,15 @@ export async function setupServer(transport) {
 	});
 
 	if (transport === 'stdio') {
-		// Importem dinàmicament només el transport que necessitem
-		const { StdioServerTransport } = await import('@modelcontextprotocol/sdk/server/stdio.js');
 		await mcpServer.connect(new StdioServerTransport()).then(() => new Promise((r) => setTimeout(r, 400)));
 		if (typeof resolveServerReady === 'function') {
 			resolveServerReady();
 		}
-
 	} else if (transport === 'http') {
-		// Importem dinàmicament els mòduls necessaris per HTTP
-		const [{ default: express }, { randomUUID }, { StreamableHTTPServerTransport }] = await Promise.all([
-			import('express'),
-			import('node:crypto'),
-			import('@modelcontextprotocol/sdk/server/streamableHttp.js')
-		]);
-
 		const app = express();
 		app.use(express.json());
 
-		const transports = {};
-		const port = process.env.PORT || 3000;
-
-		// Handle all HTTP methods for the MCP endpoint
-		app.all('/mcp', async (req, res) => {
-			try {
-				// Create a new transport for each new session
-				const sessionId = req.headers['x-mcp-session-id'] || randomUUID();
-
-				// Set the session ID header for the client to use in subsequent requests
-				res.setHeader('X-MCP-Session-ID', sessionId);
-
-				// Create a new transport if this is a new session
-				if (!transports[sessionId]) {
-					logger.info(`Creating new HTTP transport for session ${sessionId}`);
-					const transport = new StreamableHTTPServerTransport(req, res);
-					transports[sessionId] = transport;
-
-					// Clean up the transport when the connection is closed
-					res.on('close', () => {
-						logger.info(`Closing HTTP transport for session ${sessionId}`);
-						delete transports[sessionId];
-					});
-
-					// Connect the server to this transport
-					await mcpServer.connect(transport);
-				} else {
-					// Use the existing transport for this session
-					await transports[sessionId].handleRequest(req, res);
-				}
-			} catch (error) {
-				logger.error(error, `Error handling HTTP request: ${error.message}`);
-				if (!res.headersSent) {
-					res.status(500).json({ error: `Server error: ${error.message}` });
-				}
-			}
-		});
-
-		// Start the HTTP server
-		const server = app.listen(port, () => {
-			logger.info(`MCP HTTP server listening on port ${port}`);
-			if (typeof resolveServerReady === 'function') {
-				resolveServerReady();
-			}
-		});
-
-		// Handle server errors
-		server.on('error', (error) => {
-			logger.error(error, `HTTP server error: ${error.message}`);
-		});
+		const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
 	}
 
 	return { protocolVersion, serverInfo, capabilities };
