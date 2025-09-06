@@ -93,13 +93,22 @@
                 "args": [
                     "npm: lint:fix"
                 ],
-                "color": "#6D81fA"
+                "color": "#697cd8"
             },
             {
                 "name": "$(testing-debug-icon) Test",
                 "useVsCodeApi": true,
                 "command": "workbench.action.tasks.test",
-                "color": "#bb9955"
+                "color": "#b69955"
+            },
+            {
+                "name": "$(run) Start",
+                "useVsCodeApi": true,
+                "command": "workbench.action.tasks.runTask",
+                "args": [
+                    "npm: start"
+                ],
+                "color": "#0f909c"
             },
             {
                 "name": "$(send) Publish server",
@@ -108,7 +117,7 @@
                 "args": [
                     "npm: publish-package"
                 ],
-                "color": "#cc8888"
+                "color": "#ac5858"
             }
         ],
         "defaultColor": "#ffffe0",
