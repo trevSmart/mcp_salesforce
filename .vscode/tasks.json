@@ -50,21 +50,6 @@
 			}
 		},
 		{
-			"type": "npm",
-			"script": "test",
-			"group": {
-				"kind": "test"
-			},
-			"problemMatcher": [],
-			"label": "Run all tests",
-			"presentation": {
-				"showReuseMessage": false,
-				"close": false,
-				"panel": "new",
-				"focus": true
-			}
-		},
-		{
 			"label": "Vitest: Run all tests",
 			"type": "shell",
 			"command": [
