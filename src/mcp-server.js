@@ -1,12 +1,13 @@
 import {fileURLToPath} from 'node:url';
 import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
-import {InitializeRequestSchema, ListResourcesRequestSchema, ListResourceTemplatesRequestSchema, ReadResourceRequestSchema, RootsListChangedNotificationSchema, SetLevelRequestSchema, isInitializeRequest} from '@modelcontextprotocol/sdk/types.js';
+import {InitializeRequestSchema, ListResourcesRequestSchema, ListResourceTemplatesRequestSchema, ReadResourceRequestSchema, RootsListChangedNotificationSchema, SetLevelRequestSchema} from '@modelcontextprotocol/sdk/types.js';
 
 import client from './client.js';
 import config from './config.js';
 import {createModuleLogger} from './lib/logger.js';
 import targetOrgWatcher from './lib/OrgWatcher.js';
 import {getOrgAndUserDetails} from './lib/salesforceServices.js';
+import {connectTransport} from './lib/transport.js';
 import {getAgentInstructions, validateUserPermissions} from './utils.js';
 //Prompts
 //import { codeModificationPromptDefinition, codeModificationPrompt } from './prompts/codeModificationPrompt.js';
@@ -160,6 +161,139 @@ export function clearResources() {
 	}
 }
 
+// Register all MCP handlers before connecting to any transport
+function registerHandlers() {
+	mcpServer.server.setNotificationHandler(RootsListChangedNotificationSchema, async (listRootsResult) => {
+		try {
+			if (client.supportsCapability('roots')) {
+				try {
+					listRootsResult = await mcpServer.server.listRoots();
+				} catch (error) {
+					logger.debug(`Requested roots list but client returned error: ${JSON.stringify(error, null, 3)}`);
+				}
+			}
+			if (!workspacePathSet && listRootsResult.roots?.[0]?.uri.startsWith('file://')) {
+				setWorkspacePath(listRootsResult.roots[0].uri);
+			}
+		} catch (error) {
+			logger.error(error, 'Failed to request roots from client');
+		}
+	});
+
+	mcpServer.server.setRequestHandler(ListResourcesRequestSchema, async () => ({resources: Object.values(resources)}));
+	mcpServer.server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({resourceTemplates: []}));
+	mcpServer.server.setRequestHandler(ReadResourceRequestSchema, async ({params: {uri}}) => ({contents: [{uri, ...resources[uri]}]}));
+
+	// mcpServer.registerPrompt('code-modification', codeModificationPromptDefinition, codeModificationPrompt);
+	mcpServer.registerPrompt('apex-run-script', apexRunScriptPromptDefinition, apexRunScriptPrompt);
+	mcpServer.registerPrompt('tools-basic-run', toolsBasicRunPromptDefinition, toolsBasicRunPromptHandler);
+
+	const StaticToolHandlers = {
+		salesforceMcpUtils: salesforceMcpUtilsToolHandler,
+		executeSoqlQuery: executeSoqlQueryToolHandler,
+		describeObject: describeObjectToolHandler,
+		getRecord: getRecordToolHandler,
+		executeAnonymousApex: executeAnonymousApexToolHandler,
+		deployMetadata: deployMetadataToolHandler
+	};
+
+	const callToolHandler = (tool) => {
+		return async (params, args) => {
+			try {
+				if (tool !== 'salesforceMcpUtils') {
+					if (!state.org.user.id) {
+						throw new Error('❌ Org and user details not available. The server may still be initializing.');
+					} else if (!state.userValidated) {
+						throw new Error(`🚫 Request blocked due to unsuccessful user validation for "${state.org.user.username}".`);
+					}
+				}
+				let toolHandler = StaticToolHandlers[tool];
+				if (!toolHandler) {
+					const toolModule = await import(`./tools/${tool}.js`);
+					toolHandler = toolModule?.[`${tool}ToolHandler`];
+				}
+				if (!toolHandler) {
+					throw new Error(`Tool ${tool} module does not export a tool handler.`);
+				}
+				return await toolHandler(params, args);
+			} catch (error) {
+				logger.error(error.message, `Error calling tool ${tool}, stack: ${error.stack}`);
+				return {
+					isError: true,
+					content: [{type: 'text', text: error.message}]
+				};
+			}
+		};
+	};
+
+	mcpServer.registerTool('salesforceMcpUtils', salesforceMcpUtilsToolDefinition, callToolHandler('salesforceMcpUtils'));
+	mcpServer.registerTool('dmlOperation', dmlOperationToolDefinition, callToolHandler('dmlOperation'));
+	mcpServer.registerTool('deployMetadata', deployMetadataToolDefinition, callToolHandler('deployMetadata'));
+	mcpServer.registerTool('describeObject', describeObjectToolDefinition, callToolHandler('describeObject'));
+	mcpServer.registerTool('executeAnonymousApex', executeAnonymousApexToolDefinition, callToolHandler('executeAnonymousApex'));
+	mcpServer.registerTool('getRecentlyViewedRecords', getRecentlyViewedRecordsToolDefinition, callToolHandler('getRecentlyViewedRecords'));
+	mcpServer.registerTool('getRecord', getRecordToolDefinition, callToolHandler('getRecord'));
+	mcpServer.registerTool('getSetupAuditTrail', getSetupAuditTrailToolDefinition, callToolHandler('getSetupAuditTrail'));
+	mcpServer.registerTool('executeSoqlQuery', executeSoqlQueryToolDefinition, callToolHandler('executeSoqlQuery'));
+	mcpServer.registerTool('runApexTest', runApexTestToolDefinition, callToolHandler('runApexTest'));
+	mcpServer.registerTool('apexDebugLogs', apexDebugLogsToolDefinition, callToolHandler('apexDebugLogs'));
+	mcpServer.registerTool('getApexClassCodeCoverage', getApexClassCodeCoverageToolDefinition, callToolHandler('getApexClassCodeCoverage'));
+	mcpServer.registerTool('createMetadata', createMetadataToolDefinition, callToolHandler('createMetadata'));
+	mcpServer.registerTool('invokeApexRestResource', invokeApexRestResourceToolDefinition, callToolHandler('invokeApexRestResource'));
+	// mcpServer.registerTool('chatWithAgentforce', chatWithAgentforceDefinition, callToolHandler('chatWithAgentforce'));
+	// mcpServer.registerTool('triggerExecutionOrder', triggerExecutionOrderDefinition, callToolHandler('triggerExecutionOrder'));
+	// mcpServer.registerTool('generateSoqlQuery', generateSoqlQueryDefinition, callToolHandler('generateSoqlQuery'));
+
+	mcpServer.server.setRequestHandler(SetLevelRequestSchema, async ({params}) => {
+		state.currentLogLevel = params.level;
+		logger.debug(`Setting log level to ${params.level}`);
+		return {};
+	});
+
+	mcpServer.server.setRequestHandler(InitializeRequestSchema, async ({params}) => {
+		try {
+			const {clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion} = params;
+			client.initialize({
+				clientInfo,
+				capabilities: clientCapabilities,
+				protocolVersion: clientProtocolVersion
+			});
+
+			logger.info(`IBM Salesforce MCP server (v${config.serverConstants.serverInfo.version})`);
+			const clientCapabilitiesString = `Capabilities: ${JSON.stringify(client.capabilities, null, 3)}`;
+			logger.info(`Connecting with client "${client.clientInfo.name}" (v${client.clientInfo.version}). ${clientCapabilitiesString}`);
+			logger.info(`Current log level: ${state.currentLogLevel}`);
+
+			logger.info(`🔥Resource links: ${client.supportsCapability('resource_links')}`);
+
+			if (process.env.WORKSPACE_FOLDER_PATHS) {
+				setWorkspacePath(process.env.WORKSPACE_FOLDER_PATHS);
+			} else if (client.supportsCapability('roots')) {
+				try {
+					await mcpServer.server.listRoots();
+				} catch (error) {
+					logger.debug(`Requested roots list but client returned error: ${JSON.stringify(error, null, 3)}`);
+				}
+			}
+
+			try {
+				targetOrgWatcher.start(updateOrgAndUserDetails, state.org?.alias);
+				await updateOrgAndUserDetails();
+			} catch (error) {
+				logger.error(error, 'Error during org setup');
+				if (typeof resolveOrgReady === 'function') {
+					resolveOrgReady();
+				}
+			}
+
+			return {protocolVersion, serverInfo, capabilities};
+		} catch (error) {
+			logger.error(error, `Error initializing server, stack: ${error.stack}`);
+			throw new Error(`Initialization failed: ${error.message}`);
+		}
+	});
+}
+
 // Ready promises for external waiting
 let resolveServerReady;
 const readyPromise = new Promise((resolve) => (resolveServerReady = resolve)); // transport connected
@@ -169,244 +303,11 @@ const orgReadyPromise = new Promise((resolve) => (resolveOrgReady = resolve)); /
 //Server initialization function
 // This server supports both stdio and HTTP transports
 // 'transport' parameter can be either 'stdio' or 'http'
+
 export async function setupServer(transport) {
-	if (transport === 'stdio') {
-		const {StdioServerTransport} = await import('@modelcontextprotocol/sdk/server/stdio.js');
-		await mcpServer.connect(new StdioServerTransport()).then(() => new Promise((r) => setTimeout(r, 400)));
-	} else if (transport === 'http') {
-		const [{default: express}, {randomUUID}, {StreamableHTTPServerTransport}] = await Promise.all([import('express'), import('node:crypto'), import('@modelcontextprotocol/sdk/server/streamableHttp.js')]);
+	registerHandlers();
 
-		const app = express();
-		app.use(express.json());
-
-		// Map to store transports by session ID
-		const transports = {};
-
-		// Handle POST requests for client-to-server communication
-		app.post('/mcp', async (req, res) => {
-			// Check for existing session ID
-			const sessionId = req.headers['mcp-session-id'];
-			let transport;
-
-			if (sessionId && transports[sessionId]) {
-				// Reuse existing transport
-				transport = transports[sessionId];
-			} else if (!sessionId && isInitializeRequest(req.body)) {
-				// New initialization request
-				transport = new StreamableHTTPServerTransport({
-					sessionIdGenerator: () => randomUUID(),
-					onsessioninitialized: (sessionId) => {
-						// Store the transport by session ID
-						transports[sessionId] = transport;
-					}
-					// DNS rebinding protection is disabled by default for backwards compatibility. If you are running this server
-					// locally, make sure to set:
-					// enableDnsRebindingProtection: true,
-					// allowedHosts: ['127.0.0.1'],
-				});
-
-				// Clean up transport when closed
-				transport.onclose = () => {
-					if (transport.sessionId) {
-						delete transports[transport.sessionId];
-					}
-				};
-				const server = new McpServer({
-					name: 'example-server',
-					version: '1.0.0'
-				});
-
-				mcpServer.server.setNotificationHandler(RootsListChangedNotificationSchema, async (listRootsResult) => {
-					try {
-						if (client.supportsCapability('roots')) {
-							try {
-								listRootsResult = await mcpServer.server.listRoots();
-							} catch (error) {
-								logger.debug(`Requested roots list but client returned error: ${JSON.stringify(error, null, 3)}`);
-							}
-						}
-
-						//Some clients use the first root to establish the workspace directory
-						// Only set workspace path from roots if it hasn't been set by environment variable
-						if (!workspacePathSet && listRootsResult.roots?.[0]?.uri.startsWith('file://')) {
-							setWorkspacePath(listRootsResult.roots[0].uri);
-						}
-					} catch (error) {
-						logger.error(error, 'Failed to request roots from client');
-					}
-				});
-
-				mcpServer.server.setRequestHandler(ListResourcesRequestSchema, async () => ({resources: Object.values(resources)}));
-				mcpServer.server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({resourceTemplates: []}));
-				mcpServer.server.setRequestHandler(ReadResourceRequestSchema, async ({params: {uri}}) => ({contents: [{uri, ...resources[uri]}]}));
-
-				// mcpServer.registerPrompt('code-modification', codeModificationPromptDefinition, codeModificationPrompt);
-				mcpServer.registerPrompt('apex-run-script', apexRunScriptPromptDefinition, apexRunScriptPrompt);
-				mcpServer.registerPrompt('tools-basic-run', toolsBasicRunPromptDefinition, toolsBasicRunPromptHandler);
-
-				// Handlers that we want to load statically (frequently used/core)
-				const StaticToolHandlers = {
-					salesforceMcpUtils: salesforceMcpUtilsToolHandler,
-					executeSoqlQuery: executeSoqlQueryToolHandler,
-					describeObject: describeObjectToolHandler,
-					getRecord: getRecordToolHandler,
-					executeAnonymousApex: executeAnonymousApexToolHandler,
-					deployMetadata: deployMetadataToolHandler
-				};
-
-				const callToolHandler = (tool) => {
-					// Accept both parsed args and MCP extra context (progress, sendNotification, etc.)
-					return async (params, args) => {
-						try {
-							if (tool !== 'salesforceMcpUtils') {
-								if (!state.org.user.id) {
-									throw new Error('❌ Org and user details not available. The server may still be initializing.');
-								} else if (!state.userValidated) {
-									throw new Error(`🚫 Request blocked due to unsuccessful user validation for "${state.org.user.username}".`);
-								}
-							}
-							// Prefer statically loaded handlers for core tools; fallback to lazy dynamic import
-							let toolHandler = StaticToolHandlers[tool];
-							if (!toolHandler) {
-								const toolModule = await import(`./tools/${tool}.js`);
-								toolHandler = toolModule?.[`${tool}ToolHandler`];
-							}
-							if (!toolHandler) {
-								throw new Error(`Tool ${tool} module does not export a tool handler.`);
-							}
-							return await toolHandler(params, args);
-						} catch (error) {
-							logger.error(error.message, `Error calling tool ${tool}, stack: ${error.stack}`);
-							return {
-								isError: true,
-								content: [{type: 'text', text: error.message}]
-							};
-						}
-					};
-				};
-
-				mcpServer.registerTool('salesforceMcpUtils', salesforceMcpUtilsToolDefinition, callToolHandler('salesforceMcpUtils'));
-				mcpServer.registerTool('dmlOperation', dmlOperationToolDefinition, callToolHandler('dmlOperation'));
-				mcpServer.registerTool('deployMetadata', deployMetadataToolDefinition, callToolHandler('deployMetadata'));
-				mcpServer.registerTool('describeObject', describeObjectToolDefinition, callToolHandler('describeObject'));
-				mcpServer.registerTool('executeAnonymousApex', executeAnonymousApexToolDefinition, callToolHandler('executeAnonymousApex'));
-				mcpServer.registerTool('getRecentlyViewedRecords', getRecentlyViewedRecordsToolDefinition, callToolHandler('getRecentlyViewedRecords'));
-				mcpServer.registerTool('getRecord', getRecordToolDefinition, callToolHandler('getRecord'));
-				mcpServer.registerTool('getSetupAuditTrail', getSetupAuditTrailToolDefinition, callToolHandler('getSetupAuditTrail'));
-				mcpServer.registerTool('executeSoqlQuery', executeSoqlQueryToolDefinition, callToolHandler('executeSoqlQuery'));
-				mcpServer.registerTool('runApexTest', runApexTestToolDefinition, callToolHandler('runApexTest'));
-				mcpServer.registerTool('apexDebugLogs', apexDebugLogsToolDefinition, callToolHandler('apexDebugLogs'));
-				mcpServer.registerTool('getApexClassCodeCoverage', getApexClassCodeCoverageToolDefinition, callToolHandler('getApexClassCodeCoverage'));
-				mcpServer.registerTool('createMetadata', createMetadataToolDefinition, callToolHandler('createMetadata'));
-				mcpServer.registerTool('invokeApexRestResource', invokeApexRestResourceToolDefinition, callToolHandler('invokeApexRestResource'));
-				// mcpServer.registerTool('chatWithAgentforce', chatWithAgentforceDefinition, callToolHandler('chatWithAgentforce'));
-				// mcpServer.registerTool('triggerExecutionOrder', triggerExecutionOrderDefinition, callToolHandler('triggerExecutionOrder'));
-				// mcpServer.registerTool('generateSoqlQuery', generateSoqlQueryDefinition, callToolHandler('generateSoqlQuery'));
-
-				mcpServer.server.setRequestHandler(SetLevelRequestSchema, async ({params}) => {
-					state.currentLogLevel = params.level;
-					logger.debug(`Setting log level to ${params.level}`);
-					return {};
-				});
-
-				mcpServer.server.setRequestHandler(InitializeRequestSchema, async ({params}) => {
-					try {
-						const {clientInfo, capabilities: clientCapabilities, protocolVersion: clientProtocolVersion} = params;
-						client.initialize({
-							clientInfo,
-							capabilities: clientCapabilities,
-							protocolVersion: clientProtocolVersion
-						});
-
-						// Wait 3 seconds
-
-						logger.info(`IBM Salesforce MCP server (v${config.serverConstants.serverInfo.version})`);
-						const clientCapabilitiesString = `Capabilities: ${JSON.stringify(client.capabilities, null, 3)}`;
-						logger.info(`Connecting with client "${client.clientInfo.name}" (v${client.clientInfo.version}). ${clientCapabilitiesString}`);
-						logger.info(`Current log level: ${state.currentLogLevel}`);
-
-						logger.info(`🔥Resource links: ${client.supportsCapability('resource_links')}`);
-
-						// if (process.env.WORKSPACE_FOLDER_PATHS) {
-						// 	setWorkspacePath(process.env.WORKSPACE_FOLDER_PATHS);
-						// } else if (client.supportsCapability('roots')) {
-						// 	await mcpServer.server.listRoots();
-						// }
-
-						if (process.env.WORKSPACE_FOLDER_PATHS) {
-							setWorkspacePath(process.env.WORKSPACE_FOLDER_PATHS);
-						} else if (client.supportsCapability('roots')) {
-							try {
-								await mcpServer.server.listRoots();
-							} catch (error) {
-								logger.debug(`Requested roots list but client returned error: ${JSON.stringify(error, null, 3)}`);
-							}
-						}
-
-						//if (client.supportsCapability('sampling')) {
-						//	mcpServer.registerTool('generateSoqlQuery', generateSoqlQueryDefinition, generateSoqlQuery);
-						//}
-
-						// Esperar a que es recuperin les dades de l'organització abans de retornar la resposta
-						try {
-							// Start watching target org changes and perform initial fetch
-							targetOrgWatcher.start(updateOrgAndUserDetails, state.org?.alias);
-							await updateOrgAndUserDetails();
-						} catch (error) {
-							logger.error(error, 'Error during org setup');
-							// Swallow to avoid unhandled rejection; initialization continues and tools will gate on validation
-							if (typeof resolveOrgReady === 'function') {
-								resolveOrgReady();
-							}
-						}
-
-						return {protocolVersion, serverInfo, capabilities};
-					} catch (error) {
-						logger.error(error, `Error initializing server, stack: ${error.stack}`);
-						// Return a structured error via JSON-RPC by throwing a concise Error
-						throw new Error(`Initialization failed: ${error.message}`);
-					}
-				});
-
-				// Connect to the MCP server
-				await server.connect(transport);
-			} else {
-				// Invalid request
-				res.status(400).json({
-					jsonrpc: '2.0',
-					error: {
-						code: -32000,
-						message: 'Bad Request: No valid session ID provided'
-					},
-					id: null
-				});
-				return;
-			}
-
-			// Handle the request
-			await transport.handleRequest(req, res, req.body);
-		});
-
-		// Reusable handler for GET and DELETE requests
-		const handleSessionRequest = async (req, res) => {
-			const sessionId = req.headers['mcp-session-id'];
-			if (!(sessionId && transports[sessionId])) {
-				res.status(400).send('Invalid or missing session ID');
-				return;
-			}
-
-			const transport = transports[sessionId];
-			await transport.handleRequest(req, res);
-		};
-
-		// Handle GET requests for server-to-client notifications via SSE
-		app.get('/mcp', handleSessionRequest);
-
-		// Handle DELETE requests for session termination
-		app.delete('/mcp', handleSessionRequest);
-
-		app.listen(3000);
-	}
+	await connectTransport(mcpServer, transport);
 
 	if (typeof resolveServerReady === 'function') {
 		resolveServerReady();
