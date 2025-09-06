@@ -91,7 +91,7 @@
                 "useVsCodeApi": true,
                 "command": "workbench.action.tasks.runTask",
                 "args": [
-                    "npm: lint:fix"
+                    "Biome lint"
                 ],
                 "color": "#697cd8"
             },
@@ -106,7 +106,7 @@
                 "useVsCodeApi": true,
                 "command": "workbench.action.tasks.runTask",
                 "args": [
-                    "npm: start"
+                    "Open (HTTP)"
                 ],
                 "color": "#0f909c"
             },

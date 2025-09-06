@@ -2,20 +2,37 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"type": "npm",
-			"script": "lint:fix",
-			"problemMatcher": [],
-			"label": "npm: lint:fix",
-			"detail": "biome check --write .",
+			"label": "Biome lint",
+			"detail": "Check and fix all files with Biome",
+			"type": "process",
+			"command": "biome",
+			"args": [
+				"check"
+			],
 			"presentation": {
-				"showReuseMessage": false,
-				"reveal": "silent",
-				"close": false,
-				"panel": "shared",
-				"focus": true,
-				"clear": true
+				"reveal": "always",
+				"panel": "new"
+			},
+			"problemMatcher": {
+				"owner": "biome",
+				"source": "biome",
+				"pattern": [
+					{
+						"regexp": "^::(?<severity>\\S+)\\s+title=(?<title>.+),file=(?<file>.+),line=(?<line>\\d+),endLine=(?<endLine>\\d+),col=(?<col>\\d+),endColumn=(?<endColumn>\\d+)::(?<message>.+)$",
+						"kind": "location",
+						"severity": 1,
+						"code": 2,
+						"file": 3,
+						"line": 4,
+						"endLine": 5,
+						"column": 6,
+						"endColumn": 7,
+						"message": 8
+					}
+				]
 			}
-		},{
+		},
+		{
 			"type": "npm",
 			"script": "startMcpInspector",
 			"group": {
@@ -23,7 +40,7 @@
 			},
 			"problemMatcher": [],
 			"label": "Run MCP Inspector",
-			"detail": "sh dev/startMcpInspector.sh",
+			"detail": "Open MCP Inspector in Safari",
 			"presentation": {
 				"showReuseMessage": false,
 				"reveal": "silent",
@@ -48,9 +65,11 @@
 			}
 		},
 		{
-			"label": "Run all tests",
+			"label": "Vitest: Run all tests",
 			"type": "shell",
-			"command": ["${command:testing.runAll}"],
+			"command": [
+				"${command:testing.runAll}"
+			],
 			"group": {
 				"kind": "test"
 			},
@@ -65,11 +84,27 @@
 			}
 		},
 		{
+			"label": "Vitest: Coverage",
+			"type": "npm",
+			"script": "test:cov",
+			"group": {
+				"kind": "test"
+			}
+		},
+		{
+			"label": "Vitest: Watch",
+			"type": "npm",
+			"script": "test:watch",
+			"group": {
+				"kind": "test"
+			}
+		},
+		{
 			"label": "Open (HTTP)",
 			"type": "npm",
 			"script": "start",
 			"group": {
-				"kind": "test"
+				"kind": "build"
 			},
 			"problemMatcher": [],
 			"presentation": {

@@ -12,13 +12,12 @@
 		"test_research4-http": "bin/http-cli.js"
 	},
 	"scripts": {
-		"lint:fix": "biome check . --write --reporter=summary",
-		"startMcpInspector": "sh dev/startMcpInspector.sh",
+		"lint:fix": "biome check . --write",
+		"test:mcpInspector": "sh dev/startMcpInspector.sh",
 		"test": "vitest",
 		"test:cov": "c8 -o coverage --reporter=text --reporter=html vitest run",
 		"test:watch": "vitest --watch",
 		"start": "node index.js http",
-		"coverage": "vitest run --coverage",
 		"publish-package": "sh dev/publish-package.sh"
 	},
 	"keywords": [

@@ -170,12 +170,9 @@ const orgReadyPromise = new Promise((resolve) => (resolveOrgReady = resolve)); /
 // This server supports both stdio and HTTP transports
 // 'transport' parameter can be either 'stdio' or 'http'
 export async function setupServer(transport) {
-
-
 	if (transport === 'stdio') {
 		const {StdioServerTransport} = await import('@modelcontextprotocol/sdk/server/stdio.js');
 		await mcpServer.connect(new StdioServerTransport()).then(() => new Promise((r) => setTimeout(r, 400)));
-
 	} else if (transport === 'http') {
 		const [{default: express}, {randomUUID}, {StreamableHTTPServerTransport}] = await Promise.all([import('express'), import('node:crypto'), import('@modelcontextprotocol/sdk/server/streamableHttp.js')]);
 
@@ -415,7 +412,9 @@ export async function setupServer(transport) {
 		resolveServerReady();
 	}
 
-	logger.info(`Connected to ${transport} transport and ready`);
+	let connectedMessage = transport === 'stdio' ? 'stdio transport' : `HTTP transport on port ${process.env.MCP_HTTP_PORT || '3000'}`;
+	connectedMessage = `Connected to ${connectedMessage} and ready`;
+	logger.info(connectedMessage);
 	return {protocolVersion, serverInfo, capabilities};
 }
 
