@@ -1,5 +1,5 @@
 
-import {createMcpClient, disconnectMcpClient} from '../mcpClient.js';
+import {createMcpClient, disconnectMcpClient} from '../testMcpClient.js';
 
 describe('Server tools', () => {
 	let client;

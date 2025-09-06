@@ -6,8 +6,19 @@ export default defineConfig({
 		setupFiles: ['./test/setup.ts'],
 		include: ['test/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 		coverage: {
-			reporter: ['text', 'lcov'],
-			include: ['src/**/*.{js,ts}']
+			enabled: true,
+			reporter: ['text', 'html', 'lcov'],
+			include: ['*.js', '*.ts', 'src/**/*.js', 'src/**/*.ts'],
+			provider: 'v8',
+			all: true,
+			exclude: [
+				'**/*.test.*',
+				'**/__tests__/**',
+				'node_modules/**',
+				'dist/**',
+				'coverage/**'
+			],
+			reportsDirectory: './coverage'
 		}
 	}
 });

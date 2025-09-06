@@ -1,26 +1,25 @@
+import {main} from '../../index.js';
+import {mcpServer} from '../../src/mcp-server.js';
 
 
-import {createMcpClient, disconnectMcpClient} from '../testMcpClient.js';
-
-describe('deployMetadata', () => {
-	let client;
+describe('aux', () => {
 
 	beforeAll(async () => {
 		// Create and connect to the MCP server
-		client = await createMcpClient();
+		await main();
 	});
 
 	afterAll(async () => {
-		await disconnectMcpClient(client);
+		await mcpServer.close();
 	});
 
 	test('validation only', async () => {
 		// Verificar que el client està definit
-		expect(client).toBeTruthy();
+		expect(mcpServer).toBeTruthy();
 
 		// This test only validates the tool exists and can be called
 		// Actual deployment is not tested to avoid destructive operations
-		const result = await client.callTool('deployMetadata', {
+		const result = await mcpServer.callTool('deployMetadata', {
 			sourceDir: 'force-app/main/default/classes/TestClass.cls'
 		});
 

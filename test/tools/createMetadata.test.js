@@ -1,6 +1,6 @@
 
 
-import { createMcpClient, disconnectMcpClient } from '../mcpClient.js';
+import { createMcpClient, disconnectMcpClient } from '../testMcpClient.js';
 
 describe('createMetadata', () => {
 	//TODO borrar fitxers (i carpetes)

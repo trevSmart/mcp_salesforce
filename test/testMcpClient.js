@@ -71,14 +71,14 @@ async function startMcpServer() {
  */
 export async function createMcpClient() {
 	let serverProcess = null;
-	let client = null;
+	let mcpClient = null;
 
 	try {
 		// Start the MCP server
 		serverProcess = await startMcpServer();
 
 		// Create client instance
-		client = new TestMcpClient();
+		mcpClient = new TestMcpClient();
 
 		// Connect to server using script
 		const serverTarget = {
@@ -88,13 +88,13 @@ export async function createMcpClient() {
 			args: []
 		};
 
-		await client.connect(serverTarget, {quiet: true});
+		await mcpClient.connect(serverTarget, {quiet: true});
 		await new Promise((resolve) => setTimeout(resolve, 1000));
 
 		// Store server process reference for cleanup
-		client._serverProcess = serverProcess;
+		mcpClient._serverProcess = serverProcess;
 
-		return client;
+		return mcpClient;
 	} catch (error) {
 		// Cleanup on error
 		if (serverProcess) {
